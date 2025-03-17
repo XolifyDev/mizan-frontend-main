@@ -32,7 +32,7 @@ export default function Dashboard() {
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen bg-white">
+      <div className="flex min-h-screen bg-white w-full">
         <div className="absolute inset-0 bg-white"></div>
 
         <Sidebar className="sticky top-0 z-10 border-r border-[#550C18]/10 bg-white/80 backdrop-blur-md">

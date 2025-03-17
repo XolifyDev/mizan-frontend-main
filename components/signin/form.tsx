@@ -101,13 +101,34 @@ export default function SignInForm() {
 
     console.log("Sign in values:", values)
 
-    const user = await loginUser({
-      email: values.email,
-      password: values.password,
-      rememberMe: values.rememberMe || false
-    });
+    try {
+      const user = await loginUser({
+        email: values.email,
+        password: values.password,
+        rememberMe: values.rememberMe || false
+      });
+      if(user && !user?.data) {
+        console.log("NO USER", user)
+        setIsLoading(false);
+        setButtonState("error");
+        toast({
+          title: "Sign in failed",
+          description: "Please check your credentials and try again.",
+          variant: "destructive",
+        });
 
-    console.log(user);
+        setTimeout(() => {
+          setButtonState("default");
+        }, 2000)
+      }
+    } catch (error) {
+        toast({
+          title: "Sign in failed",
+          description: "Please check your credentials and try again.",
+          variant: "destructive",
+        })  
+    }
+
 
     // const user = await authClient.signIn.email({
     //   email: values.email,
@@ -261,16 +282,16 @@ export default function SignInForm() {
                 </motion.span>
             </AnimatePresence>
         </MotionButton>
-        <MotionButton type="submit" className="w-full bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Signing in...
-            </>
-          ) : (
-            "Sign in"
-          )}
-        </MotionButton>
+        {/* <MotionButton type="submit" className="w-full bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isLoading}> */}
+        {/*   {isLoading ? ( */}
+        {/*     <> */}
+        {/*       <Loader2 className="mr-2 h-4 w-4 animate-spin" /> */}
+        {/*       Signing in... */}
+        {/*     </> */}
+        {/*   ) : ( */}
+        {/*     "Sign in" */}
+        {/*   )} */}
+        {/* </MotionButton> */}
       </form>
     </Form>
   )

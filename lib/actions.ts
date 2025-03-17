@@ -13,12 +13,15 @@ export async function loginUser({
     password: string,
     rememberMe: boolean
 }) {
-  const user = await auth.api.signInEmail({
-    body: {
-      email,
-      password
-    },
-  });
-
-  return user;
+  try {
+    const user = await auth.api.signInEmail({
+      body: {
+        email,
+        password
+      },
+    });
+    return user;
+  } catch (err) {
+    return err;
+  }
 }
