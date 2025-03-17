@@ -6,13 +6,19 @@ import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Eye, EyeOff, Loader2 } from "lucide-react"
+import { Check, Eye, EyeOff, Loader2, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { toast } from "@/hooks/use-toast"
+import { authClient } from "@/lib/auth-client"
+import { loginUser } from "@/lib/actions"
+import { AnimatePresence, motion } from "framer-motion"
+import { cn } from "@/lib/utils"
+
+const MotionButton = motion.create(Button);
 
 const formSchema = z.object({
   email: z.string().min(1, { message: "Email is required" }).email({ message: "Please enter a valid email address" }),
@@ -26,6 +32,59 @@ export default function SignInForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+    const [ButtonState, setButtonState] = useState("default");
+
+  const states = {
+        default: (
+            <>
+                <span className="text-sm text-white">Sign in</span>
+            </>
+        ),
+        loading: (
+            <>
+                {/* <div className="h-5 w-5 border-t border-b animate-spin rounded-full" /> */}
+                <style>
+                    {`
+                        .content-loader {
+                            --uib-size: 20px !important;
+                        }
+                    `}
+                </style>
+                <div className="container-loader h-[20px] w-[20px] [&>.dot]:before:bg-white">
+                    <div className="dot" />
+                    <div className="dot" />
+                    <div className="dot" />
+                    <div className="dot" />
+                    <div className="dot" />
+                    <div className="dot" />
+                    <div className="dot" />
+                    <div className="dot" />
+                </div>
+                <span className="ml-2 text-sm text-white">Loading...</span>
+            </>
+        ),
+        error: (
+            <>
+                <X size={20} />
+                <span className="ml-2">Try Again</span>
+            </>
+        ),
+        success: (
+            <>
+                <Check className="" size={20} />
+                <span className="ml-2">Logged in!</span>
+            </>
+        ),
+    }
+
+    const stateVariants = {
+        default: { opacity: 1 },
+        error: {
+            scale: [1.05, 1, 1.05],
+            delay: "2s",
+            opacity: 1,
+        }
+    }
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -38,29 +97,71 @@ export default function SignInForm() {
 
   async function onSubmit(values: FormValues) {
     setIsLoading(true)
+    setButtonState("loading")
 
-    try {
-      // This is where you would normally call your authentication API
-      console.log("Sign in values:", values)
+    console.log("Sign in values:", values)
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+    const user = await loginUser({
+      email: values.email,
+      password: values.password,
+      rememberMe: values.rememberMe || false
+    });
 
-      toast({
-        title: "Sign in successful",
-        description: "Welcome back to Mizan!",
-      })
+    console.log(user);
 
-      router.push("/dashboard")
-    } catch (error) {
-      toast({
-        title: "Sign in failed",
-        description: "Please check your credentials and try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsLoading(false)
-    }
+    // const user = await authClient.signIn.email({
+    //   email: values.email,
+    //   password: values.password,
+    //   rememberMe: true,
+    // }, {
+    //   onSuccess: (ctx) => {
+    //     console.log(ctx);
+    //     toast({
+    //       title: "Sign in successful",
+    //       description: "Welcome back to Mizan!",
+    //     })
+    //   },
+    //   onError: (ctx) => {
+    //     console.log("ERROR" , ctx);   
+    //   },
+    // })
+
+    
+
+    // try {
+    //   // This is where you would normally call your authentication API
+    //   console.log("Sign in values:", values)
+    //
+    //   const user = await authClient.signIn.email({
+    //     email: values.email,
+    //     password: values.password,
+    //     rememberMe: true,
+    //   });
+    //
+    //   console.log(user);
+    //
+    //   if(user.error) {
+    //     toast({
+    //       title: "Sign in failed",
+    //       description: "Please check your credentials and try again.",
+    //       variant: "destructive",
+    //     })
+    //   } else if(user.data) {
+    //     toast({
+    //       title: "Sign in successful",
+    //       description: "Welcome back to Mizan!",
+    //     })
+    //   }
+    //   router.push("/dashboard")
+    // } catch (error) {
+    //   toast({
+    //     title: "Sign in failed",
+    //     description: "Please check your credentials and try again.",
+    //     variant: "destructive",
+    //   })
+    // } finally {
+    //   setIsLoading(false)
+    // }
   }
 
   return (
@@ -140,7 +241,27 @@ export default function SignInForm() {
           )}
         />
 
-        <Button type="submit" className="w-full bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isLoading}>
+        <MotionButton transition={ButtonState === "error" ? {
+            repeat: Infinity,
+            repeatDelay: 1
+        } : {}} variant={ButtonState === "error" ? "destructive" : "default"} initial={{ opacity: 0 }} animate={ButtonState === "error" ? stateVariants.error : stateVariants.default} disabled={isLoading} className={cn("w-full dark:text-white cursor-pointer bg-[#550C18] hover:bg-[#78001A]", ButtonState === "success" && "bg-green-500 shadow-[rgb(34_197_94_/_var(--tw-bg-opacity))_0px_0px_15px] dark:shadow-[rgb(34_197_94_/_var(--tw-bg-opacity))_0px_0px_25px]", ButtonState === "error" && "bg-red-500 shadow-[rgb(239_68_68_/_var(--tw-bg-opacity))_0px_0px_15px] dark:shadow-[rgb(239_68_68_/_var(--tw-bg-opacity))_0px_0px_25px] hover:bg-interit")} whileHover={ButtonState !== "default" ? {} : { scale: 1.02 }} whileTap={{ scale: 0.9 }} type="submit">
+            <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                    className="overflow-auto relative flex justify-center items-center w-full"
+                    transition={{ type: "spring", duration: 0.3, bounce: 0 }}
+                    initial={{ opacity: 0, y: 25 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -25 }}
+                    key={ButtonState}
+                >
+                    <span className="flex flex-row justify-center items-center w-full h-full relative">
+                        {/* @ts-ignore */}
+                        {states[ButtonState]}
+                    </span>
+                </motion.span>
+            </AnimatePresence>
+        </MotionButton>
+        <MotionButton type="submit" className="w-full bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isLoading}>
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -149,7 +270,7 @@ export default function SignInForm() {
           ) : (
             "Sign in"
           )}
-        </Button>
+        </MotionButton>
       </form>
     </Form>
   )

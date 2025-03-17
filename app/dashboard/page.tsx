@@ -35,13 +35,13 @@ export default function Dashboard() {
       <div className="flex min-h-screen bg-white">
         <div className="absolute inset-0 bg-white"></div>
 
-        <Sidebar className="relative z-10 border-r border-[#550C18]/10 bg-white/80 backdrop-blur-md">
-          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-4">
-            <div className="flex items-center gap-2">
+        <Sidebar className="sticky top-0 z-10 border-r border-[#550C18]/10 bg-white/80 backdrop-blur-md">
+          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-4 !m-0">
+            <div className="flex items-center gap-2 !m-0">
               <div className="h-8 w-8 rounded-full bg-[#550C18] flex items-center justify-center">
                 <span className="text-[#FDF0D5] font-bold">M</span>
               </div>
-              <h1 className="text-xl font-semibold text-[#550C18]">Mizan</h1>
+              <h1 className="text-xl font-semibold text-[#550C18] !m-0">Mizan</h1>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -101,13 +101,13 @@ export default function Dashboard() {
           </SidebarFooter>
         </Sidebar>
 
-        <div className="relative z-10 flex-1">
+        <div className="relative z-10 flex-1 h-min">
           <header className="border-b border-[#550C18]/10 bg-white p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />
               </SidebarTrigger>
-              <h1 className="text-2xl font-semibold text-[#550C18]">Dashboard</h1>
+              <h1 className="text-2xl font-semibold text-[#550C18] !m-0">Dashboard</h1>
             </div>
             <div className="flex items-center gap-4">
               <div className="relative hidden md:block">
@@ -226,28 +226,28 @@ export default function Dashboard() {
                             <span className="text-sm font-medium text-[#3A3A3A]">General Fund</span>
                             <span className="text-sm font-medium text-[#3A3A3A]">65%</span>
                           </div>
-                          <Progress value={65} className="h-2 bg-[#FDF0D5]" indicatorClassName="bg-[#550C18]" />
+                          <Progress value={65} className="h-2 bg-[#550C18] bg-opacity-5" indicatorClassName="bg-[#550C18]" />
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium text-[#3A3A3A]">Zakat</span>
                             <span className="text-sm font-medium text-[#3A3A3A]">45%</span>
                           </div>
-                          <Progress value={45} className="h-2 bg-[#FDF0D5]" indicatorClassName="bg-[#550C18]" />
+                          <Progress value={45} className="h-2 bg-[#550C18] bg-opacity-5" indicatorClassName="bg-[#550C18]" />
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium text-[#3A3A3A]">Building Fund</span>
                             <span className="text-sm font-medium text-[#3A3A3A]">80%</span>
                           </div>
-                          <Progress value={80} className="h-2 bg-[#FDF0D5]" indicatorClassName="bg-[#550C18]" />
+                          <Progress value={80} className="h-2 bg-[#550C18] bg-opacity-5" indicatorClassName="bg-[#550C18]" />
                         </div>
                         <div>
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium text-[#3A3A3A]">Education</span>
                             <span className="text-sm font-medium text-[#3A3A3A]">30%</span>
                           </div>
-                          <Progress value={30} className="h-2 bg-[#FDF0D5]" indicatorClassName="bg-[#550C18]" />
+                          <Progress value={30} className="h-2 bg-[#550C18] bg-opacity-5" indicatorClassName="bg-[#550C18]" />
                         </div>
                       </div>
                     </div>
@@ -268,7 +268,7 @@ export default function Dashboard() {
                         <span className="text-lg font-bold">15</span>
                       </div>
                       <div>
-                        <h4 className="font-medium text-[#3A3A3A]">Friday Prayer</h4>
+                        <p className="font-medium text-[#3A3A3A]">Friday Prayer</p>
                         <p className="text-sm text-[#3A3A3A]/70">1:30 PM - 2:30 PM</p>
                       </div>
                     </div>
@@ -278,7 +278,7 @@ export default function Dashboard() {
                         <span className="text-lg font-bold">16</span>
                       </div>
                       <div>
-                        <h4 className="font-medium text-[#3A3A3A]">Quran Study</h4>
+                        <p className="font-medium text-[#3A3A3A]">Quran Study</p>
                         <p className="text-sm text-[#3A3A3A]/70">10:00 AM - 12:00 PM</p>
                       </div>
                     </div>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                         <span className="text-lg font-bold">17</span>
                       </div>
                       <div>
-                        <h4 className="font-medium text-[#3A3A3A]">Community Iftar</h4>
+                        <p className="font-medium text-[#3A3A3A]">Community Iftar</p>
                         <p className="text-sm text-[#3A3A3A]/70">7:30 PM - 9:00 PM</p>
                       </div>
                     </div>
@@ -298,7 +298,7 @@ export default function Dashboard() {
                         <span className="text-lg font-bold">18</span>
                       </div>
                       <div>
-                        <h4 className="font-medium text-[#3A3A3A]">Youth Program</h4>
+                        <p className="font-medium text-[#3A3A3A]">Youth Program</p>
                         <p className="text-sm text-[#3A3A3A]/70">6:00 PM - 8:00 PM</p>
                       </div>
                     </div>

@@ -11,7 +11,7 @@ export default function LandingPage() {
       <Navbar />
 
       {/* Hero Section */}
-      <section className="py-16 md:py-24 container mx-auto px-4">
+      <section className="py-16 md:py-24 container mx-auto px-8">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#550C18] leading-tight my-6">
@@ -384,7 +384,7 @@ function ProductCard({
 }) {
   return (
     <div
-      className={`rounded-xl overflow-hidden ${featured ? "ring-4 ring-[#550C18] shadow-xl" : "border border-[#550C18]/10 shadow-lg"}`}
+      className={`rounded-xl overflow-hidden ${featured ? "ring-4 ring-[#550C18] shadow-xl" : "border border-[#550C18]/10 shadow-lg scale-95"}`}
     >
       {featured && <div className="bg-[#550C18] text-white py-2 px-4 text-center font-medium">Most Popular</div>}
       <div className="bg-white p-6">

@@ -80,63 +80,38 @@
   }
   h1 {
     font-size: 75px;
-    line-height: 95px;
-    margin-top: 80px;
-    margin-bottom: 80px;
     font-weight: 600;
   }
   h2 {
     font-size: 60px;
-    line-height: 75px;
-    margin-top: 50px;
-    margin-bottom: 50px;
     font-weight: 600;
   }
   h3 {
     font-size: 50px;
-    line-height: 65px;
-    margin-top: 40px;
-    margin-bottom: 40px;
     font-weight: 600;
   }
   h4 {
     font-size: 40px;
-    line-height: 50px;
-    margin-top: 30px;
-    margin-bottom: 30px;
     font-weight: 600;
   }
   h5 {
     font-size: 30px;
-    line-height: 40px;
-    margin-top: 20px;
-    margin-bottom: 20px;
     font-weight: 600;
   }
   h6 {
     font-size: 25px;
-    line-height: 30px;
-    margin-top: 10px;
-    margin-bottom: 10px;
     font-weight: 600;
-  }
-  p {
-    margin-top: 10px;
-    margin-bottom: 20px;
   }
   .text-p1,
   .btn-p1 {
     font-size: 20px;
-    line-height: 30px;
   }
   .text-p2,
   .btn-p2 {
     font-size: 16px;
-    line-height: 24px;
   }
   .text-caption {
     font-size: 12px;
-    line-height: 16px;
   }
 }
 

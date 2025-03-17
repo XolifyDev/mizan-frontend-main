@@ -16,12 +16,12 @@ export default function SignInPage() {
 
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8">
+          <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-[#550C18]">Welcome back</h2>
             <p className="text-[#3A3A3A] mt-2">Sign in to your Mizan account</p>
           </div>
 
-          <div className="bg-white p-8 rounded-xl border border-[#550C18]/10 shadow-lg">
+          <div className="bg-white p-8 rounded-xl border border-[#550C18]/40 shadow-lg">
             <SignInForm />
           </div>
 
