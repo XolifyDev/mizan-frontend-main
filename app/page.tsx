@@ -54,7 +54,7 @@ export default function LandingPage() {
             />
             <div className="absolute inset-0 z-20 flex items-center justify-center">
               <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg max-w-md">
-                <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="flex items-center justify-center gap-2 mb-4">
                   <Image
                     src="mizan.svg"
                     width={30}
@@ -144,7 +144,7 @@ export default function LandingPage() {
             <h2 className="text-3xl md:text-4xl font-bold text-[#550C18] mb-4 my-6">
               Our Products
             </h2>
-            <p className="text-xl text-[#3A3A3A] max-w-2xl mx-auto">
+            <p className="text-xl text-[#3A3A3A] max-w-2xl mx-auto text-pretty">
               Choose individual products or get the complete Mizan platform for
               your masjid.
             </p>
