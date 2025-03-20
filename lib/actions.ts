@@ -25,3 +25,31 @@ export async function loginUser({
     return err;
   }
 }
+
+export async function registerUser({
+  confirmPassword,
+  email,
+  name,
+  password,
+  termsAndConditions
+}: {
+    email: string;
+    password: string;
+    name: string;
+    confirmPassword: string;
+    termsAndConditions: boolean;
+}) {
+  try {
+    const user = await auth.api.signUpEmail({
+      body: {
+        email,
+        name,
+        password,
+      }
+    });
+
+    return user;
+  } catch (error) {
+    return error;
+  }
+}
