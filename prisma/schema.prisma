@@ -59,7 +59,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
-  admin         Boolean
+  admin         Boolean @default(false)
 
   @@unique([email])
   @@map("user")

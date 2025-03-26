@@ -45,7 +45,7 @@ export async function registerUser({
         email,
         name,
         password,
-      }
+      },
     });
 
     return user;

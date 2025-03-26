@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -119,8 +119,7 @@ export default function SignInForm() {
         password: values.password,
         rememberMe: values.rememberMe || false,
       });
-      if (user && !user?.data) {
-        console.log("NO USER", user);
+      if (!user && !user?.user) {
         setIsLoading(false);
         setButtonState("error");
         toast({
@@ -132,6 +131,19 @@ export default function SignInForm() {
         setTimeout(() => {
           setButtonState("default");
         }, 2000);
+      } else {
+        setIsLoading(false);
+        setButtonState("success");
+
+        setTimeout(() => {
+          setButtonState("default");
+          toast({
+            title: "Welcome Back!",
+            description: "Welcome back to Mizan!",
+            variant: "default",
+          });
+          redirect("/dashboard");
+        }, 2000)
       }
     } catch (error) {
       toast({

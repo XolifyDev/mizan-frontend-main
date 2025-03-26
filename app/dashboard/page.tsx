@@ -44,11 +44,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Philosopher } from "next/font/google";
 import Image from "next/image";
+import UserInfo from "@/components/dashboard/UserInfo";
+import { authClient } from "@/lib/auth-client";
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 export default function Dashboard() {
   const [progress, setProgress] = useState(65);
+  const { data: session, isPending, error, refetch } = authClient.useSession();
 
   return (
     <SidebarProvider>
@@ -109,18 +112,7 @@ export default function Dashboard() {
             </SidebarMenu>
           </SidebarContent>
           <SidebarFooter className="border-t border-[#550C18]/10 p-4 bg-white/50">
-            <div className="flex items-center gap-3">
-              <Avatar>
-                <AvatarImage src="/placeholder-user.jpg" />
-                <AvatarFallback className="bg-[#550C18] text-[#FDF0D5]">
-                  JD
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="text-sm font-medium text-[#3A3A3A]">John Doe</p>
-                <p className="text-xs text-[#3A3A3A]/70">Admin</p>
-              </div>
-            </div>
+            <UserInfo session={session} />
           </SidebarFooter>
         </Sidebar>
 

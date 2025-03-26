@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { Philosopher } from "next/font/google";
+import { authClient } from "@/lib/auth-client";
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
