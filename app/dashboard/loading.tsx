@@ -1,4 +1,6 @@
 export default function Loading() {
-  return null
+  return (
+    <div className="text-black">Loading...</div>
+  ) 
 }
 

@@ -17,7 +17,7 @@ const UserInfo = ({ session }: Props) => {
       </Avatar>
       <div>
         <p className="text-sm font-medium text-[#3A3A3A]">{session && session.user.name || "Error"}</p>
-        <p className="text-xs text-[#3A3A3A]/70">Admin</p>
+        <p className="text-xs text-[#3A3A3A]/70">{session && session.user.admin ? "Admin" : "User"}</p>
       </div>
     </div>
   )
