@@ -657,7 +657,7 @@ export default function Dashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="border border-[#550C18]/10 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium text-[#3A3A3A]">Men Lobby - Left</h3>
+                        <h3 className="font-medium text-[#3A3A3A] text-xl">Men Lobby - Left</h3>
                         <Badge className="bg-green-500 hover:bg-green-600">Online</Badge>
                       </div>
                       <p className="text-sm text-[#3A3A3A]/70 mb-3">Last updated: 5 minutes ago</p>
@@ -673,7 +673,7 @@ export default function Dashboard() {
 
                     <div className="border border-[#550C18]/10 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium text-[#3A3A3A]">Sisters Side</h3>
+                        <h3 className="font-medium text-[#3A3A3A] text-xl">Sisters Side</h3>
                         <Badge className="bg-green-500 hover:bg-green-600">Online</Badge>
                       </div>
                       <p className="text-sm text-[#3A3A3A]/70 mb-3">Last updated: 10 minutes ago</p>
@@ -689,7 +689,7 @@ export default function Dashboard() {
 
                     <div className="border border-[#550C18]/10 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium text-[#3A3A3A]">Kiosk 3</h3>
+                        <h3 className="font-medium text-[#3A3A3A] text-xl">Kiosk 3</h3>
                         <Badge className="bg-yellow-500 hover:bg-yellow-600">Checking</Badge>
                       </div>
                       <p className="text-sm text-[#3A3A3A]/70 mb-3">Last updated: 2 hours ago</p>
