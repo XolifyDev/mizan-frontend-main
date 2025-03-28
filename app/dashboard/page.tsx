@@ -61,7 +61,7 @@ export default function Dashboard() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen bg-white">
+      <div className="flex min-h-screen bg-white w-full">
         <Sidebar className="border-r border-[#550C18]/10 bg-white z-20">
           <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-3">
             <div className="flex items-center justify-center gap-2 !m-0">
@@ -183,7 +183,7 @@ export default function Dashboard() {
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col w-full">
           <header className="border-b border-[#550C18]/10 bg-white p-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
