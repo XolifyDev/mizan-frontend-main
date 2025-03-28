@@ -48,6 +48,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { authClient } from "@/lib/auth-client"
+import { Philosopher } from "next/font/google";
+import Image from "next/image";
+
+const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 export default function Dashboard() {
   const [progress, setProgress] = useState(65)
@@ -59,12 +63,14 @@ export default function Dashboard() {
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen bg-white">
         <Sidebar className="border-r border-[#550C18]/10 bg-white z-20">
-          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-4">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-[#550C18] flex items-center justify-center">
-                <span className="text-[#FDF0D5] font-bold">M</span>
-              </div>
-              <h1 className="text-xl font-semibold text-[#550C18]">Mizan</h1>
+          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-3">
+            <div className="flex items-center justify-center gap-2 !m-0">
+              <Image src="mizan.svg" width={27} height={27} alt="Mizan Logo" />
+              <h1
+                className={`text-3xl font-semibold text-[#550C18] !m-0 ${philosopher.className}`}
+              >
+                Mizan
+              </h1>
             </div>
           </SidebarHeader>
           <SidebarContent>
@@ -178,7 +184,7 @@ export default function Dashboard() {
         </Sidebar>
 
         <main className="flex-1 flex flex-col">
-          <header className="border-b border-[#550C18]/10 bg-white p-4 flex items-center justify-between">
+          <header className="border-b border-[#550C18]/10 bg-white p-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />
