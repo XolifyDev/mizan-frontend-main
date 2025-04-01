@@ -26,7 +26,6 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
-import { CartItems } from "cart"
 import Image from "next/image"
 import { Philosopher } from "next/font/google"
 import useCart from "@/lib/useCart"
@@ -54,7 +53,16 @@ const paymentSchema = z.object({
   cvv: z.string().min(3, { message: "Please enter a valid CVV" }).max(4),
   billingAddress: z.enum(["same", "different"]),
   saveCard: z.boolean().default(false).optional(),
-})
+});
+
+type CartItems = {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  imagesrc: string;
+  productId: string
+};
 
 type ShippingFormValues = z.infer<typeof shippingSchema>
 type PaymentFormValues = z.infer<typeof paymentSchema>
