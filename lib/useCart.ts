@@ -1,3 +1,5 @@
+"use client";
+
 import useCartStore from './useCartStore';
 import { CartItem, validateCartItem } from './cartItemSchema';
 
