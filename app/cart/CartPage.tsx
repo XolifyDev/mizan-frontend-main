@@ -249,7 +249,7 @@ export default function CartPage({ products }: Props) {
                     <Separator className="my-2" />
                     <div className="flex justify-between text-lg font-bold">
                       <span className="text-[#3A3A3A]">Total</span>
-                      <span className="text-[#550C18]">${total.toFixed(2)}/month</span>
+                      <span className="text-[#550C18]">${total.toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
@@ -258,43 +258,6 @@ export default function CartPage({ products }: Props) {
                     Proceed to Checkout
                     <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
-                  <Accordion type="single" collapsible className="w-full">
-                    <AccordionItem value="payment-methods" className="border-[#550C18]/10">
-                      <AccordionTrigger className="text-sm text-[#3A3A3A]">Payment Methods</AccordionTrigger>
-                      <AccordionContent>
-                        <div className="flex flex-wrap gap-2 pt-2">
-                          <div className="flex items-center gap-2 rounded-md border border-[#550C18]/20 p-2">
-                            <CreditCard className="h-5 w-5 text-[#550C18]" />
-                            <span className="text-sm">Credit Card</span>
-                          </div>
-                          <div className="flex items-center gap-2 rounded-md border border-[#550C18]/20 p-2">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-                              <rect width="24" height="24" fill="#253B80" />
-                              <path d="M7 10H5V15H7V10Z" fill="white" />
-                              <path
-                                d="M16 10C15.4 10 15 10.2 14.8 10.4C14.3 10.1 13.7 10 13 10C11.3 10 10 11.3 10 13C10 14.7 11.3 16 13 16C13.7 16 14.3 15.9 14.8 15.6C15 15.8 15.4 16 16 16C17.7 16 19 14.7 19 13C19 11.3 17.7 10 16 10Z"
-                                fill="white"
-                              />
-                            </svg>
-                            <span className="text-sm">PayPal</span>
-                          </div>
-                          <div className="flex items-center gap-2 rounded-md border border-[#550C18]/20 p-2">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
-                              <rect width="24" height="24" fill="#6772E5" />
-                              <path
-                                d="M12 16V8M8 12H16"
-                                stroke="white"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                            <span className="text-sm">Stripe</span>
-                          </div>
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
                   <p className="text-xs text-[#3A3A3A]/70 text-center">
                     By proceeding to checkout, you agree to our{" "}
                     <Link href="/terms" className="text-[#550C18] hover:underline">
