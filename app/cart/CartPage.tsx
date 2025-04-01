@@ -11,8 +11,10 @@ import { toast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import Navbar from "@/components/Navbar"
-import { withSSR, useCart } from "cart"
+// import { withSSR, useCart } from "cart"
 import { Products } from "@prisma/client"
+import useCart from "@/lib/useCart"
+import { v4 as uuid } from "uuid";
 
 // Product type definition
 type Product = {
@@ -37,14 +39,14 @@ type Props = {
 }
 
 export default function CartPage({ products }: Props) {
-  const cart = withSSR(useCart, (state) => state)
+  const { addToCart, cart, clearCart, getTotal, removeFromCart: removeFCart } = useCart();
   const [promoCode, setPromoCode] = useState("")
   const [promoApplied, setPromoApplied] = useState(false)
   const [discount, setDiscount] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
 
   // Calculate subtotal
-  const subtotal = cart?.cartItems!.reduce((total, item) => total + item.price! * item.quantity, 0) || 0
+  const subtotal = cart.reduce((total, item) => total + item.price! * item.quantity, 0) || 0
 
   // Calculate discount amount
   const discountAmount = promoApplied ? subtotal * (discount / 100) : 0
@@ -63,8 +65,8 @@ export default function CartPage({ products }: Props) {
   }
 
   // Remove product from cart
-  const removeFromCart = (productId: string) => {
-    cart?.removeFromCart!(productId);
+  const removeFromCart = (itemId: string) => {
+    removeFCart(itemId);
 
     toast({
       title: "Removed from cart",
@@ -139,7 +141,7 @@ export default function CartPage({ products }: Props) {
 
         <h2 className="text-3xl font-bold text-[#550C18] mb-8">Your Shopping Cart</h2>
 
-        {cart?.cartItems!.length! > 0 ? (
+        {cart.length! > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <Card className="bg-white border-[#550C18]/10">
@@ -157,7 +159,7 @@ export default function CartPage({ products }: Props) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {cart?.cartItems!.map((item) => (
+                      {cart.map((item) => (
                         <TableRow key={item.productId} className="hover:bg-[#550C18]/5">
                           <TableCell className="p-4">
                             <div className="h-16 w-16 rounded-md overflow-hidden bg-[#550C18]/5">
@@ -181,7 +183,7 @@ export default function CartPage({ products }: Props) {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 p-0 text-[#3A3A3A]/50 hover:text-[#550C18]"
-                              onClick={() => removeFromCart(item.productId as string)}
+                              onClick={() => removeFromCart(item.id as string)}
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="sr-only">Remove</span>
@@ -297,7 +299,7 @@ export default function CartPage({ products }: Props) {
           <h3 className="text-xl font-semibold text-[#550C18] mb-4">You might also like</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {products
-              .filter((product) => !cart?.cartItems!.some((item) => item.productId === product.id))
+              .filter((product) => !cart.some((item) => item.productId === product.id))
               .slice(0, 3)
               .map((product) => (
                 <Card key={product.id} className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
@@ -328,7 +330,8 @@ export default function CartPage({ products }: Props) {
                     <Button
                       className="bg-[#550C18] hover:bg-[#78001A] text-white"
                       onClick={() => {
-                        cart?.addToCart!({
+                        addToCart({
+                          id: uuid(),
                           name: product.name,
                           productId: product.id,
                           quantity: 1,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -26,9 +26,11 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
-import { withSSR, useCart } from "cart"
+import { CartItems } from "cart"
 import Image from "next/image"
 import { Philosopher } from "next/font/google"
+import useCart from "@/lib/useCart"
+import { CartItem } from "@/lib/cartItemSchema"
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
@@ -62,11 +64,17 @@ export default function CheckoutClientPage() {
   const [step, setStep] = useState<"shipping" | "payment" | "confirmation">("shipping")
   const [isProcessing, setIsProcessing] = useState(false)
   const [shippingData, setShippingData] = useState<ShippingFormValues | null>(null)
-  const cart = withSSR(useCart, (state) => state);
-  const cartItems = cart?.cartItems! || [];
+  const [cartItems, setCartItems] = useState<CartItems[]>([]);
+  const [subtotal, setSubtotal] = useState(0);
+  const { cart, addToCart, clearCart, getTotal, removeFromCart } = useCart();
+
+  useEffect(() => {
+    // @ts-ignore 
+    setCartItems(cart);
+    setSubtotal(cart.reduce((total, item) => total + item.price! * item.quantity, 0) || 0);
+  }, [cart, getTotal])
 
 
-  const subtotal = cartItems.reduce((total, item) => total + item.price! * item.quantity, 0) || 0;
   const shipping = 0 // Free shipping
   const tax = subtotal * 0.07 // 7% tax
   const total = subtotal + shipping + tax
@@ -167,7 +175,7 @@ export default function CheckoutClientPage() {
 
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 mb-8">
+        <div className="flex items-center mb-8">
           <Link href="/cart">
             <Button variant="ghost" size="sm" className="text-[#3A3A3A]">
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -175,7 +183,7 @@ export default function CheckoutClientPage() {
             </Button>
           </Link>
           <div className="flex items-center">
-            <span className="text-[#3A3A3A]/50 mx-2">/</span>
+            <span className="text-[#3A3A3A]/50 ml-1 mr-2">/</span>
             <span className="text-[#550C18] font-medium">Checkout</span>
           </div>
         </div>

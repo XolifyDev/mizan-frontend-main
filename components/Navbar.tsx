@@ -5,12 +5,12 @@ import Image from "next/image";
 import { Philosopher } from "next/font/google";
 import { authClient } from "@/lib/auth-client";
 import { ShoppingBag } from "lucide-react";
-import { useCart, withSSR } from "cart";
+import useCart from "@/lib/useCart";
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 const Navbar = () => {
-  const cart = withSSR(useCart, (state) => state);
+  const { cart } = useCart();
   return (
     <header className="border-b border-[#550C18]/10">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -65,8 +65,8 @@ const Navbar = () => {
             </Button>
           </Link>
           <Link href="/cart" className="relative">
-            {cart?.cartItems!.length! > 0 && (
-              <span className="bg-[#550C18] p-1 px-3 w-min h-min text-sm rounded-full absolute text-white text-center -top-3 -left-3">{cart?.cartItems!.length!}</span>
+            {cart.length! > 0 && (
+              <span className="bg-[#550C18] p-1 px-3 w-min h-min text-sm rounded-full absolute text-white text-center -top-3 -left-3">{cart.length!}</span>
             )}
             <Button
               variant="outline"

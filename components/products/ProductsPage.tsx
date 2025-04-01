@@ -21,7 +21,8 @@ import {
 import { toast } from "@/hooks/use-toast"
 import Navbar from "../Navbar"
 import { Products } from "@prisma/client"
-import { useCart, withSSR } from "cart";
+import useCart from "@/lib/useCart"
+import { v4 as uuid } from "uuid";
 
 // Product type definition
 type Product = {
@@ -35,106 +36,20 @@ type Product = {
   popular?: boolean
 }
 
-// Cart item type definition
-type CartItem = {
-  product: Product
-  quantity: number
-}
-
-// Sample products data
-// const products: Product[] = [
-//   {
-//     id: "tv-display",
-//     name: "Masjid TV Display",
-//     description: "Beautiful prayer time displays and announcement screens with customizable themes.",
-//     price: 49,
-//     features: [
-//       "Prayer time displays",
-//       "Announcement slides",
-//       "Multiple themes",
-//       "Remote management",
-//       "Automatic updates",
-//     ],
-//     image: "/placeholder.svg?height=200&width=300",
-//     category: "Display",
-//   },
-//   {
-//     id: "payment-kiosk",
-//     name: "Payment Kiosk",
-//     description: "Secure donation collection with support for multiple funds and instant receipts.",
-//     price: 79,
-//     features: [
-//       "Secure payment processing",
-//       "Multiple donation categories",
-//       "Email receipts",
-//       "Reporting dashboard",
-//       "User management",
-//     ],
-//     image: "/placeholder.svg?height=200&width=300",
-//     category: "Hardware",
-//     popular: true,
-//   },
-//   {
-//     id: "cloud-website",
-//     name: "Cloud Website",
-//     description: "Professional masjid websites with prayer times, events calendar, and more.",
-//     price: 39,
-//     features: [
-//       "Professional design",
-//       "Prayer times integration",
-//       "Events calendar",
-//       "Mobile responsive",
-//       "SEO optimization",
-//     ],
-//     image: "/placeholder.svg?height=200&width=300",
-//     category: "Software",
-//   },
-//   {
-//     id: "admin-dashboard",
-//     name: "Admin Dashboard",
-//     description: "Centralized control panel to manage all services from one place.",
-//     price: 59,
-//     features: [
-//       "User management",
-//       "Analytics and reporting",
-//       "Content management",
-//       "Device monitoring",
-//       "Role-based access control",
-//     ],
-//     image: "/placeholder.svg?height=200&width=300",
-//     category: "Software",
-//   },
-//   {
-//     id: "complete-bundle",
-//     name: "Complete Mizan Bundle",
-//     description: "Get all Mizan products at a discounted price. Perfect for masjids looking for a complete solution.",
-//     price: 199,
-//     features: [
-//       "All products included",
-//       "Priority support",
-//       "Free installation",
-//       "Quarterly training sessions",
-//       "Custom branding",
-//     ],
-//     image: "/placeholder.svg?height=200&width=300",
-//     category: "Bundle",
-//     popular: true,
-//   },
-// ]
-
 type Props = {
   products: Products[]
 }
 
 export default function ProductsPage({ products }: Props) {
-  const cart = withSSR(useCart, (state) => state);
+  const cart = useCart();
   const [cartOpen, setCartOpen] = useState(false)
   const [filter, setFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
 
   // Add product to cart
   const addToCart = (product: Product) => {
-    cart?.addToCart!({
+    cart.addToCart({
+      id: uuid(),
       name: product.name,
       productId: product.id,
       quantity: 1,
