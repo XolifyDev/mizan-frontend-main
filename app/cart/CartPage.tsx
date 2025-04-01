@@ -116,6 +116,10 @@ export default function CartPage({ products }: Props) {
     })
   }
 
+  async function proceedCheckout() {
+  
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -254,9 +258,11 @@ export default function CartPage({ products }: Props) {
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4 border-t border-[#550C18]/10 pt-6">
-                  <Button className="w-full bg-[#550C18] hover:bg-[#78001A] text-white">
-                    Proceed to Checkout
-                    <ChevronRight className="ml-2 h-4 w-4" />
+                  <Button className="w-full bg-[#550C18] hover:bg-[#78001A] text-white" asChild>
+                    <Link href="/checkout">
+                      Proceed to Checkout
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    </Link>
                   </Button>
                   <p className="text-xs text-[#3A3A3A]/70 text-center">
                     By proceeding to checkout, you agree to our{" "}
