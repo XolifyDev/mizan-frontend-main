@@ -148,7 +148,6 @@ export default function CartPage({ products }: Props) {
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="w-[100px]">Product</TableHead>
                         <TableHead>Name</TableHead>
-                        <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
@@ -170,9 +169,8 @@ export default function CartPage({ products }: Props) {
                               <h1 className="font-medium text-lg text-[#3A3A3A]">{item.name}</h1>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">${item.price}/month</TableCell>
                           <TableCell className="text-right font-medium text-[#550C18]">
-                            ${(item.price! * item.quantity).toFixed(2)}
+                            ${item.price!.toFixed(2)}
                           </TableCell>
                           <TableCell>
                             <Button
