@@ -4,10 +4,13 @@ import { Button } from "./ui/button";
 import Image from "next/image";
 import { Philosopher } from "next/font/google";
 import { authClient } from "@/lib/auth-client";
+import { ShoppingBag } from "lucide-react";
+import { useCart, withSSR } from "cart";
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 const Navbar = () => {
+  const cart = withSSR(useCart, (state) => state);
   return (
     <header className="border-b border-[#550C18]/10">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -29,7 +32,7 @@ const Navbar = () => {
             Features
           </Link>
           <Link
-            href="#products"
+            href="/products"
             className="text-[#3A3A3A] hover:text-[#550C18] font-medium transition-colors"
           >
             Products
@@ -59,6 +62,17 @@ const Navbar = () => {
           <Link href="/dashboard">
             <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
               Get Started
+            </Button>
+          </Link>
+          <Link href="/cart" className="relative">
+            {cart?.cartItems!.length! > 0 && (
+              <span className="bg-[#550C18] p-1 px-3 w-min h-min text-sm rounded-full absolute text-white text-center -top-3 -left-3">{cart?.cartItems!.length!}</span>
+            )}
+            <Button
+              variant="outline"
+              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5 hover:text-[#550C18]"
+            > 
+              <ShoppingBag />
             </Button>
           </Link>
         </div>

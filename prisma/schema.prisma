@@ -31,6 +31,18 @@ model PrayerTime {
   masjid      Masjid   @relation(fields: [masjidId], references: [id])
 }
 
+model Products {
+  id String @id 
+  name String
+  description String
+  features String[]
+  price Int
+  requiredSubscriptionId String
+  popular Boolean @default(false)
+  image String @default("placeholder.svg?height=200&width=300")
+  category String @default("")
+}
+
 model Event {
   id          Int      @id @default(autoincrement())
   masjidId    Int
@@ -60,6 +72,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   admin         Boolean @default(false)
+  role          String @default("user")
 
   @@unique([email])
   @@map("user")

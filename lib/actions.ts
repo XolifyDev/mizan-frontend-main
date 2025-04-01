@@ -53,3 +53,8 @@ export async function registerUser({
     return error;
   }
 }
+
+export async function getProducts() {
+  const products = await prisma.products.findMany();
+  return products || [];
+}
