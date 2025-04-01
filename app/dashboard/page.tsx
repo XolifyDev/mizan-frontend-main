@@ -50,6 +50,7 @@ import {
 import { authClient } from "@/lib/auth-client"
 import { Philosopher } from "next/font/google";
 import Image from "next/image";
+import Link from "next/link"
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
@@ -64,14 +65,14 @@ export default function Dashboard() {
       <div className="flex min-h-screen bg-white w-full">
         <Sidebar className="border-r border-[#550C18]/10 bg-white z-20">
           <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-3">
-            <div className="flex items-center justify-center gap-2 !m-0">
+            <Link href="/" className="flex items-center justify-center gap-2 !m-0">
               <Image src="mizan.svg" width={27} height={27} alt="Mizan Logo" />
               <h1
                 className={`text-3xl font-semibold text-[#550C18] !m-0 ${philosopher.className}`}
               >
                 Mizan
               </h1>
-            </div>
+            </Link>
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -170,13 +171,13 @@ export default function Dashboard() {
           <SidebarFooter className="border-t border-[#550C18]/10 p-4 bg-white/50">
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarImage src={session && session.user.image || null} />
+                <AvatarImage src={session && session.user.image || undefined} />
                 <AvatarFallback className="bg-[#550C18] text-[#FDF0D5]">
                   {session && session.user?.name.split(" ")[0]?.charAt(0) + session.user?.name.split(" ")[1]?.charAt(0) || "Error"}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <p className="text-sm font-medium text-[#3A3A3A]">GIC Suwanee Masjid</p>
+                <p className="text-sm font-medium text-[#3A3A3A]">{session && session.user.name}</p>
                 <p className="text-xs text-[#3A3A3A]/70">Admin</p>
               </div>
             </div>

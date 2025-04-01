@@ -48,13 +48,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 import { Philosopher } from "next/font/google";
 import useCart from "@/lib/useCart";
-import { CartItem } from "@/lib/cartItemSchema";
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
@@ -783,7 +781,7 @@ export default function CheckoutClientPage() {
                     receive an email confirmation shortly.
                   </p>
                   <div className="bg-[#550C18]/5 p-4 rounded-lg mb-6">
-                    <h3 className="font-medium text-[#3A3A3A] mb-2">
+                    <h3 className="font-medium text-[#3A3A3A] mb-2 text-xl">
                       Order Details
                     </h3>
                     <p className="text-sm text-[#3A3A3A]/70 mb-1">
@@ -879,7 +877,7 @@ export default function CheckoutClientPage() {
                     Total
                   </span>
                   <span className="text-lg font-bold text-[#550C18]">
-                    ${total.toFixed(2)}/month
+                    ${total.toFixed(2)}
                   </span>
                 </div>
 

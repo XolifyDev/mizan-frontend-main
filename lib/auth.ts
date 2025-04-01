@@ -16,11 +16,11 @@ export const auth = betterAuth({
         enabled: true
     },
     plugins: [
-      nextCookies(),
-      // stripe({
-      //       stripeClient,
-      //       stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-      //       createCustomerOnSignUp: true,
-      // })
+        stripe({
+            stripeClient,
+            stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+            createCustomerOnSignUp: true,
+        }),
+        nextCookies()
     ]
 });

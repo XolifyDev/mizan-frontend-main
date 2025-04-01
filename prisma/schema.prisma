@@ -32,15 +32,15 @@ model PrayerTime {
 }
 
 model Products {
-  id String @id 
-  name String
-  description String
-  features String[]
-  price Int
+  id                     String   @id
+  name                   String
+  description            String
+  features               String[]
+  price                  Int
   requiredSubscriptionId String
-  popular Boolean @default(false)
-  image String @default("placeholder.svg?height=200&width=300")
-  category String @default("")
+  popular                Boolean  @default(false)
+  image                  String   @default("placeholder.svg?height=200&width=300")
+  category               String   @default("")
 }
 
 model Event {
@@ -71,8 +71,10 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
-  admin         Boolean @default(false)
-  role          String @default("user")
+  admin         Boolean   @default(false)
+  role          String    @default("user")
+
+  stripeCustomerId String?
 
   @@unique([email])
   @@map("user")
