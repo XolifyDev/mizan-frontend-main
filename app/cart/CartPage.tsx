@@ -147,7 +147,7 @@ export default function CartPage({ products }: Props) {
                     <TableHeader>
                       <TableRow className="hover:bg-transparent">
                         <TableHead className="w-[100px]">Product</TableHead>
-                        <TableHead>Description</TableHead>
+                        <TableHead>Name</TableHead>
                         <TableHead className="text-right">Price</TableHead>
                         <TableHead className="text-right">Total</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
@@ -167,7 +167,7 @@ export default function CartPage({ products }: Props) {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <h4 className="font-medium text-[#3A3A3A]">{item.name}</h4>
+                              <h1 className="font-medium text-lg text-[#3A3A3A]">{item.name}</h1>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">${item.price}/month</TableCell>
