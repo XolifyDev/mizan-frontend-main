@@ -4,7 +4,7 @@ import useCartStore from './useCartStore';
 import { CartItem, validateCartItem } from './cartItemSchema';
 
 const useCart = () => {
-  const { cart, addItem, removeItem, clearCart, calculateTotal } = useCartStore();
+  const { cart, addItem, removeItem, clearCart, calculateTotal, discount, setDiscount } = useCartStore();
 
   const addToCart = (item: CartItem) => {
     try {
@@ -25,7 +25,9 @@ const useCart = () => {
     addToCart,
     removeFromCart: removeItem,
     clearCart,
-    getTotal
+    getTotal,
+    discount,
+    setDiscount
   };
 };
 

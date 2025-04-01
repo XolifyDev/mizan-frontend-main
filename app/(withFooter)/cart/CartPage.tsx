@@ -71,6 +71,7 @@ export default function CartPage({ products }: Props) {
     clearCart,
     getTotal,
     removeFromCart: removeFCart,
+    setDiscount: setDiscountStore
   } = useCart();
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
@@ -115,6 +116,11 @@ export default function CartPage({ products }: Props) {
       if (promoCode.toLowerCase() === "mizan25") {
         setDiscount(25);
         setPromoApplied(true);
+        setDiscountStore({
+          code: promoCode,
+          id: uuid(),
+          percent: 25
+        });
         toast({
           title: "Promo code applied",
           description: "25% discount has been applied to your order.",
@@ -122,6 +128,11 @@ export default function CartPage({ products }: Props) {
       } else if (promoCode.toLowerCase() === "mizan10") {
         setDiscount(10);
         setPromoApplied(true);
+        setDiscountStore({
+          code: promoCode,
+          id: uuid(),
+          percent: 10
+        });
         toast({
           title: "Promo code applied",
           description: "10% discount has been applied to your order.",

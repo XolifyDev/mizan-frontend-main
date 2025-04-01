@@ -7,12 +7,20 @@ interface CartItem {
   price: number;
   quantity: number;
   productId: string;
-}
+};
+
+type Discount = {
+  id: string;
+  percent: number;
+  code: string;
+};
 
 interface CartStore {
   cart: CartItem[];
   total: number;
+  discount: Discount | null;
   addItem: (item: CartItem) => void;
+  setDiscount: (discount: Discount) => void;
   removeItem: (itemId: string) => void;
   clearCart: () => void;
   calculateTotal: () => void;
@@ -21,6 +29,10 @@ interface CartStore {
 const useCartStore = create<CartStore>((set) => ({
   cart: [],
   total: 0,
+  discount: null,
+  setDiscount: (discount: Discount | null) => set((state) => ({
+    discount: discount
+  })),
   addItem: (item) => set((state) => ({
     cart: [...state.cart, item]
   })),
