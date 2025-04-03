@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import StoreProvider from "../components/store-provider";
+import { Toaster } from "../components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Mizan - All in One Masjid Management",
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Toaster />
-        {children}
+        <StoreProvider>
+          {children}
+        </StoreProvider>
       </body>
     </html>
   );

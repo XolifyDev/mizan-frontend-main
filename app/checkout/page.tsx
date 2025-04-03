@@ -1,12 +1,13 @@
-import type { Metadata } from "next"
+"use client";
 import CheckoutClientPage from "./CheckoutClientPage"
+import { Elements } from "@stripe/react-stripe-js"
+import { loadStripe } from "@stripe/stripe-js";
 
-export const metadata: Metadata = {
-  title: "Checkout | Mizan",
-  description: "Complete your purchase of Mizan products",
-}
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CheckoutPage() {
-  return <CheckoutClientPage />
+  return <Elements stripe={stripePromise}>
+    <CheckoutClientPage />
+  </Elements>
 }
 

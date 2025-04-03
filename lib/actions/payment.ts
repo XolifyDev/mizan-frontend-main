@@ -1,0 +1,113 @@
+"use server";
+import { v4 } from "uuid";
+import { authClient } from "../auth-client";
+import { CartItem } from "../cartItemSchema";
+import { prisma } from "../db";
+import { stripeClient } from "../stripe";
+import { Discount } from "../useCartStore";
+import { getUser } from "./user";
+
+type CreateCheckoutSessionProps = {
+  cart: CartItem[];
+  discount: Discount | null;
+  card: {
+    number: number,
+    cvv: number,
+    name: string
+  };
+}
+export const createCheckoutSession = async ({ cart, discount, card }: CreateCheckoutSessionProps) => {
+  const products = [];
+  const line_items = [];
+
+  for (const product of cart) {
+    const pro = await prisma.products.findFirst({
+      where: {
+        id: product.id
+      }
+    });
+    if(!pro) return;
+    products.push(pro);
+    line_items.push({
+      price_data: {
+        currency: "USD",
+        product_data: {
+          name: pro.name,
+          images: [pro.image],
+        },
+        unit_amount: Math.round(Number(product.price) * 100),
+      },
+      quantity: 1,
+    })
+  };
+
+}
+
+type CreateCheckoutPageProps = {
+  cart: CartItem[];
+  discount: Discount | null;
+  subscription: boolean
+}
+
+export const createCheckoutPage = async ({
+  cart,
+  discount,
+  subscription
+}: CreateCheckoutPageProps) => {
+  const user = await getUser();
+  if(!user) return {
+    error: true,
+    message: "Please login"
+  };
+  const products = [];
+  const line_items = [];
+
+  for (const product of cart) {
+    const pro = await prisma.products.findFirst({
+      where: {
+        id: product.productId
+      }
+    });
+    if(pro) {
+      console.log(pro);
+      products.push(pro);
+      line_items.push({
+        price_data: {
+          currency: "USD",
+          product_data: {
+            name: pro.name,
+            images: [pro.image],
+          },
+          unit_amount: Math.round(Number(product.price) * 100),
+        },
+        quantity: 1,
+      })
+    }
+  };
+
+  const session = await stripeClient.checkout.sessions.create({
+    payment_method_types: ['card', 'cashapp'],
+    line_items,
+    mode: subscription ? "subscription" : 'payment', // or 'payment' for one-time purchases
+    success_url: `${process.env.DOMAIN}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${process.env.DOMAIN}/cart`,
+    customer: user.stripeCustomerId || null,
+    customer_email: user.email,
+  });
+
+  await prisma.checkoutSessions.create({
+    data: {
+      id: v4(),
+      cart: JSON.stringify(cart),
+      completed: "pending",
+      paymentType: subscription ? "subscription" : 'payment',
+      sessionId: session.id,
+      userId: user.id
+    }
+  });
+
+  return {
+    error: false,
+    url: session.url
+  }
+}

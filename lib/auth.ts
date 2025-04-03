@@ -4,9 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 import { nextCookies } from "better-auth/next-js";
 import { stripe } from "@better-auth/stripe"
-import Stripe from "stripe"
-
-const stripeClient = new Stripe(process.env.STRIPE_SECRET_KEY!)
+import { stripeClient } from "./stripe";
 
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {

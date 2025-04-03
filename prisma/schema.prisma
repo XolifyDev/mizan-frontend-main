@@ -71,6 +71,7 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
+  CheckoutSessions CheckoutSessions[]
   admin         Boolean   @default(false)
   role          String    @default("user")
 
@@ -123,4 +124,14 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model CheckoutSessions {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String
+  paymentType String
+  completed String
+  cart String
 }

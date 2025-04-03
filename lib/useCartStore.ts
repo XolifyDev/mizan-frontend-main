@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from "zustand/middleware"
 
 interface CartItem {
   id: string;
@@ -9,7 +10,7 @@ interface CartItem {
   productId: string;
 };
 
-type Discount = {
+export type Discount = {
   id: string;
   percent: number;
   code: string;
@@ -26,25 +27,37 @@ interface CartStore {
   calculateTotal: () => void;
 }
 
-const useCartStore = create<CartStore>((set) => ({
-  cart: [],
-  total: 0,
-  discount: null,
-  setDiscount: (discount: Discount | null) => set((state) => ({
-    discount: discount
-  })),
-  addItem: (item) => set((state) => ({
-    cart: [...state.cart, item]
-  })),
-  removeItem: (itemId) => set((state) => ({
-    cart: state.cart.filter(item => item.id !== itemId)
-  })),
-  clearCart: () => set(() => ({
-    cart: []
-  })),
-  calculateTotal: () => set((state) => ({
-    total: state.cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
-  })),
-}));
+const useCartStore = create<CartStore>()(
+  persist(
+    set => ({
+      cart: [],
+      total: 0,
+      discount: null,
+      setDiscount: (discount: Discount | null) => set((state) => ({
+        discount: discount
+      })),
+      addItem: (item) => set((state) => ({
+        cart: [...state.cart, item]
+      })),
+      removeItem: (itemId) => set((state) => ({
+        cart: state.cart.filter(item => item.id !== itemId)
+      })),
+      clearCart: () => set(() => ({
+        cart: []
+      })),
+      calculateTotal: () => set((state) => ({
+        total: state.cart.reduce((acc, item) => acc + item.price * item.quantity, 0)
+      })),
+    }),
+    {
+      name: "cart",
+      storage: createJSONStorage(() => typeof window !== "undefined" ? localStorage : {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {}
+      })
+    }
+  )
+);
 
 export default useCartStore;

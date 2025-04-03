@@ -41,6 +41,8 @@ import Navbar from "@/components/Navbar";
 import { Products } from "@prisma/client";
 import useCart from "@/lib/useCart";
 import { v4 as uuid } from "uuid";
+import { createCheckoutPage } from "@/lib/actions/payment";
+import { redirect, useRouter } from "next/navigation";
 
 // Product type definition
 type Product = {
@@ -71,12 +73,14 @@ export default function CartPage({ products }: Props) {
     clearCart,
     getTotal,
     removeFromCart: removeFCart,
-    setDiscount: setDiscountStore
+    setDiscount: setDiscountStore,
+    discount: discountData
   } = useCart();
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   // Calculate subtotal
   const subtotal =
@@ -160,7 +164,19 @@ export default function CartPage({ products }: Props) {
     });
   };
 
-  async function proceedCheckout() {}
+  async function proceedCheckout() {
+    const session = await createCheckoutPage({
+      cart,
+      discount: discountData,
+      subscription: false
+    });
+  
+    if(!session) return;
+
+    if(session.error) return console.log(session.error, "ERROR");
+
+    router.push(session?.url || "")
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -317,12 +333,10 @@ export default function CartPage({ products }: Props) {
                 <CardFooter className="flex flex-col gap-4 border-t border-[#550C18]/10 pt-6">
                   <Button
                     className="w-full bg-[#550C18] hover:bg-[#78001A] text-white"
-                    asChild
+                    onClick={() => proceedCheckout()}
                   >
-                    <Link href="/checkout">
-                      Proceed to Checkout
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Link>
+                    Proceed to Checkout
+                    <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                   <p className="text-xs text-[#3A3A3A]/70 text-center">
                     By proceeding to checkout, you agree to our{" "}
