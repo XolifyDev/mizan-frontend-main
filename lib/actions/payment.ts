@@ -86,13 +86,12 @@ export const createCheckoutPage = async ({
   };
 
   const session = await stripeClient.checkout.sessions.create({
-    payment_method_types: ['card', 'cashapp'],
+    payment_method_types: ['card'],
     line_items,
     mode: subscription ? "subscription" : 'payment', // or 'payment' for one-time purchases
     success_url: `${process.env.DOMAIN}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.DOMAIN}/cart`,
     customer: user.stripeCustomerId || null,
-    customer_email: user.email,
   });
 
   await prisma.checkoutSessions.create({

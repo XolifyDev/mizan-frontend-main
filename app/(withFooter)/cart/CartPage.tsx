@@ -173,7 +173,7 @@ export default function CartPage({ products }: Props) {
   
     if(!session) return;
 
-    if(session.error) return console.log(session.error, "ERROR");
+    if(session.error) return console.log(session.error, "ERROR", session.message);
 
     router.push(session?.url || "")
   }

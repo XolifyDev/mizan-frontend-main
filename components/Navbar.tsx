@@ -13,8 +13,6 @@ const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 const Navbar = () => {
   const { data, isPending } = authClient.useSession();
   const { cart } = useCart();
-
-  if(isPending) return null;
   return (
     <header className="border-b border-[#550C18]/10">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
