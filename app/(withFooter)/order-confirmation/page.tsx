@@ -9,6 +9,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Separator } from "@/components/ui/separator"
 import Footer from "@/components/Footer"
 import Navbar from "@/components/Navbar"
+import { StripeCheckoutSession } from "@stripe/stripe-js"
+import { getSessionAndOrder } from "@/lib/actions/order"
+import { CartItem } from "@/lib/cartItemSchema"
 
 // This would typically come from your database or API
 type OrderDetails = {
@@ -22,68 +25,59 @@ type OrderDetails = {
     quantity: number
   }[]
   paymentMethod: string
-  status: "success" | "pending" | "failed"
 }
 
 export default function OrderConfirmationPage() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(true)
   const [order, setOrder] = useState<OrderDetails | null>(null)
+  const [session, setSession] = useState<StripeCheckoutSession | null>(null);
   const [error, setError] = useState<string | null>(null)
 
   // Get session_id or order_id from URL params
   const sessionId = searchParams.get("session_id")
-  const orderId = searchParams.get("order_id")
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
       setIsLoading(true)
       try {
-        // In a real app, you would fetch the order details from your API
-        // using the session_id or order_id
-        // For demo purposes, we'll simulate an API call with a timeout
-        await new Promise((resolve) => setTimeout(resolve, 1500))
+        const data = await getSessionAndOrder(sessionId || "");
+        if(!data.checkoutSession || !data.stripeSession) return setError("We couldn't retrieve your order details. Please contact customer support.");
+
+        console.log(JSON.parse(data.checkoutSession.cart));
 
         // Mock order data
         const mockOrder: OrderDetails = {
-          id: orderId || `MIZ-${Math.floor(Math.random() * 10000)}`,
-          date: new Date().toISOString(),
-          total: 177.0, // This would come from your database
-          items: [
-            {
-              id: "tv-display",
-              name: "Masjid TV Display",
-              price: 49,
-              quantity: 1,
-            },
-            {
-              id: "payment-kiosk",
-              name: "Payment Kiosk",
-              price: 79,
-              quantity: 2,
-            },
-          ],
+          id: `${data.order ? data.order.id : data.checkoutSession.id}`,
+          date: data.order?.createdAt.toISOString()!,
+          total: data.stripeSession.amount_total!, // This would come from your database
+          items: JSON.parse(data.checkoutSession.cart).map((e: any) => {
+            return {
+              id: e.productId,
+              name: e.name,
+              price: e.price,
+              quantity: e.quantity
+            }
+          }),
           paymentMethod: "Credit Card",
-          status: "success",
         }
 
         setOrder(mockOrder)
       } catch (err) {
-        console.error("Error fetching order details:", err)
         setError("We couldn't retrieve your order details. Please contact customer support.")
       } finally {
         setIsLoading(false)
       }
     }
 
-    if (sessionId || orderId) {
+    if (sessionId) {
       fetchOrderDetails()
     } else {
       // If no session_id or order_id is provided, show an error
       setIsLoading(false)
       setError("No order information found. Please check your confirmation email for order details.")
     }
-  }, [sessionId, orderId])
+  }, [sessionId])
 
   // Format date for display
   const formatDate = (dateString: string) => {

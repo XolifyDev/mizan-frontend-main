@@ -43,6 +43,7 @@ import useCart from "@/lib/useCart";
 import { v4 as uuid } from "uuid";
 import { createCheckoutPage } from "@/lib/actions/payment";
 import { redirect, useRouter } from "next/navigation";
+import { loadStripe } from "@stripe/stripe-js";
 
 // Product type definition
 type Product = {
@@ -66,6 +67,8 @@ type Props = {
   products: Products[];
 };
 
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
 export default function CartPage({ products }: Props) {
   const {
     addToCart,
@@ -80,6 +83,7 @@ export default function CartPage({ products }: Props) {
   const [promoApplied, setPromoApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   // Calculate subtotal
@@ -165,17 +169,29 @@ export default function CartPage({ products }: Props) {
   };
 
   async function proceedCheckout() {
+    const stripe = await stripePromise;
+    if(!stripe) return;
+    setLoading(true);
     const session = await createCheckoutPage({
       cart,
       discount: discountData,
-      subscription: false
     });
   
     if(!session) return;
 
-    if(session.error) return console.log(session.error, "ERROR", session.message);
+    if(session.error) {
+      setLoading(false);
+      toast({
+        title: "Error proceeding to checkout",
+        description: session.message,
+        variant: "destructive",
+      });
+      return;
+    }
 
-    router.push(session?.url || "")
+    await stripe.redirectToCheckout({
+      sessionId: session.id!
+    })
   }
 
   return (
@@ -334,6 +350,7 @@ export default function CartPage({ products }: Props) {
                   <Button
                     className="w-full bg-[#550C18] hover:bg-[#78001A] text-white"
                     onClick={() => proceedCheckout()}
+                    disabled={loading}
                   >
                     Proceed to Checkout
                     <ChevronRight className="ml-2 h-4 w-4" />
@@ -388,7 +405,7 @@ export default function CartPage({ products }: Props) {
               )
               .slice(0, 3)
               .map((product) => (
-                <Card
+               <Card
                   key={product.id}
                   className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow"
                 >

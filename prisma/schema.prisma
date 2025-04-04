@@ -52,15 +52,6 @@ model Event {
   masjid      Masjid   @relation(fields: [masjidId], references: [id])
 }
 
-model Payment {
-  id            Int      @id @default(autoincrement())
-  userId        Int
-  amount        Float
-  paymentMethod String
-  status        String
-  createdAt     DateTime @default(now())
-}
-
 model User {
   id            String    @id
   name          String
@@ -72,6 +63,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   CheckoutSessions CheckoutSessions[]
+  Orders Orders[]
   admin         Boolean   @default(false)
   role          String    @default("user")
 
@@ -134,4 +126,16 @@ model CheckoutSessions {
   paymentType String
   completed String
   cart String
+  createdAt DateTime @default(now())
+}
+
+model Orders {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSessionId String?
+  status String
+  cart String
+  trackingNumber String?
+  createdAt DateTime @default(now())
 }

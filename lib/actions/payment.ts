@@ -46,13 +46,11 @@ export const createCheckoutSession = async ({ cart, discount, card }: CreateChec
 type CreateCheckoutPageProps = {
   cart: CartItem[];
   discount: Discount | null;
-  subscription: boolean
 }
 
 export const createCheckoutPage = async ({
   cart,
   discount,
-  subscription
 }: CreateCheckoutPageProps) => {
   const user = await getUser();
   if(!user) return {
@@ -85,13 +83,28 @@ export const createCheckoutPage = async ({
     }
   };
 
+  if(products.find((e) => e.requiredSubscriptionId.length < 1) && products.length > 1) return {
+    error: true,
+    message: "When purchasing a subscription please only have the subscription in your cart. Jazakallahu Khair"
+  };
+
+  const subscription = products.find((e) => e.requiredSubscriptionId.length > 1) || null ;
+
   const session = await stripeClient.checkout.sessions.create({
     payment_method_types: ['card'],
-    line_items,
+    line_items: subscription ? [{
+      price: subscription.requiredSubscriptionId,
+      quantity: 1
+    }] : line_items,
     mode: subscription ? "subscription" : 'payment', // or 'payment' for one-time purchases
     success_url: `${process.env.DOMAIN}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.DOMAIN}/cart`,
     customer: user.stripeCustomerId || null,
+    shipping_address_collection: {
+      allowed_countries: [
+        "US"
+      ]
+    },
   });
 
   await prisma.checkoutSessions.create({
@@ -107,6 +120,6 @@ export const createCheckoutPage = async ({
 
   return {
     error: false,
-    url: session.url
+    id: session.id
   }
 }

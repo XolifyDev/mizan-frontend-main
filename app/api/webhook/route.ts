@@ -1,4 +1,6 @@
+import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
+import { v4 } from "uuid"
 
 export async function POST(request: Request) {
   const body = await request.text()
@@ -19,7 +21,31 @@ export async function POST(request: Request) {
         console.log("Checkout session completed:", event.data.object)
 
         // In a real implementation, you would:
+        const checkoutSession = await prisma.checkoutSessions.findFirst({
+          where: {
+            sessionId: event.data.id
+          }
+        });
+        if(!checkoutSession) return;
         // 1. Update your database with the order status
+        await prisma.checkoutSessions.update({
+          where: {
+            id: checkoutSession.id
+          },
+          data: {
+            completed: "paid",
+          }
+        });
+
+        await prisma.orders.create({
+          data: {
+            cart: checkoutSession.cart,
+            id: `mizan_${v4()}_${new Date().getMilliseconds()}`,
+            status: "processing",
+            stripeSessionId: checkoutSession.sessionId,
+            userId: checkoutSession.userId
+          }
+        });
         // 2. Send confirmation emails
         // 3. Provision access to purchased products
         break
