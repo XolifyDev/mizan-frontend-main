@@ -90,6 +90,12 @@ export const createCheckoutPage = async ({
 
   const subscription = products.find((e) => e.requiredSubscriptionId.length > 1) || null ;
 
+  console.log(subscription);
+
+  if(!subscription) return {
+    redirect: true
+  };
+
   const session = await stripeClient.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: subscription ? [{
@@ -121,5 +127,47 @@ export const createCheckoutPage = async ({
   return {
     error: false,
     id: session.id
+  }
+}
+
+type CreatePaymentIntentParams = {
+  amount: number
+  cart: CartItem[]
+  discount?: {
+    code: string
+    percent: number
+    id: string
+  } | null
+}
+
+export async function createPaymentIntent({ amount, cart, discount }: CreatePaymentIntentParams) {
+  try {
+    // Create a PaymentIntent with the order amount and currency
+    const paymentIntent = await stripeClient.paymentIntents.create({
+      amount: Math.round(amount * 100), // Convert to cents
+      currency: "usd",
+      automatic_payment_methods: {
+        enabled: true,
+      },
+      metadata: {
+        cart_items: JSON.stringify(
+          cart.map((item) => ({
+            id: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        ),
+        discount_code: discount?.code || "",
+        discount_percent: discount?.percent?.toString() || "0",
+      },
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret,
+    }
+  } catch (error) {
+    console.error("Error creating payment intent:", error)
+    throw new Error("Failed to create payment intent")
   }
 }

@@ -16,11 +16,8 @@ export async function POST(request: Request) {
     // Handle different event types
     switch (event.type) {
       case "checkout.session.completed":
-        // Payment is successful and the subscription is created
-        // You should provision the subscription and save the customer ID to your database
         console.log("Checkout session completed:", event.data.object)
 
-        // In a real implementation, you would:
         const checkoutSession = await prisma.checkoutSessions.findFirst({
           where: {
             sessionId: event.data.id

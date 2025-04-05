@@ -14,7 +14,7 @@ export const getSessionAndOrder = async (sessionId: string) => {
   });
   const order = await prisma.orders.findFirst({
     where: {
-      stripeSessionId: checkoutSession?.sessionId
+      stripeSessionId: sessionId
     }
   });
   const stripeSession = await stripeClient.checkout.sessions.retrieve(checkoutSession?.sessionId);
@@ -23,7 +23,8 @@ export const getSessionAndOrder = async (sessionId: string) => {
     order,
     checkoutSession,
     stripeSession: stripeSession ? {
-      amount_total: stripeSession.amount_total
+      amount_total: stripeSession.amount_total,
+      created: stripeSession.created
     } : null
   };
 }

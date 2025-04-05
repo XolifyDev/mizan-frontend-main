@@ -16,7 +16,7 @@ import { CartItem } from "@/lib/cartItemSchema"
 // This would typically come from your database or API
 type OrderDetails = {
   id: string
-  date: string
+  date: number
   total: number
   items: {
     id: string
@@ -32,6 +32,7 @@ export default function OrderConfirmationPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [order, setOrder] = useState<OrderDetails | null>(null)
   const [session, setSession] = useState<StripeCheckoutSession | null>(null);
+  const [isSubscription, setIsSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null)
 
   // Get session_id or order_id from URL params
@@ -46,10 +47,11 @@ export default function OrderConfirmationPage() {
 
         console.log(JSON.parse(data.checkoutSession.cart));
 
+        console.log(data.order, data)
         // Mock order data
         const mockOrder: OrderDetails = {
           id: `${data.order ? data.order.id : data.checkoutSession.id}`,
-          date: data.order?.createdAt.toISOString()!,
+          date: data.stripeSession.created,
           total: data.stripeSession.amount_total!, // This would come from your database
           items: JSON.parse(data.checkoutSession.cart).map((e: any) => {
             return {
@@ -63,6 +65,7 @@ export default function OrderConfirmationPage() {
         }
 
         setOrder(mockOrder)
+        setIsSubscription(!data.order ? true : false)
       } catch (err) {
         setError("We couldn't retrieve your order details. Please contact customer support.")
       } finally {
@@ -80,8 +83,8 @@ export default function OrderConfirmationPage() {
   }, [sessionId])
 
   // Format date for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+  const formatDate = (dateString: number) => {
+    const date = new Date(dateString * 1000)
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -173,9 +176,9 @@ export default function OrderConfirmationPage() {
                               <p className="text-xs text-[#3A3A3A]/70">Monthly subscription</p>
                             </div>
                             <div className="col-span-2 text-center text-[#3A3A3A]">{item.quantity}</div>
-                            <div className="col-span-2 text-right text-[#3A3A3A]">${item.price}/mo</div>
+                            <div className="col-span-2 text-right text-[#3A3A3A]">${item.price}{isSubscription ? "/month" : null}</div>
                             <div className="col-span-2 text-right font-medium text-[#550C18]">
-                              ${(item.price * item.quantity).toFixed(2)}/mo
+                              ${(item.price * item.quantity).toFixed(2)}{isSubscription ? "/mo" : null}
                             </div>
                           </div>
                         </div>
@@ -184,7 +187,7 @@ export default function OrderConfirmationPage() {
                     <div className="bg-[#550C18]/5 px-4 py-3">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-[#3A3A3A]">Total</span>
-                        <span className="font-bold text-[#550C18]">${order.total.toFixed(2)}/month</span>
+                        <span className="font-bold text-[#550C18]">${Number(order.total/100)}{isSubscription ? "/month" : null}</span>
                       </div>
                     </div>
                   </div>

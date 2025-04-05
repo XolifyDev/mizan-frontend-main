@@ -179,6 +179,8 @@ export default function CartPage({ products }: Props) {
   
     if(!session) return;
 
+    if(session.redirect) return router.push("/checkout");
+
     if(session.error) {
       setLoading(false);
       toast({

@@ -1,67 +1,35 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  CreditCard,
-  Home,
-  Loader2,
-  LockIcon,
-  ShieldCheck,
-  ShoppingBag,
-  Truck,
-  User,
-} from "lucide-react";
+import type React from "react"
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { toast } from "@/hooks/use-toast";
-import { Checkbox } from "@/components/ui/checkbox";
-import Image from "next/image";
-import { Philosopher } from "next/font/google";
-import useCart from "@/lib/useCart";
-import { authClient } from "@/lib/auth-client";
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+import { ArrowLeft, ArrowRight, CheckCircle, CreditCard, Loader2, LockIcon, ShoppingBag, Truck } from "lucide-react"
 
-import { loadStripe } from "@stripe/stripe-js";
-import { createCheckoutSession } from "@/lib/actions/payment";
-import { Elements, useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcElement, CardElement, PaymentElement } from "@stripe/react-stripe-js";
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Separator } from "@/components/ui/separator"
+import { toast } from "@/hooks/use-toast"
+import { Checkbox } from "@/components/ui/checkbox"
+import Image from "next/image"
+import { Philosopher } from "next/font/google"
+import useCart from "@/lib/useCart"
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+import { loadStripe } from "@stripe/stripe-js"
+import { createPaymentIntent } from "@/lib/actions/payment"
+import { Elements, useStripe, useElements, PaymentElement, AddressElement } from "@stripe/react-stripe-js"
+import Navbar from "@/components/Navbar"
 
-const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+
+const philosopher = Philosopher({ weight: "700", subsets: ["latin"] })
 
 // Form schemas
 const shippingSchema = z.object({
@@ -74,73 +42,77 @@ const shippingSchema = z.object({
   zipCode: z.string().min(5, { message: "ZIP code is required" }),
   country: z.string().min(2, { message: "Country is required" }),
   saveInfo: z.boolean().default(false).optional(),
-});
+})
 
 const paymentSchema = z.object({
   cardholderName: z.string().min(2, { message: "Cardholder name is required" }),
-  cardNumber: z
-    .string()
-    .min(16, { message: "Please enter a valid card number" })
-    .max(19),
-  expiryDate: z
-    .string()
-    .min(5, { message: "Please enter a valid expiry date (MM/YY)" }),
-  cvv: z.string().min(3, { message: "Please enter a valid CVV" }).max(4),
   billingAddress: z.enum(["same", "different"]),
   saveCard: z.boolean().default(false).optional(),
-  address: z.string(),
-  city: z.string(),
-  state: z.string(),
-  zipCode: z.string(),
-  country: z.string(),
-});
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  zipCode: z.string().optional(),
+  country: z.string().optional(),
+})
 
 type CartItems = {
-  id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  imagesrc: string;
-  productId: string;
-};
+  id: string
+  name: string
+  price: number
+  quantity: number
+  imagesrc: string
+  productId: string
+}
 
-type ShippingFormValues = z.infer<typeof shippingSchema>;
-type PaymentFormValues = z.infer<typeof paymentSchema>;
+type ShippingFormValues = z.infer<typeof shippingSchema>
+type PaymentFormValues = z.infer<typeof paymentSchema>
 
-export default function CheckoutClientPage() {
-  const router = useRouter();
-  const stripe = useStripe();
-  const elements = useElements();
-  const [step, setStep] = useState<"shipping" | "payment" | "confirmation">(
-    "shipping"
-  );
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [shippingData, setShippingData] = useState<ShippingFormValues | null>(
-    null
-  );
-  const [cartItems, setCartItems] = useState<CartItems[]>([]);
-  const [subtotal, setSubtotal] = useState(0);
-  const { cart, addToCart, clearCart, getTotal, removeFromCart, discount } = useCart();
-  const [card, setCard] = useState<any>(null);
-  const [payments, setPayments] = useState<any>(null);
-  const [cardDetails, setCardDetails] = useState({
-    cardNumber: "",
-    expMonth: "",
-    expYear: "",
-    cvv: "",
-  });
+function CheckoutForm() {
+  const router = useRouter()
+  const [step, setStep] = useState<"shipping" | "payment" | "confirmation">("shipping")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [shippingData, setShippingData] = useState<ShippingFormValues | null>(null)
+  const [cartItems, setCartItems] = useState<CartItems[]>([])
+  const [subtotal, setSubtotal] = useState(0)
+  const { cart, clearCart, getTotal, discount } = useCart()
+  const [clientSecret, setClientSecret] = useState<string>("")
 
   useEffect(() => {
     // @ts-ignore
-    setCartItems(cart);
-    setSubtotal(
-      cart.reduce((total, item) => total + item.price! * item.quantity, 0) || 0
-    );
-  }, [cart, getTotal]);
+    setCartItems(cart)
+    setSubtotal(cart.reduce((total, item) => total + item.price! * item.quantity, 0) || 0)
+  }, [cart, getTotal])
 
-  const shipping = 0; // Free shipping
-  const tax = subtotal * 0.07; // 7% tax
-  const total = subtotal + shipping + tax;
+  useEffect(() => {
+    // Create a PaymentIntent as soon as the page loads if we're on the payment step
+    if (step === "payment" && !clientSecret && cart.length > 0) {
+      const fetchPaymentIntent = async () => {
+        try {
+          const { clientSecret } = await createPaymentIntent({
+            amount: total,
+            cart,
+            discount,
+          })
+
+          setClientSecret(clientSecret!)
+        } catch (error) {
+          console.error("Error creating payment intent:", error)
+          toast({
+            title: "Error",
+            description: "There was a problem setting up your payment. Please try again.",
+            variant: "destructive",
+          })
+        }
+      }
+
+      fetchPaymentIntent()
+    }
+  }, [step, cart, discount])
+
+  const shipping = 0 // Free shipping
+  const tax = subtotal * 0.07 // 7% tax
+  const total = subtotal + shipping + tax
+
   // Shipping form
   const shippingForm = useForm<ShippingFormValues>({
     resolver: zodResolver(shippingSchema),
@@ -155,16 +127,13 @@ export default function CheckoutClientPage() {
       country: "US",
       saveInfo: false,
     },
-  });
+  })
 
   // Payment form
   const paymentForm = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       cardholderName: "",
-      cardNumber: "",
-      expiryDate: "",
-      cvv: "",
       billingAddress: "same",
       address: "",
       city: "",
@@ -173,132 +142,21 @@ export default function CheckoutClientPage() {
       country: "US",
       saveCard: false,
     },
-  });
+  })
 
   // Handle shipping form submission
   function onShippingSubmit(data: ShippingFormValues) {
-    setShippingData(data);
-    setStep("payment");
+    setShippingData(data)
+    setStep("payment")
 
     // Scroll to top
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: "smooth" })
   }
-
-  // Handle payment form submission
-  async function onPaymentSubmit(data: PaymentFormValues) {
-    if (!stripe || !elements) return;
-    setIsProcessing(true);
-
-    try {
-      // In a real app, you would process the payment with Stripe here
-      console.log("Processing payment with data:", data);
-      console.log("Shipping information:", shippingData);
-
-      const { paymentMethod, error } = await stripe.createPaymentMethod({
-        type: "card",
-        card: elements.getElement(CardElement)!,
-      });
-
-      if(!paymentMethod) return console.log("NO OAYMENTMETHOD", error);
-
-      const payment = createCheckoutSession({
-        paymentMethodId: paymentMethod.id,
-        card: {
-          number: Number(data.cardNumber),
-          exp_month: parseInt(data.expiryDate.split("/")[0]),
-          exp_year: parseInt(data.expiryDate.split("/")[0]),
-          cvc: Number(data.cvv),
-          name: data.cardholderName
-        },
-        cart,
-        discount,
-        total
-      })
-      // const { token, error } = await stripe.tokens.create("person", {
-      //   type: "card",
-      //   card: {
-      //     number: data.cardNumber,
-      //     exp_month: parseInt(data.expiryDate.split("/")[0]),
-      //     exp_year: parseInt(data.expiryDate.split("/")[0]),
-      //     cvc: data.cvv
-      //   },
-      // });
-      //
-      // console.log(error);
-      // if(!token) return;
-      //
-      
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      toast({
-        title: "Payment successful",
-        description: "Your order has been placed successfully.",
-      });
-
-      setStep("confirmation");
-
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (error) {
-      toast({
-        title: "Payment failed",
-        description:
-          "There was an error processing your payment. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  }
-
-
-  const syncCustomInputsToStripe = (data: PaymentFormValues) => {
-    const cardNumberElement = elements?.getElement(CardNumberElement);
-    const cardExpiryElement = elements?.getElement(CardExpiryElement);
-    const cardCvcElement = elements?.getElement(CardCvcElement);
-
-    if (cardNumberElement) {
-      cardNumberElement.update({ value: data.cardNumber.replace(/\s/g, "") });
-    }
-    if (cardExpiryElement) {
-      cardExpiryElement.update({ value: `${cardDetails.expMonth}/${cardDetails.expYear}` });
-    }
-    if (cardCvcElement) {
-      cardCvcElement.update({ value: cardDetails.cvc });
-    }
-  };
 
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <header className="border-b border-[#550C18]/10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link href="/">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="mizan.svg"
-                  width={35}
-                  height={35}
-                  alt="Mizan Logo"
-                />
-                <h1
-                  className={`md:text-4xl md:block hidden font-bold text-[#550C18] my-0 ${philosopher.className}`}
-                >
-                  Mizan
-                </h1>
-              </div>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-[#3A3A3A]/70 flex items-center">
-              <LockIcon className="h-4 w-4 mr-1" /> Secure Checkout
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb */}
@@ -321,36 +179,24 @@ export default function CheckoutClientPage() {
             <div className="flex flex-col items-center">
               <div
                 className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                  step === "shipping"
-                    ? "bg-[#550C18] text-white"
-                    : "bg-[#550C18] text-white"
+                  step === "shipping" ? "bg-[#550C18] text-white" : "bg-[#550C18] text-white"
                 }`}
               >
                 <Truck className="h-5 w-5" />
               </div>
-              <span
-                className={`text-sm mt-2 ${
-                  step === "shipping"
-                    ? "text-[#550C18] font-medium"
-                    : "text-[#550C18]"
-                }`}
-              >
+              <span className={`text-sm mt-2 ${step === "shipping" ? "text-[#550C18] font-medium" : "text-[#550C18]"}`}>
                 Shipping
               </span>
             </div>
-            <div
-              className={`h-1 w-16 md:w-32 ${
-                step === "shipping" ? "bg-[#550C18]/30" : "bg-[#550C18]"
-              }`}
-            />
+            <div className={`h-1 w-16 md:w-32 ${step === "shipping" ? "bg-[#550C18]/30" : "bg-[#550C18]"}`} />
             <div className="flex flex-col items-center">
               <div
                 className={`h-10 w-10 rounded-full flex items-center justify-center ${
                   step === "payment"
                     ? "bg-[#550C18] text-white"
                     : step === "confirmation"
-                    ? "bg-[#550C18] text-white"
-                    : "bg-[#550C18]/30 text-white"
+                      ? "bg-[#550C18] text-white"
+                      : "bg-[#550C18]/30 text-white"
                 }`}
               >
                 <CreditCard className="h-5 w-5" />
@@ -360,33 +206,25 @@ export default function CheckoutClientPage() {
                   step === "payment"
                     ? "text-[#550C18] font-medium"
                     : step === "confirmation"
-                    ? "text-[#550C18]"
-                    : "text-[#3A3A3A]/50"
+                      ? "text-[#550C18]"
+                      : "text-[#3A3A3A]/50"
                 }`}
               >
                 Payment
               </span>
             </div>
-            <div
-              className={`h-1 w-16 md:w-32 ${
-                step === "confirmation" ? "bg-[#550C18]" : "bg-[#550C18]/30"
-              }`}
-            />
+            <div className={`h-1 w-16 md:w-32 ${step === "confirmation" ? "bg-[#550C18]" : "bg-[#550C18]/30"}`} />
             <div className="flex flex-col items-center">
               <div
                 className={`h-10 w-10 rounded-full flex items-center justify-center ${
-                  step === "confirmation"
-                    ? "bg-[#550C18] text-white"
-                    : "bg-[#550C18]/30 text-white"
+                  step === "confirmation" ? "bg-[#550C18] text-white" : "bg-[#550C18]/30 text-white"
                 }`}
               >
                 <CheckCircle className="h-5 w-5" />
               </div>
               <span
                 className={`text-sm mt-2 ${
-                  step === "confirmation"
-                    ? "text-[#550C18] font-medium"
-                    : "text-[#3A3A3A]/50"
+                  step === "confirmation" ? "text-[#550C18] font-medium" : "text-[#3A3A3A]/50"
                 }`}
               >
                 Confirmation
@@ -401,19 +239,12 @@ export default function CheckoutClientPage() {
             {step === "shipping" && (
               <Card className="bg-white border-[#550C18]/10">
                 <CardHeader>
-                  <CardTitle className="text-2xl font-semibold text-[#550C18]">
-                    Shipping Information
-                  </CardTitle>
-                  <CardDescription>
-                    Please enter your shipping details
-                  </CardDescription>
+                  <CardTitle className="text-2xl font-semibold text-[#550C18]">Shipping Information</CardTitle>
+                  <CardDescription>Please enter your shipping details</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Form {...shippingForm}>
-                    <form
-                      onSubmit={shippingForm.handleSubmit(onShippingSubmit)}
-                      className="space-y-6"
-                    >
+                    <form onSubmit={shippingForm.handleSubmit(onShippingSubmit)} className="space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
                           control={shippingForm.control}
@@ -422,11 +253,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>Full Name</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="John Doe"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="John Doe" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -439,11 +266,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>Email Address</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="john.doe@example.com"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="john.doe@example.com" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -456,11 +279,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>Phone Number</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="(123) 456-7890"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="(123) 456-7890" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -473,11 +292,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>Address</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="123 Main St"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="123 Main St" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -490,11 +305,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>City</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="New York"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="New York" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -507,11 +318,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>State / Province</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="NY"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="NY" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -524,11 +331,7 @@ export default function CheckoutClientPage() {
                             <FormItem>
                               <FormLabel>ZIP / Postal Code</FormLabel>
                               <FormControl>
-                                <Input
-                                  placeholder="10001"
-                                  {...field}
-                                  className="border-[#550C18]/20"
-                                />
+                                <Input placeholder="10001" {...field} className="border-[#550C18]/20" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -540,23 +343,16 @@ export default function CheckoutClientPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Country</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
                                 <FormControl>
                                   <SelectTrigger className="border-[#550C18]/20">
                                     <SelectValue placeholder="Select a country" />
                                   </SelectTrigger>
                                 </FormControl>
                                 <SelectContent>
-                                  <SelectItem value="US">
-                                    United States
-                                  </SelectItem>
+                                  <SelectItem value="US">United States</SelectItem>
                                   <SelectItem value="CA">Canada</SelectItem>
-                                  <SelectItem value="UK">
-                                    United Kingdom
-                                  </SelectItem>
+                                  <SelectItem value="UK">United Kingdom</SelectItem>
                                   <SelectItem value="AU">Australia</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -579,19 +375,14 @@ export default function CheckoutClientPage() {
                               />
                             </FormControl>
                             <div className="space-y-1 leading-none">
-                              <FormLabel className="text-sm font-normal">
-                                Save this information for next time
-                              </FormLabel>
+                              <FormLabel className="text-sm font-normal">Save this information for next time</FormLabel>
                             </div>
                           </FormItem>
                         )}
                       />
 
                       <div className="flex justify-end">
-                        <Button
-                          type="submit"
-                          className="bg-[#550C18] hover:bg-[#78001A] text-white"
-                        >
+                        <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white">
                           Continue to Payment
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
@@ -602,33 +393,54 @@ export default function CheckoutClientPage() {
               </Card>
             )}
 
+            {step === "payment" && clientSecret && (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret,
+                  appearance: {
+                    theme: "stripe",
+                    variables: {
+                      colorPrimary: "#550C18",
+                      colorBackground: "#ffffff",
+                      colorText: "#3A3A3A",
+                      colorDanger: "#df1b41",
+                      fontFamily: "Poppins, system-ui, sans-serif",
+                      spacingUnit: "4px",
+                      borderRadius: "4px",
+                    },
+                  },
+                }}
+              >
+                <PaymentForm
+                  shippingData={shippingData}
+                  onBack={() => setStep("shipping")}
+                  onSuccess={() => setStep("confirmation")}
+                  paymentForm={paymentForm}
+                />
+              </Elements>
+            )}
+
             {step === "confirmation" && (
               <Card className="bg-white border-[#550C18]/10">
                 <CardHeader className="text-center">
                   <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
                     <CheckCircle className="h-10 w-10 text-green-600" />
                   </div>
-                  <CardTitle className="text-2xl font-semibold text-[#550C18]">
-                    Order Confirmed!
-                  </CardTitle>
+                  <CardTitle className="text-2xl font-semibold text-[#550C18]">Order Confirmed!</CardTitle>
                   <CardDescription>Thank you for your purchase</CardDescription>
                 </CardHeader>
                 <CardContent className="text-center">
                   <p className="text-[#3A3A3A] mb-6">
-                    Your order has been placed and is being processed. You will
-                    receive an email confirmation shortly.
+                    Your order has been placed and is being processed. You will receive an email confirmation shortly.
                   </p>
                   <div className="bg-[#550C18]/5 p-4 rounded-lg mb-6">
-                    <h3 className="font-medium text-[#3A3A3A] mb-2 text-xl">
-                      Order Details
-                    </h3>
+                    <h3 className="font-medium text-[#3A3A3A] mb-2 text-xl">Order Details</h3>
                     <p className="text-sm text-[#3A3A3A]/70 mb-1">
                       Order Number: #MIZ-
                       {Math.floor(100000 + Math.random() * 900000)}
                     </p>
-                    <p className="text-sm text-[#3A3A3A]/70">
-                      Order Date: {new Date().toLocaleDateString()}
-                    </p>
+                    <p className="text-sm text-[#3A3A3A]/70">Order Date: {new Date().toLocaleDateString()}</p>
                   </div>
                   <div className="space-y-4">
                     <Button
@@ -654,33 +466,22 @@ export default function CheckoutClientPage() {
           <div className="lg:col-span-1">
             <Card className="bg-white border-[#550C18]/10 sticky top-4">
               <CardHeader>
-                <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-                  Order Summary
-                </CardTitle>
+                <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   {cartItems.map((item) => (
-                    <div
-                      key={item.productId}
-                      className="flex justify-between py-2"
-                    >
+                    <div key={item.productId} className="flex justify-between py-2">
                       <div className="flex items-start gap-2">
                         <div className="h-10 w-10 rounded-md bg-[#550C18]/10 flex items-center justify-center">
                           <ShoppingBag className="h-5 w-5 text-[#550C18]" />
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-[#3A3A3A]">
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-[#3A3A3A]/70">
-                            Qty: {item.quantity}
-                          </p>
+                          <p className="text-sm font-medium text-[#3A3A3A]">{item.name}</p>
+                          <p className="text-xs text-[#3A3A3A]/70">Qty: {item.quantity}</p>
                         </div>
                       </div>
-                      <p className="text-sm font-medium text-[#3A3A3A]">
-                        ${(item.price! * item.quantity).toFixed(2)}
-                      </p>
+                      <p className="text-sm font-medium text-[#3A3A3A]">${(item.price! * item.quantity).toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
@@ -690,33 +491,23 @@ export default function CheckoutClientPage() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-[#3A3A3A]">Subtotal</span>
-                    <span className="text-sm font-medium text-[#3A3A3A]">
-                      ${subtotal.toFixed(2)}
-                    </span>
+                    <span className="text-sm font-medium text-[#3A3A3A]">${subtotal.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-[#3A3A3A]">Shipping</span>
-                    <span className="text-sm font-medium text-[#3A3A3A]">
-                      Free
-                    </span>
+                    <span className="text-sm font-medium text-[#3A3A3A]">Free</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-[#3A3A3A]">Tax (7%)</span>
-                    <span className="text-sm font-medium text-[#3A3A3A]">
-                      ${tax.toFixed(2)}
-                    </span>
+                    <span className="text-sm font-medium text-[#3A3A3A]">${tax.toFixed(2)}</span>
                   </div>
                 </div>
 
                 <Separator className="my-4" />
 
                 <div className="flex justify-between">
-                  <span className="text-base font-medium text-[#3A3A3A]">
-                    Total
-                  </span>
-                  <span className="text-lg font-bold text-[#550C18]">
-                    ${total.toFixed(2)}
-                  </span>
+                  <span className="text-base font-medium text-[#3A3A3A]">Total</span>
+                  <span className="text-lg font-bold text-[#550C18]">${total.toFixed(2)}</span>
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-[#550C18]/10">
@@ -726,12 +517,7 @@ export default function CheckoutClientPage() {
                   </div>
                   <div className="flex gap-2">
                     <div className="h-8 w-12 bg-[#550C18]/5 rounded flex items-center justify-center">
-                      <svg
-                        className="h-4 w-6"
-                        viewBox="0 0 32 21"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
+                      <svg className="h-4 w-6" viewBox="0 0 32 21" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect width="32" height="21" rx="3" fill="#016FD0" />
                         <path d="M16 15H13V6H16V15Z" fill="white" />
                         <path
@@ -745,12 +531,7 @@ export default function CheckoutClientPage() {
                       </svg>
                     </div>
                     <div className="h-8 w-12 bg-[#550C18]/5 rounded flex items-center justify-center">
-                      <svg
-                        className="h-4 w-6"
-                        viewBox="0 0 32 21"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
+                      <svg className="h-4 w-6" viewBox="0 0 32 21" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect width="32" height="21" rx="3" fill="#EB001B" />
                         <circle cx="11" cy="10.5" r="6" fill="#EB001B" />
                         <circle cx="21" cy="10.5" r="6" fill="#F79E1B" />
@@ -763,12 +544,7 @@ export default function CheckoutClientPage() {
                       </svg>
                     </div>
                     <div className="h-8 w-12 bg-[#550C18]/5 rounded flex items-center justify-center">
-                      <svg
-                        className="h-4 w-6"
-                        viewBox="0 0 32 21"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
+                      <svg className="h-4 w-6" viewBox="0 0 32 21" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <rect width="32" height="21" rx="3" fill="#4A4A4A" />
                         <path
                           d="M20.5 10.5C20.5 12.9853 18.4853 15 16 15C13.5147 15 11.5 12.9853 11.5 10.5C11.5 8.01472 13.5147 6 16 6C18.4853 6 20.5 8.01472 20.5 10.5Z"
@@ -785,5 +561,157 @@ export default function CheckoutClientPage() {
         </div>
       </div>
     </div>
-  );
+  )
 }
+
+// Payment form component that uses Stripe Elements
+function PaymentForm({
+  shippingData,
+  onBack,
+  onSuccess,
+  paymentForm,
+}: {
+  shippingData: ShippingFormValues | null
+  onBack: () => void
+  onSuccess: () => void
+  paymentForm: any
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+
+    if (!stripe || !elements) {
+      // Stripe.js hasn't yet loaded.
+      return
+    }
+
+    setIsProcessing(true)
+    setErrorMessage(null)
+
+    try {
+      // Confirm the payment
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/order-confirmation`,
+        },
+        redirect: "if_required",
+      })
+
+      if (error) {
+        // Show error to your customer
+        setErrorMessage(error.message || "An unexpected error occurred")
+      } else {
+        // The payment has been processed!
+        toast({
+          title: "Payment successful",
+          description: "Your order has been placed successfully.",
+        })
+        onSuccess()
+      }
+    } catch (error) {
+      console.error("Error processing payment:", error)
+      setErrorMessage("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  return (
+    <Card className="bg-white border-[#550C18]/10">
+      <CardHeader>
+        <CardTitle className="text-2xl font-semibold text-[#550C18]">Payment Information</CardTitle>
+        <CardDescription>Please enter your payment details</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-4">
+            <div className="rounded-md border border-[#550C18]/10 p-4">
+              <h3 className="text-lg font-medium text-[#3A3A3A] mb-4">Payment Method</h3>
+              <PaymentElement
+                options={{
+                  layout: {
+                    type: "tabs",
+                    defaultCollapsed: false,
+                  },
+                }}
+              />
+            </div>
+
+            <div className="rounded-md border border-[#550C18]/10 p-4">
+              <h3 className="text-lg font-medium text-[#3A3A3A] mb-4">Billing Address</h3>
+              <AddressElement
+                options={{
+                  mode: "billing",
+                  fields: {
+                    phone: "always",
+                  },
+                  validation: {
+                    phone: {
+                      required: "always",
+                    },
+                  },
+                  defaultValues: {
+                    name: shippingData?.fullName,
+                    address: {
+                      line1: shippingData?.address,
+                      city: shippingData?.city,
+                      state: shippingData?.state,
+                      postal_code: shippingData?.zipCode,
+                      country: shippingData?.country!,
+                    },
+                    phone: shippingData?.phone,
+                  },
+                }}
+              />
+            </div>
+          </div>
+
+          {errorMessage && (
+            <div className="text-red-500 text-sm p-3 bg-red-50 rounded-md border border-red-200">{errorMessage}</div>
+          )}
+
+          <div className="flex justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+              onClick={onBack}
+              disabled={isProcessing}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Shipping
+            </Button>
+            <Button
+              type="submit"
+              className="bg-[#550C18] hover:bg-[#78001A] text-white"
+              disabled={isProcessing || !stripe || !elements}
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Complete Order"
+              )}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  )
+}
+
+export default function CheckoutClientPage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <CheckoutForm />
+    </Elements>
+  )
+}
+
