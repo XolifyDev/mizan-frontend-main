@@ -13,10 +13,10 @@ export async function POST(request: Request) {
     // For now, we'll just parse the JSON
     const event = JSON.parse(body)
 
+
     // Handle different event types
     switch (event.type) {
       case "checkout.session.completed":
-        console.log("Checkout session completed:", event.data.object)
 
         const checkoutSession = await prisma.checkoutSessions.findFirst({
           where: {
@@ -46,6 +46,36 @@ export async function POST(request: Request) {
         // 2. Send confirmation emails
         // 3. Provision access to purchased products
         break
+
+      case "payment_intent.succeeded":
+        const paymentIntent = await prisma.checkoutSessions.findFirst({
+          where: {
+            sessionId: event.data.id
+          }
+        });
+      
+        if(!paymentIntent) return;
+        console.log("PAYMENTCHECKOUT FOUND");
+        // 1. Update your database with the order status
+        await prisma.checkoutSessions.update({
+          where: {
+            id: paymentIntent.id
+          },
+          data: {
+            completed: "paid",
+          }
+        });
+
+        await prisma.orders.create({
+          data: {
+            cart: paymentIntent.cart,
+            id: `mizan_${v4()}_${new Date().getMilliseconds()}`,
+            status: "processing",
+            stripeSessionId: paymentIntent.sessionId,
+            userId: paymentIntent.userId
+          }
+        });
+      break
 
       case "invoice.payment_succeeded":
         // Continue to provision the subscription as payments continue to be made

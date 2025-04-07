@@ -173,7 +173,7 @@ export async function createPaymentIntent({ amount, cart, discount }: CreatePaym
         cart: JSON.stringify(cart),
         completed: "pending",
         paymentType: 'payment',
-        sessionId: paymentIntent.id,
+        sessionId: paymentIntent.client_secret!,
         userId: user.id
       }
     });
@@ -181,7 +181,6 @@ export async function createPaymentIntent({ amount, cart, discount }: CreatePaym
 
     return {
       clientSecret: paymentIntent.client_secret,
-      id: paymentIntent.id
     }
   } catch (error) {
     console.error("Error creating payment intent:", error)

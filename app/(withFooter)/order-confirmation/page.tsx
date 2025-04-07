@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import Footer from "@/components/Footer"
 import Navbar from "@/components/Navbar"
 import { StripeCheckoutSession } from "@stripe/stripe-js"
-import { getSessionAndOrder } from "@/lib/actions/order"
+import { getPaymentAndOrder, getSessionAndOrder } from "@/lib/actions/order"
 import { CartItem } from "@/lib/cartItemSchema"
 
 // This would typically come from your database or API
@@ -42,12 +42,14 @@ export default function OrderConfirmationPage() {
     const fetchOrderDetails = async () => {
       setIsLoading(true)
       try {
-        const data = await getSessionAndOrder(sessionId || "");
+        let data;
+        if(sessionId?.startsWith("pi_")) {
+          data = await getPaymentAndOrder(sessionId || "");
+        } else {
+          data = await getSessionAndOrder(sessionId || "");
+        }
         if(!data.checkoutSession || !data.stripeSession) return setError("We couldn't retrieve your order details. Please contact customer support.");
 
-        console.log(JSON.parse(data.checkoutSession.cart));
-
-        console.log(data.order, data)
         // Mock order data
         const mockOrder: OrderDetails = {
           id: `${data.order ? data.order.id : data.checkoutSession.id}`,
@@ -176,7 +178,7 @@ export default function OrderConfirmationPage() {
                               <p className="text-xs text-[#3A3A3A]/70">Monthly subscription</p>
                             </div>
                             <div className="col-span-2 text-center text-[#3A3A3A]">{item.quantity}</div>
-                            <div className="col-span-2 text-right text-[#3A3A3A]">${item.price}{isSubscription ? "/month" : null}</div>
+                            <div className="col-span-2 text-right text-[#3A3A3A]">${item.price}{isSubscription ? "/mo" : null}</div>
                             <div className="col-span-2 text-right font-medium text-[#550C18]">
                               ${(item.price * item.quantity).toFixed(2)}{isSubscription ? "/mo" : null}
                             </div>
@@ -187,7 +189,7 @@ export default function OrderConfirmationPage() {
                     <div className="bg-[#550C18]/5 px-4 py-3">
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-[#3A3A3A]">Total</span>
-                        <span className="font-bold text-[#550C18]">${Number(order.total/100)}{isSubscription ? "/month" : null}</span>
+                        <span className="font-bold text-[#550C18]">${Number(order.total/100)}{isSubscription ? "/mo" : null}</span>
                       </div>
                     </div>
                   </div>
@@ -196,7 +198,7 @@ export default function OrderConfirmationPage() {
                 <div>
                   <h3 className="text-lg font-medium text-[#3A3A3A] mb-3">What's Next?</h3>
                   <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
+                    <li className="flex items-center gap-3 mt-0.5">
                       <div className="h-6 w-6 rounded-full bg-[#550C18]/10 flex items-center justify-center shrink-0 mt-0.5">
                         <span className="text-xs font-bold text-[#550C18]">1</span>
                       </div>
@@ -204,7 +206,7 @@ export default function OrderConfirmationPage() {
                         You will receive a confirmation email with your order details and receipt.
                       </p>
                     </li>
-                    <li className="flex items-start gap-3">
+                    <li className="flex items-center gap-3 mt-0.5">
                       <div className="h-6 w-6 rounded-full bg-[#550C18]/10 flex items-center justify-center shrink-0 mt-0.5">
                         <span className="text-xs font-bold text-[#550C18]">2</span>
                       </div>
@@ -212,11 +214,11 @@ export default function OrderConfirmationPage() {
                         Our team will set up your products and send you access credentials within 24 hours.
                       </p>
                     </li>
-                    <li className="flex items-start gap-3">
+                    <li className="flex items-center gap-3 mt-0.5">
                       <div className="h-6 w-6 rounded-full bg-[#550C18]/10 flex items-center justify-center shrink-0 mt-0.5">
                         <span className="text-xs font-bold text-[#550C18]">3</span>
                       </div>
-                      <p className="text-sm text-[#3A3A3A]">
+                      <p className="text-sm text-[#3A3A3A] mt-0.5">
                         A customer success representative will contact you to schedule an onboarding session.
                       </p>
                     </li>

@@ -26,6 +26,9 @@ import { loadStripe } from "@stripe/stripe-js"
 import { createPaymentIntent } from "@/lib/actions/payment"
 import { Elements, useStripe, useElements, PaymentElement, AddressElement } from "@stripe/react-stripe-js"
 import Navbar from "@/components/Navbar"
+import { Orders } from "@prisma/client"
+import { getPaymentAndOrder } from "@/lib/actions/order"
+import { formatDate } from "@/lib/utils"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -75,7 +78,9 @@ function CheckoutForm() {
   const [cartItems, setCartItems] = useState<CartItems[]>([])
   const [subtotal, setSubtotal] = useState(0)
   const { cart, clearCart, getTotal, discount } = useCart()
+  const [orderData, setOrderData] = useState<any>(null);
   const [clientSecret, setClientSecret] = useState<string>("")
+  const [paymentIntentId, setPaymentId] = useState<string>("")
 
   useEffect(() => {
     // @ts-ignore
@@ -88,13 +93,14 @@ function CheckoutForm() {
     if (step === "payment" && !clientSecret && cart.length > 0) {
       const fetchPaymentIntent = async () => {
         try {
-          const { clientSecret } = await createPaymentIntent({
+          const { clientSecret, id } = await createPaymentIntent({
             amount: total,
             cart,
             discount,
           })
 
           setClientSecret(clientSecret!)
+          setPaymentId(id!)
         } catch (error) {
           console.error("Error creating payment intent:", error)
           toast({
@@ -106,6 +112,16 @@ function CheckoutForm() {
       }
 
       fetchPaymentIntent()
+    } else if(step === "confirmation" && paymentIntentId) {
+      const fetchOrderDetails = async () => {
+        const details = await getPaymentAndOrder(paymentIntentId);
+        if(!details) return;
+        setOrderData(details)
+        console.log(details);
+      };
+      setTimeout(() => {
+        router.push(`/order-confirmation?session_id=${paymentIntentId}`);
+      }, 500)
     }
   }, [step, cart, discount])
 
@@ -152,6 +168,8 @@ function CheckoutForm() {
     // Scroll to top
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
+
+
 
   return (
     <div className="min-h-screen bg-white">
@@ -422,44 +440,51 @@ function CheckoutForm() {
             )}
 
             {step === "confirmation" && (
-              <Card className="bg-white border-[#550C18]/10">
-                <CardHeader className="text-center">
-                  <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                    <CheckCircle className="h-10 w-10 text-green-600" />
-                  </div>
-                  <CardTitle className="text-2xl font-semibold text-[#550C18]">Order Confirmed!</CardTitle>
-                  <CardDescription>Thank you for your purchase</CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <p className="text-[#3A3A3A] mb-6">
-                    Your order has been placed and is being processed. You will receive an email confirmation shortly.
-                  </p>
-                  <div className="bg-[#550C18]/5 p-4 rounded-lg mb-6">
-                    <h3 className="font-medium text-[#3A3A3A] mb-2 text-xl">Order Details</h3>
-                    <p className="text-sm text-[#3A3A3A]/70 mb-1">
-                      Order Number: #MIZ-
-                      {Math.floor(100000 + Math.random() * 900000)}
-                    </p>
-                    <p className="text-sm text-[#3A3A3A]/70">Order Date: {new Date().toLocaleDateString()}</p>
-                  </div>
-                  <div className="space-y-4">
-                    <Button
-                      className="bg-[#550C18] hover:bg-[#78001A] text-white w-full"
-                      onClick={() => router.push("/dashboard")}
-                    >
-                      Go to Dashboard
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5 w-full"
-                      onClick={() => router.push("/")}
-                    >
-                      Continue Shopping
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="min-h-full flex items-center justify-center">
+                <div className="flex flex-col items-center">
+                  <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
+                </div>
+              </div>
             )}
+
+            {/* {step === "confirmation" && orderData && ( */}
+            {/*   <Card className="bg-white border-[#550C18]/10"> */}
+            {/*     <CardHeader className="text-center"> */}
+            {/*       <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 flex items-center justify-center"> */}
+            {/*         <CheckCircle className="h-10 w-10 text-green-600" /> */}
+            {/*       </div> */}
+            {/*       <CardTitle className="text-2xl font-semibold text-[#550C18]">Order Confirmed!</CardTitle> */}
+            {/*       <CardDescription>Thank you for your purchase</CardDescription> */}
+            {/*     </CardHeader> */}
+            {/*     <CardContent className="text-center"> */}
+            {/*       <p className="text-[#3A3A3A] mb-6"> */}
+            {/*         Your order has been placed and is being processed. You will receive an email confirmation shortly. */}
+            {/*       </p> */}
+            {/*       <div className="bg-[#550C18]/5 p-4 rounded-lg mb-6"> */}
+            {/*         <h3 className="font-medium text-[#3A3A3A] mb-2 text-xl">Order Details</h3> */}
+            {/*         <p className="text-sm text-[#3A3A3A]/70 mb-1"> */}
+            {/*           Order Number: #{orderData.order.id} */}
+            {/*         </p> */}
+            {/*         <p className="text-sm text-[#3A3A3A]/70">Order Date: {formatDate(orderData.order.created)}</p> */}
+            {/*       </div> */}
+            {/*       <div className="space-y-4"> */}
+            {/*         <Button */}
+            {/*           className="bg-[#550C18] hover:bg-[#78001A] text-white w-full" */}
+            {/*           onClick={() => router.push("/dashboard")} */}
+            {/*         > */}
+            {/*           Go to Dashboard */}
+            {/*         </Button> */}
+            {/*         <Button */}
+            {/*           variant="outline" */}
+            {/*           className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5 w-full" */}
+            {/*           onClick={() => router.push("/")} */}
+            {/*         > */}
+            {/*           Continue Shopping */}
+            {/*         </Button> */}
+            {/*       </div> */}
+            {/*     </CardContent> */}
+            {/*   </Card> */}
+            {/* )} */}
           </div>
 
           {/* Order Summary */}
@@ -637,6 +662,7 @@ function PaymentForm({
                   layout: {
                     type: "tabs",
                     defaultCollapsed: false,
+
                   },
                 }}
               />
