@@ -28,7 +28,7 @@ import { Elements, useStripe, useElements, PaymentElement, AddressElement } from
 import Navbar from "@/components/Navbar"
 import { Orders } from "@prisma/client"
 import { getPaymentAndOrder } from "@/lib/actions/order"
-import { formatDate } from "@/lib/utils"
+import { formatDate, getStateAbbreviation } from "@/lib/utils"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -120,6 +120,7 @@ function CheckoutForm() {
         console.log(details);
       };
       setTimeout(() => {
+        clearCart();
         router.push(`/order-confirmation?session_id=${paymentIntentId}`);
       }, 500)
     }
@@ -411,6 +412,13 @@ function CheckoutForm() {
               </Card>
             )}
 
+            {step === "payment" && !clientSecret && (
+              <div className="min-h-full flex items-center justify-center bg-white">
+                <div className="flex flex-col items-center">
+                  <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
+                </div>
+              </div>
+            )}
             {step === "payment" && clientSecret && (
               <Elements
                 stripe={stripePromise}
@@ -605,6 +613,7 @@ function PaymentForm({
   const elements = useElements()
   const [isProcessing, setIsProcessing] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [elementLoaded, setElementLoaded] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -662,9 +671,11 @@ function PaymentForm({
                   layout: {
                     type: "tabs",
                     defaultCollapsed: false,
-
                   },
                 }}
+                onLoaderStart={() => setElementLoaded(false)}
+                onLoadError={() => setElementLoaded(false)}
+                onReady={() => setElementLoaded(true)}
               />
             </div>
 
@@ -686,7 +697,7 @@ function PaymentForm({
                     address: {
                       line1: shippingData?.address,
                       city: shippingData?.city,
-                      state: shippingData?.state,
+                      state: getStateAbbreviation(shippingData?.state!) ? getStateAbbreviation(shippingData?.state!) : shippingData?.state,
                       postal_code: shippingData?.zipCode,
                       country: shippingData?.country!,
                     },

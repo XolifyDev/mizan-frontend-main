@@ -179,21 +179,23 @@ export default function CartPage({ products }: Props) {
   
     if(!session) return;
 
-    if(session.redirect) return router.push("/checkout");
+    setTimeout(async () => {
+      if(session.redirect) return router.push("/checkout");
 
-    if(session.error) {
-      setLoading(false);
-      toast({
-        title: "Error proceeding to checkout",
-        description: session.message,
-        variant: "destructive",
-      });
-      return;
-    }
+      if(session.error) {
+        setLoading(false);
+        toast({
+          title: "Error proceeding to checkout",
+          description: session.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    await stripe.redirectToCheckout({
-      sessionId: session.id!
-    })
+      await stripe.redirectToCheckout({
+        sessionId: session.id!
+      })
+    }, 500)
   }
 
   return (
@@ -355,7 +357,13 @@ export default function CartPage({ products }: Props) {
                     disabled={loading}
                   >
                     Proceed to Checkout
-                    <ChevronRight className="ml-2 h-4 w-4" />
+                    {loading ? (
+                      <div className="flex flex-col items-center ml-4">
+                        <div className="h-4 w-4 rounded-full border-y border-[#FFF] animate-spin"></div>
+                      </div>
+                    ) : (
+                      <ChevronRight className="ml-2 h-4 w-4" />
+                    )}
                   </Button>
                   <p className="text-xs text-[#3A3A3A]/70 text-center">
                     By proceeding to checkout, you agree to our{" "}
