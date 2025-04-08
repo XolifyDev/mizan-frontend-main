@@ -18,7 +18,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         <Link href="/">
           <div className="flex items-center gap-2">
-            <Image src="mizan.svg" width={35} height={35} alt="Mizan Logo" />
+            <Image src="/mizan.svg" width={35} height={35} alt="Mizan Logo" />
             <h1
               className={`md:text-4xl md:block hidden font-bold text-[#550C18] my-0 ${philosopher.className}`}
             >

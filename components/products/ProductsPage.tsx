@@ -198,9 +198,11 @@ export default function ProductsPage({ products }: Props) {
                     </ul>
                   </CardContent>
                   <CardFooter className="flex justify-between pt-2 border-t border-[#550C18]/10">
-                    <Button variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5">
-                      Learn More
-                    </Button>
+                    <Link href={`/products/${product.url}`}>
+                      <Button variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5">
+                        Learn More
+                      </Button>
+                    </Link>
                     <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={() => addToCart(product)}>
                       <ShoppingCart className="mr-2 h-4 w-4" />
                       Add to Cart

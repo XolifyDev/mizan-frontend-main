@@ -41,6 +41,7 @@ model Products {
   popular                Boolean  @default(false)
   image                  String   @default("placeholder.svg?height=200&width=300")
   category               String   @default("")
+  url String @default("")
 }
 
 model Event {
