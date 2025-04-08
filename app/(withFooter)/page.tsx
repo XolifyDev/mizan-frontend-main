@@ -15,19 +15,18 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="py-16 md:py-24 container mx-auto px-8">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div>
+        <div className="text-center gap-12 items-center">
+          <div className="w-full">
             <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#550C18] leading-tight my-6">
               Unified Masjid Management Solution
             </h2>
-            <p className="text-xl text-[#3A3A3A] mb-8 max-w-lg">
+            <p className="text-xl text-[#3A3A3A] mb-8 max-w-xl mx-auto">
               Mizan brings together prayer times, donations, digital displays,
               and websites in one powerful platform for modern masjids.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4 mx-auto justify-center">
               <Link href="/dashboard">
                 <Button
-                  size="lg"
                   className="bg-[#550C18] hover:bg-[#78001A] text-white text-lg px-8"
                 >
                   Start Free Trial
@@ -35,7 +34,6 @@ export default function LandingPage() {
               </Link>
               <Link href="#demo">
                 <Button
-                  size="lg"
                   variant="outline"
                   className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5 text-lg px-8"
                 >
@@ -44,58 +42,58 @@ export default function LandingPage() {
               </Link>
             </div>
           </div>
-          <div className="relative h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#550C18] to-[#78001A] opacity-90 z-10"></div>
-            <Image
-              src="/placeholder.svg?height=1000&width=1000"
-              alt="Masjid Management Dashboard"
-              fill
-              className="object-cover"
-            />
-            <div className="absolute inset-0 z-20 flex items-center justify-center">
-              <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg max-w-md">
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Image
-                    src="mizan.svg"
-                    width={30}
-                    height={30}
-                    alt="Mizan Logo"
-                  />
-                  <h3 className="text-xl font-semibold text-[#550C18] my-0">
-                    Mizan Dashboard
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-white p-3 rounded-lg border border-[#550C18]/10">
-                    <p className="text-sm font-medium text-[#3A3A3A] m-0">
-                      Prayer Times
-                    </p>
-                    <p className="text-2xl font-bold text-[#550C18] m-0">5</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-[#550C18]/10">
-                    <p className="text-sm font-medium text-[#3A3A3A] m-0">
-                      Donations
-                    </p>
-                    <p className="text-2xl font-bold text-[#550C18] m-0">
-                      $12.5k
-                    </p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-[#550C18]/10">
-                    <p className="text-sm font-medium text-[#3A3A3A] m-0">
-                      Events
-                    </p>
-                    <p className="text-2xl font-bold text-[#550C18] m-0">8</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-[#550C18]/10">
-                    <p className="text-sm font-medium text-[#3A3A3A] m-0">
-                      Users
-                    </p>
-                    <p className="text-2xl font-bold text-[#550C18] m-0">245</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* <div className="relative h-[400px] md:h-[500px] rounded-2xl overflow-hidden shadow-2xl"> */}
+          {/*   <div className="absolute inset-0 bg-gradient-to-br from-[#550C18] to-[#78001A] opacity-90 z-10"></div> */}
+          {/*   <Image */}
+          {/*     src="/placeholder.svg?height=1000&width=1000" */}
+          {/*     alt="Masjid Management Dashboard" */}
+          {/*     fill */}
+          {/*     className="object-cover" */}
+          {/*   /> */}
+          {/*   <div className="absolute inset-0 z-20 flex items-center justify-center"> */}
+          {/*     <div className="bg-white/90 backdrop-blur-sm rounded-xl p-6 shadow-lg max-w-md"> */}
+          {/*       <div className="flex items-center justify-center gap-2 mb-4"> */}
+          {/*         <Image */}
+          {/*           src="mizan.svg" */}
+          {/*           width={30} */}
+          {/*           height={30} */}
+          {/*           alt="Mizan Logo" */}
+          {/*         /> */}
+          {/*         <h3 className="text-xl font-semibold text-[#550C18] my-0"> */}
+          {/*           Mizan Dashboard */}
+          {/*         </h3> */}
+          {/*       </div> */}
+          {/*       <div className="grid grid-cols-2 gap-3 mb-4"> */}
+          {/*         <div className="bg-white p-3 rounded-lg border border-[#550C18]/10"> */}
+          {/*           <p className="text-sm font-medium text-[#3A3A3A] m-0"> */}
+          {/*             Prayer Times */}
+          {/*           </p> */}
+          {/*           <p className="text-2xl font-bold text-[#550C18] m-0">5</p> */}
+          {/*         </div> */}
+          {/*         <div className="bg-white p-3 rounded-lg border border-[#550C18]/10"> */}
+          {/*           <p className="text-sm font-medium text-[#3A3A3A] m-0"> */}
+          {/*             Donations */}
+          {/*           </p> */}
+          {/*           <p className="text-2xl font-bold text-[#550C18] m-0"> */}
+          {/*             $12.5k */}
+          {/*           </p> */}
+          {/*         </div> */}
+          {/*         <div className="bg-white p-3 rounded-lg border border-[#550C18]/10"> */}
+          {/*           <p className="text-sm font-medium text-[#3A3A3A] m-0"> */}
+          {/*             Events */}
+          {/*           </p> */}
+          {/*           <p className="text-2xl font-bold text-[#550C18] m-0">8</p> */}
+          {/*         </div> */}
+          {/*         <div className="bg-white p-3 rounded-lg border border-[#550C18]/10"> */}
+          {/*           <p className="text-sm font-medium text-[#3A3A3A] m-0"> */}
+          {/*             Users */}
+          {/*           </p> */}
+          {/*           <p className="text-2xl font-bold text-[#550C18] m-0">245</p> */}
+          {/*         </div> */}
+          {/*       </div> */}
+          {/*     </div> */}
+          {/*   </div> */}
+          {/* </div> */}
         </div>
       </section>
 
