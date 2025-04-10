@@ -10,25 +10,101 @@ datasource db {
 }
 
 model Masjid {
-  id          Int          @id @default(autoincrement())
+  id          String  @id @default(cuid())
   name        String
-  location    String
-  theme       String
-  contactInfo String
+  description String
+  address     String?
+  city        String
+  postal      String
+  country     String
+  email       String
+  websiteUrl  String
+  phone       String
+
+  latitude        String
+  longitude       String
+  locationAddress String
+
+  logo String @default("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIC25nqru3yN9lhtoTwdBWt_u0QlOcPzw3Bw&s")
+
+  timezone  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
   prayerTimes PrayerTime[]
+  users       User[]       @relation("MasjidUsers")
+  devices     Device[]
+  themes      Theme[]
+  flyers      Flyer[]
   events      Event[]
 }
 
+model Device {
+  id       String @id @default(cuid())
+  masjidId String
+  masjid   Masjid @relation(fields: [masjidId], references: [id])
+
+  name         String
+  location     String?
+  isActive     Boolean   @default(true)
+  lastSeen     DateTime? // for heartbeat tracking
+  registeredAt DateTime  @default(now())
+  ipAddress    String?
+
+  currentThemeId String?
+  currentTheme   Theme?  @relation(fields: [currentThemeId], references: [id])
+
+  screenLogs ScreenLog[]
+}
+
+model ScreenLog {
+  id       String @id @default(cuid())
+  deviceId String
+  device   Device @relation(fields: [deviceId], references: [id])
+
+  timestamp DateTime @default(now())
+  action    String // 'boot', 'refresh', 'disconnect', etc.
+  details   String?
+}
+
+model Theme {
+  id       String @id @default(cuid())
+  masjidId String
+  masjid   Masjid @relation(fields: [masjidId], references: [id])
+
+  name       String
+  configJson Json // stores layout/colors/etc.
+  createdAt  DateTime @default(now())
+
+  devices Device[]
+}
+
 model PrayerTime {
-  id          Int      @id @default(autoincrement())
-  masjidId    Int
-  date        DateTime
-  fajrTime    DateTime
-  dhuhrTime   DateTime
-  asrTime     DateTime
-  maghribTime DateTime
-  ishaTime    DateTime
-  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  id       String @id @default(cuid())
+  masjidId String
+  masjid   Masjid @relation(fields: [masjidId], references: [id])
+
+  date    DateTime // use one row per day, or recurring if fixed
+  fajr    DateTime
+  dhuhr   DateTime
+  asr     DateTime
+  maghrib DateTime
+  isha    DateTime
+  jummah  DateTime?
+}
+
+model Flyer {
+  id       String @id @default(cuid())
+  masjidId String
+  masjid   Masjid @relation(fields: [masjidId], references: [id])
+
+  title     String
+  imageUrl  String
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime @default(now())
 }
 
 model Products {
@@ -41,12 +117,13 @@ model Products {
   popular                Boolean  @default(false)
   image                  String   @default("placeholder.svg?height=200&width=300")
   category               String   @default("")
-  url String @default("")
+  role                   String   @default("subscription")
+  url                    String   @default("")
 }
 
 model Event {
   id          Int      @id @default(autoincrement())
-  masjidId    Int
+  masjidId    String
   eventName   String
   eventDate   DateTime
   description String
@@ -63,10 +140,14 @@ model User {
   updatedAt     DateTime
   sessions      Session[]
   accounts      Account[]
-  CheckoutSessions CheckoutSessions[]
-  Orders Orders[]
+  masjids       Masjid[]  @relation("MasjidUsers")
   admin         Boolean   @default(false)
   role          String    @default("user")
+
+  MyMasjid         Masjid[]
+  CheckoutSessions CheckoutSessions[]
+  Orders           Orders[]
+  MizanTv          MizanTv[]
 
   stripeCustomerId String?
 
@@ -84,6 +165,7 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
 
   @@unique([token])
   @@map("session")
@@ -120,23 +202,35 @@ model Verification {
 }
 
 model CheckoutSessions {
-  id String @id
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sessionId String
+  id          String   @id
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String
   paymentType String
-  completed String
-  cart String
-  createdAt DateTime @default(now())
+  completed   String
+  cart        String
+  createdAt   DateTime @default(now())
 }
 
 model Orders {
-  id String @id
-  userId String
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String   @id
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   stripeSessionId String?
-  status String
-  cart String
-  trackingNumber String?
-  createdAt DateTime @default(now())
+  status          String
+  cart            String
+  trackingNumber  String?
+  createdAt       DateTime @default(now())
+
+  MizanTv MizanTv[]
 }
+
+model MizanTv {
+  id         String @id
+  userId     String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId    String
+  order      Orders @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  accessCode String
+}
+

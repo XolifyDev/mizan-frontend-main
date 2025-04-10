@@ -12,6 +12,7 @@ import Navbar from "@/components/Navbar"
 import { StripeCheckoutSession } from "@stripe/stripe-js"
 import { getPaymentAndOrder, getSessionAndOrder } from "@/lib/actions/order"
 import { CartItem } from "@/lib/cartItemSchema"
+import useCart from "@/lib/useCart"
 
 // This would typically come from your database or API
 type OrderDetails = {
@@ -34,6 +35,7 @@ export default function OrderConfirmationPage() {
   const [session, setSession] = useState<StripeCheckoutSession | null>(null);
   const [isSubscription, setIsSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null)
+  const { clearCart } = useCart()
 
   // Get session_id or order_id from URL params
   const sessionId = searchParams.get("session_id")
@@ -68,6 +70,7 @@ export default function OrderConfirmationPage() {
 
         setOrder(mockOrder)
         setIsSubscription(!data.order ? true : false)
+        clearCart();
       } catch (err) {
         setError("We couldn't retrieve your order details. Please contact customer support.")
       } finally {

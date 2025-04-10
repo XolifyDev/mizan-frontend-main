@@ -1,6 +1,5 @@
 "use server";
 import { v4 } from "uuid";
-import { authClient } from "../auth-client";
 import { CartItem } from "../cartItemSchema";
 import { prisma } from "../db";
 import { stripeClient } from "../stripe";
@@ -94,6 +93,7 @@ export const createCheckoutPage = async ({
     redirect: true
   };
 
+  // @ts-ignore Ignore
   const session = await stripeClient.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: subscription ? [{

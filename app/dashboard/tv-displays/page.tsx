@@ -273,8 +273,8 @@ export default function TVDisplaysPage() {
                           <Badge
                             className={
                               display.status === "online"
-                                ? "bg-green-500"
-                                : "bg-red-500"
+                                ? "bg-green-100 text-green-800"
+                                : "bg-red-100 text-red-800"
                             }
                           >
                             {display.status.charAt(0).toUpperCase() +

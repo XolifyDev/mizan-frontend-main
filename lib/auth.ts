@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 import { nextCookies } from "better-auth/next-js";
+import { organization } from "better-auth/plugins";
 import { stripe } from "@better-auth/stripe"
 import { stripeClient } from "./stripe";
 
@@ -11,7 +12,7 @@ export const auth = betterAuth({
         provider: "postgresql", // or "mysql", "postgresql", ...etc
     }),
     emailAndPassword: {  
-        enabled: true
+        enabled: true,
     },
     plugins: [
         stripe({
@@ -19,6 +20,6 @@ export const auth = betterAuth({
             stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
             createCustomerOnSignUp: true,
         }),
-        nextCookies()
+        nextCookies(),
     ]
 });
