@@ -13,11 +13,14 @@ import { AddIqamahTimingForm } from "./add-iqamah-timing-form"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useSearchParams } from "next/navigation"
+import { formatDate } from "@/lib/utils"
+import { PrayerCalculation } from "@prisma/client"
+import { MonthlyPrayerTimes } from "./monthly-prayer-times"
 
 export default function PrayerTimesClient() {
   const [autoAdjust, setAutoAdjust] = useState(true)
   const [iqamahTimings, setIqamahTimings] = useState([])
-  const [calculationSettings, setCalculationSettings] = useState(null)
+  const [calculationSettings, setCalculationSettings] = useState<PrayerCalculation | null>(null)
   const [loading, setLoading] = useState(true)
   const [openAddDialog, setOpenAddDialog] = useState(false)
   const { toast } = useToast()
@@ -35,6 +38,7 @@ export default function PrayerTimesClient() {
         ])
 
         if (iqamahResult.success) {
+          // @ts-ignore Ignore
           setIqamahTimings(iqamahResult.data)
         } else {
           toast({
@@ -46,6 +50,7 @@ export default function PrayerTimesClient() {
 
 
         if (calculationResult.success) {
+          // @ts-ignore Ignore
           setCalculationSettings(calculationResult.data)
         } else {
           toast({
@@ -77,6 +82,7 @@ export default function PrayerTimesClient() {
       ])
 
       if (iqamahResult.success) {
+        // @ts-ignore Ignore
         setIqamahTimings(iqamahResult.data)
         toast({
           title: "Success",
@@ -85,6 +91,7 @@ export default function PrayerTimesClient() {
       }
 
       if (calculationResult.success) {
+        // @ts-ignore Ignore
         setCalculationSettings(calculationResult.data)
       }
     } catch (error) {
@@ -180,7 +187,9 @@ export default function PrayerTimesClient() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Prayer Calculation Settings</CardTitle>
+                  <CardTitle className="text-xl font-semibold text-[#3A3A3A] flex flex-row gap-2 items-center">Prayer Calculation Settings {calculationSettings?.updatedAt && (
+                    <p className="text-gray-500 font-bold text-sm mt-1">- Updated at {new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(calculationSettings.updatedAt)}</p>
+                  )}</CardTitle>
                   <CardDescription className="text-[#3A3A3A]/70">
                     Configure how prayer times are calculated
                   </CardDescription>
@@ -204,20 +213,7 @@ export default function PrayerTimesClient() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white border-[#550C18]/10">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Monthly View</CardTitle>
-              <CardDescription className="text-[#3A3A3A]/70">Preview prayer times for the entire month</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center p-8">
-                <Calendar className="h-16 w-16 mx-auto text-[#550C18]/50 mb-4" />
-                <h3 className="text-lg font-medium text-[#3A3A3A] mb-2">Monthly Calendar View</h3>
-                <p className="text-[#3A3A3A]/70 mb-4">View and export prayer times for the entire month</p>
-                <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">Generate Monthly Timings</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <MonthlyPrayerTimes masjidId={masjidId} />
         </TabsContent>
       </Tabs>
     </div>

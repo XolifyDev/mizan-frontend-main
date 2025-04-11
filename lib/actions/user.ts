@@ -17,8 +17,5 @@ export const getUser = async () => {
       sessions: true
     }
   });
-
-  console.log(user);
-
   return user;
 }

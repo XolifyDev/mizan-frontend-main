@@ -34,14 +34,9 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
   async function onSubmit(values: z.infer<typeof prayerCalculationSchema>) {
     setIsSubmitting(true)
     try {
-      const formData = new FormData()
-
-      // Append all form values to FormData
-      Object.entries(values).forEach(([key, value]) => {
-        formData.append(key, value.toString())
-      })
-
-      const result = await updatePrayerCalculationSettings(formData)
+      delete values.updatedAt;
+      const result = await updatePrayerCalculationSettings(values)
+      console.log(result)
 
       if (result.success) {
         toast({
@@ -77,7 +72,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Calculation Method</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                   <FormControl>
                     <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                       <SelectValue placeholder="Select calculation method" />
@@ -103,7 +98,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Asr Method</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                   <FormControl>
                     <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                       <SelectValue placeholder="Select Asr method" />
@@ -125,7 +120,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Higher Latitude Calculation</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
                   <FormControl>
                     <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                       <SelectValue placeholder="Select method" />
@@ -155,6 +150,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                   <Input
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
+                    disabled={isSubmitting}
                     {...field}
                   />
                 </FormControl>
@@ -174,6 +170,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                   <Input
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
+                    disabled={isSubmitting}
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
@@ -194,6 +191,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                   <Input
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
+                    disabled={isSubmitting}
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
@@ -216,6 +214,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                   <Input
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
+                    disabled={isSubmitting}
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
@@ -236,6 +235,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                   <Input
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
+                    disabled={isSubmitting}
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
@@ -256,6 +256,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                   <Input
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
+                    disabled={isSubmitting}
                     {...field}
                     onChange={(e) => field.onChange(Number(e.target.value))}
                   />
