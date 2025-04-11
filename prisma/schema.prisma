@@ -39,6 +39,8 @@ model Masjid {
   themes      Theme[]
   flyers      Flyer[]
   events      Event[]
+  iqamahTimings IqamahTiming[]
+  prayerCalculation PrayerCalculation[]
 }
 
 model Device {
@@ -234,3 +236,36 @@ model MizanTv {
   accessCode String
 }
 
+model PrayerCalculation {
+  id                   String   @id @default(cuid())
+  masjidId             String
+  masjid               Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  calculationMethod    String   // ISNA, MWL, Karachi, Makkah, Egypt, Custom
+  asrMethod            String   // Standard, Hanafi
+  higherLatitudeMethod String   // None, MiddleOfNight, SeventhOfNight, TwilightAngle
+  fajrOffset           Int
+  sunriseOffset        Int
+  dhuhrOffset          Int
+  asrOffset            Int
+  maghribOffset        Int
+  ishaOffset           Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model IqamahTiming {
+  id          String   @id @default(cuid())
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  changeDate  DateTime
+  fajr        String
+  dhuhr       String
+  asr         String
+  maghrib     String
+  isha        String
+  jumuahI     String?
+  jumuahII    String?
+  jumuahIII   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
