@@ -134,8 +134,7 @@ export default function DashboardLayout({
 
     fetchMasjid();
   }, [])
-  if (isPending) return null;
-  if (loadingMasjid) return (
+  if (isPending || loadingMasjid) return (
     <div className="min-h-screen flex items-center justify-center bg-white">
       <div className="flex flex-col items-center">
         <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
@@ -529,7 +528,7 @@ export default function DashboardLayout({
               </SidebarGroup>
 
               <SidebarGroup>
-                <SidebarGroupLabel>Management</SidebarGroupLabel>
+                <SidebarGroupLabel>Masjid Management</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     {managementNavItems.map((item) => (
@@ -553,20 +552,17 @@ export default function DashboardLayout({
               <div className="flex items-center gap-3">
                 <Avatar>
                   <AvatarImage
-                    src={(session && session.user.image) || undefined}
+                    src={(masjid && masjid.logo) || undefined}
                   />
                   <AvatarFallback className="bg-[#550C18] text-[#FDF0D5]">
-                    {(session &&
-                      session.user?.name?.split(" ")[0]?.charAt(0) +
-                        session.user?.name?.split(" ")[1]?.charAt(0)) ||
-                      "MU"}
+                    {masjid?.name || "Masjid"}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="text-sm font-medium text-[#3A3A3A]">
-                    {(session && session.user?.name) || "Mizan User"}
+                <div className="flex flex-col">
+                  <p className="text-lg font-medium text-[#3A3A3A]">
+                    {masjid?.name || "Masjid"}
                   </p>
-                  <p className="text-xs text-[#3A3A3A]/70">Admin</p>
+                  <p className="text-xs text-[#3A3A3A]/70 font-bold">Admin</p>
                 </div>
               </div>
             </SidebarFooter>
