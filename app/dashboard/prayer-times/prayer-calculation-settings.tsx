@@ -156,7 +156,6 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     {...field}
-                    onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>
@@ -176,7 +175,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     {...field}
-                    onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>
@@ -196,7 +195,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     {...field}
-                    onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>
@@ -218,7 +217,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     {...field}
-                    onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>
@@ -238,7 +237,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     {...field}
-                    onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>
@@ -258,7 +257,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     type="number"
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     {...field}
-                    onChange={(e) => field.onChange(Number.parseInt(e.target.value))}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>

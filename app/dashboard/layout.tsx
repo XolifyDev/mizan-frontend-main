@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   BarChart3,
@@ -110,6 +110,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -129,6 +130,9 @@ export default function DashboardLayout({
       const userMasjid = await getUserMasjid();
 
       setMasjid(userMasjid as Masjid);
+      const params = new URLSearchParams(searchParams);
+      params.set("masjidId", userMasjid?.id || "")
+      window.history.pushState(null, '', `?${params.toString()}`)
       setLoadingMasjid(false)
     };
 

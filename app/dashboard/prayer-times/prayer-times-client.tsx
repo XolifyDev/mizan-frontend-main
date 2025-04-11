@@ -11,7 +11,8 @@ import { PrayerCalculationSettings } from "./prayer-calculation-settings"
 import { IqamahTimingsTable } from "./iqamah-timings-table"
 import { AddIqamahTimingForm } from "./add-iqamah-timing-form"
 import { useToast } from "@/components/ui/use-toast"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { useSearchParams } from "next/navigation"
 
 export default function PrayerTimesClient() {
   const [autoAdjust, setAutoAdjust] = useState(true)
@@ -20,9 +21,9 @@ export default function PrayerTimesClient() {
   const [loading, setLoading] = useState(true)
   const [openAddDialog, setOpenAddDialog] = useState(false)
   const { toast } = useToast()
+  const masjidId = useSearchParams().get("masjidId") || "";
 
   // Mock masjid ID - replace with actual masjid ID from your auth context
-  const masjidId = "masjid-123"
 
   useEffect(() => {
     const loadData = async () => {
@@ -42,6 +43,7 @@ export default function PrayerTimesClient() {
             variant: "destructive",
           })
         }
+
 
         if (calculationResult.success) {
           setCalculationSettings(calculationResult.data)
@@ -155,6 +157,7 @@ export default function PrayerTimesClient() {
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-[600px]">
+                  <DialogTitle></DialogTitle>
                     <AddIqamahTimingForm
                       masjidId={masjidId}
                       onSuccess={() => {
@@ -211,7 +214,7 @@ export default function PrayerTimesClient() {
                 <Calendar className="h-16 w-16 mx-auto text-[#550C18]/50 mb-4" />
                 <h3 className="text-lg font-medium text-[#3A3A3A] mb-2">Monthly Calendar View</h3>
                 <p className="text-[#3A3A3A]/70 mb-4">View and export prayer times for the entire month</p>
-                <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">Generate Monthly Calendar</Button>
+                <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">Generate Monthly Timings</Button>
               </div>
             </CardContent>
           </Card>

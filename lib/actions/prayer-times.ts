@@ -3,70 +3,60 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { iqamahTimingSchema, prayerCalculationSchema } from "../models/iqamah-timings"
+import { prisma } from "../db"
 
-// Mock database functions - replace with your actual database calls
-async function savePrayerCalculationSettings(data: any) {
-  // Save to your database
-  console.log("Saving prayer calculation settings:", data)
-  return { ...data, id: "calc-123" }
+async function savePrayerCalculationSettings(data: any, masjidId: string) {
+  const update = await prisma.prayerCalculation.findFirst({
+    where: {
+      masjidId
+    }
+  });
+
+  if(!update) {
+    const prayerCalculation = await prisma.prayerCalculation.create({
+      data: {
+        ...data,
+        masjidId
+      }
+    });
+    return prayerCalculation;
+  } else {
+    const prayerCalculation = await prisma.prayerCalculation.update({
+      where: {
+        id: update.id
+      },
+      data: data
+    });
+    return prayerCalculation;
+  };
 }
 
-async function saveIqamahTiming(data: any) {
-  // Save to your database
-  console.log("Saving iqamah timing:", data)
-  return { ...data, id: "iqamah-123" }
+async function saveIqamahTiming(data: any, masjidId: string) {
+  const iqamahTiming = await prisma.iqamahTiming.create({
+    data: {
+      ...data,
+      masjidId
+    }
+  });
+  return iqamahTiming;
 }
 
 async function getIqamahTimings(masjidId: string) {
-  // Fetch from your database
-  // This is mock data
-  return [
-    {
-      id: "iqamah-1",
-      masjidId,
-      changeDate: new Date("2025-04-11"),
-      fajr: "06:30 AM",
-      dhuhr: "02:00 PM",
-      asr: "06:45 PM",
-      maghrib: "0",
-      isha: "09:50 PM",
-      jumuahI: "02:10 PM",
-      jumuahII: "03:00 PM",
-      jumuahIII: null,
-    },
-    {
-      id: "iqamah-2",
-      masjidId,
-      changeDate: new Date("2025-04-01"),
-      fajr: "06:30 AM",
-      dhuhr: "02:00 PM",
-      asr: "06:45 PM",
-      maghrib: "0",
-      isha: "09:40 PM",
-      jumuahI: "02:10 PM",
-      jumuahII: "03:00 PM",
-      jumuahIII: null,
-    },
-    {
-      id: "iqamah-3",
-      masjidId,
-      changeDate: new Date("2025-03-31"),
-      fajr: "06:45 AM",
-      dhuhr: "02:00 PM",
-      asr: "06:45 PM",
-      maghrib: "0",
-      isha: "09:50 PM",
-      jumuahI: "02:10 PM",
-      jumuahII: "03:00 PM",
-      jumuahIII: null,
-    },
-  ]
+  const iqamahTimings = await prisma.iqamahTiming.findMany({
+    where: {
+      masjidId
+    }
+  });
+  return iqamahTimings;
 }
 
 async function getPrayerCalculationSettings(masjidId: string) {
-  // Fetch from your database
-  // This is mock data
-  return {
+  const prayerCalculation = await prisma.prayerCalculation.findFirst({
+    where: {
+      masjidId
+    }
+  })
+  return prayerCalculation || {
     id: "calc-1",
     masjidId,
     calculationMethod: "ISNA",
@@ -78,7 +68,7 @@ async function getPrayerCalculationSettings(masjidId: string) {
     asrOffset: 0,
     maghribOffset: 0,
     ishaOffset: 0,
-  }
+  };
 }
 
 export async function updatePrayerCalculationSettings(formData: FormData) {
@@ -98,7 +88,7 @@ export async function updatePrayerCalculationSettings(formData: FormData) {
 
   try {
     const validatedData = prayerCalculationSchema.parse(data)
-    const result = await savePrayerCalculationSettings(validatedData)
+    const result = await savePrayerCalculationSettings(validatedData, validatedData.masjidId)
     revalidatePath("/dashboard/prayer-times")
     return { success: true, data: result }
   } catch (error) {
@@ -120,7 +110,7 @@ export async function addIqamahTiming(formData: FormData) {
 
   try {
     const validatedData = iqamahTimingSchema.parse(data)
-    const result = await saveIqamahTiming(validatedData)
+    const result = await saveIqamahTiming(validatedData, validatedData.masjidId)
     revalidatePath("/dashboard/prayer-times")
     return { success: true, data: result }
   } catch (error) {
@@ -136,7 +126,7 @@ export async function fetchIqamahTimings(masjidId: string) {
     const timings = await getIqamahTimings(masjidId)
     return { success: true, data: timings }
   } catch (error) {
-    return { success: false, error: "Failed to fetch Iqamah timings" }
+    return { success: false, error: JSON.stringify(error) }
   }
 }
 
@@ -145,6 +135,6 @@ export async function fetchPrayerCalculationSettings(masjidId: string) {
     const settings = await getPrayerCalculationSettings(masjidId)
     return { success: true, data: settings }
   } catch (error) {
-    return { success: false, error: "Failed to fetch prayer calculation settings" }
+    return { success: false, error: JSON.stringify(error) }
   }
 }
