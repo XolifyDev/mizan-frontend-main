@@ -1,31 +1,43 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Download, Loader2 } from 'lucide-react'
+import { Calendar, Download, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/components/ui/use-toast"
 import { generateMonthlyPrayerTimes, saveMonthlyPrayerTimes } from "@/lib/actions/prayer-times"
+import { Masjid, PrayerCalculation } from "@prisma/client"
 
 type MonthlyPrayerTimesProps = {
   masjidId: string
+  hasMonthlyTimings: boolean
+  monthlyTimings: any[]
+  masjid: Masjid ;
 }
 
-export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [prayerTimes, setPrayerTimes] = useState<any[]>([])
+export function MonthlyPrayerTimes({
+  masjidId,
+  masjid,
+  hasMonthlyTimings,
+  monthlyTimings = [],
+}: MonthlyPrayerTimesProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [prayerTimes, setPrayerTimes] = useState<any[]>([]);
+  const [currentMonth, setCurrentMonth] = useState<string>(
+    new Date().toLocaleString("default", { month: "long", year: "numeric" }),
+  );
   const { toast } = useToast()
 
   // Hardcoded coordinates for demo - in production, get these from the masjid record
-  const latitude = 33.7490
-  const longitude = -84.3880
+  const latitude = masjid?.latitude
+  const longitude = masjid?.longitude
 
   const months = [
     { value: 1, label: "January" },
@@ -47,15 +59,10 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
   const handleGenerateTimes = async () => {
     setIsGenerating(true)
     try {
-      const result = await generateMonthlyPrayerTimes(
-        masjidId,
-        selectedMonth,
-        selectedYear,
-        latitude,
-        longitude
-      )
+      const result = await generateMonthlyPrayerTimes(masjidId, selectedMonth, selectedYear, Number(latitude), Number(longitude))
 
       if (result.success) {
+        // @ts-ignore Ignore
         setPrayerTimes(result.data)
         toast({
           title: "Success",
@@ -117,9 +124,7 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
     const headers = ["Date", "Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"]
     const csvContent = [
       headers.join(","),
-      ...prayerTimes.map(pt => 
-        [pt.date, pt.fajr, pt.sunrise, pt.dhuhr, pt.asr, pt.maghrib, pt.isha].join(",")
-      )
+      ...prayerTimes.map((pt) => [pt.date, pt.fajr, pt.sunrise, pt.dhuhr, pt.asr, pt.maghrib, pt.isha].join(",")),
     ].join("\n")
 
     // Create download link
@@ -134,11 +139,12 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
   }
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A"
     const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", { 
-      weekday: "short", 
-      month: "short", 
-      day: "numeric" 
+    return date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
     })
   }
 
@@ -154,9 +160,7 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
             <DialogHeader>
-              <DialogTitle className="text-xl font-semibold text-[#3A3A3A]">
-                Monthly Prayer Times
-              </DialogTitle>
+              <DialogTitle className="text-xl font-semibold text-[#3A3A3A]">Monthly Prayer Times</DialogTitle>
               <DialogDescription className="text-[#3A3A3A]/70">
                 View and export prayer times for the selected month
               </DialogDescription>
@@ -167,7 +171,7 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
                 <label className="block text-sm font-medium text-[#3A3A3A] mb-1">Month</label>
                 <Select
                   value={selectedMonth.toString()}
-                  onValueChange={(value) => setSelectedMonth(parseInt(value))}
+                  onValueChange={(value) => setSelectedMonth(Number.parseInt(value))}
                 >
                   <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                     <SelectValue placeholder="Select month" />
@@ -186,7 +190,7 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
                 <label className="block text-sm font-medium text-[#3A3A3A] mb-1">Year</label>
                 <Select
                   value={selectedYear.toString()}
-                  onValueChange={(value) => setSelectedYear(parseInt(value))}
+                  onValueChange={(value) => setSelectedYear(Number.parseInt(value))}
                 >
                   <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                     <SelectValue placeholder="Select year" />
@@ -282,20 +286,58 @@ export function MonthlyPrayerTimes({ masjidId }: MonthlyPrayerTimesProps) {
           </DialogContent>
         </Dialog>
 
-        <div className="text-center p-8">
-          <Calendar className="h-16 w-16 mx-auto text-[#550C18]/50 mb-4" />
-          <h3 className="text-lg font-medium text-[#3A3A3A] mb-2">Monthly Calendar View</h3>
-          <p className="text-[#3A3A3A]/70 mb-4">
-            Generate, view, and export prayer times for the entire month
-          </p>
-          <Button 
-            className="bg-[#550C18] hover:bg-[#78001A] text-white"
-            onClick={() => setIsDialogOpen(true)}
-          >
-            <Calendar className="mr-2 h-4 w-4" />
-            Generate Monthly Calendar
-          </Button>
-        </div>
+        {hasMonthlyTimings ? (
+          <>
+            <h3 className="text-lg font-medium text-[#3A3A3A] mb-1">{currentMonth} Prayer Times</h3>
+            <div className="rounded-md border border-[#550C18]/10 overflow-hidden">
+              <div className="max-h-[50vh] overflow-auto">
+                <Table className="rounded-md border border-[#550C18]/10">
+                  <TableHeader>
+                    <TableRow className="bg-[#550C18]/5">
+                      <TableHead className="text-left text-[#3A3A3A]">Date</TableHead>
+                      <TableHead className="text-left text-[#3A3A3A]">Fajr</TableHead>
+                      <TableHead className="text-left text-[#3A3A3A]">Sunrise</TableHead>
+                      <TableHead className="text-left text-[#3A3A3A]">Dhuhr</TableHead>
+                      <TableHead className="text-left text-[#3A3A3A]">Asr</TableHead>
+                      <TableHead className="text-left text-[#3A3A3A]">Maghrib</TableHead>
+                      <TableHead className="text-left text-[#3A3A3A]">Isha</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {monthlyTimings.map((timing, index) => (
+                      <TableRow key={index} className={index % 2 === 0 ? "bg-white" : "bg-[#550C18]/5"}>
+                        <TableCell className="text-[#3A3A3A]">{timing.date ? formatDate(timing.date) : "N/A"}</TableCell>
+                        <TableCell className="text-[#3A3A3A]">{new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(timing.fajr)}</TableCell>
+                        <TableCell className="text-[#3A3A3A]">{new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(timing.sunrise)}</TableCell>
+                        <TableCell className="text-[#3A3A3A]">{new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(timing.dhuhr)}</TableCell>
+                        <TableCell className="text-[#3A3A3A]">{new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(timing.asr)}</TableCell>
+                        <TableCell className="text-[#3A3A3A]">{new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(timing.maghrib)}</TableCell>
+                        <TableCell className="text-[#3A3A3A]">{new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(timing.isha)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={() => setIsDialogOpen(true)}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Generate New Calendar
+              </Button>
+            </div>
+          </>
+        ) : (
+          <div className="text-center p-8">
+            <Calendar className="h-16 w-16 mx-auto text-[#550C18]/50 mb-4" />
+            <h3 className="text-lg font-medium text-[#3A3A3A] mb-2">Monthly Calendar View</h3>
+            <p className="text-[#3A3A3A]/70 mb-4">No prayer times found for the current month</p>
+            <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={() => setIsDialogOpen(true)}>
+              <Calendar className="mr-2 h-4 w-4" />
+              Generate Monthly Calendar
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   )

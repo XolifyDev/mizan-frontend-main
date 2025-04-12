@@ -49,7 +49,17 @@ async function getIqamahTimings(masjidId: string) {
       masjidId
     }
   });
-  return iqamahTimings;
+  console.log(iqamahTimings, iqamahTimings.length)
+  return iqamahTimings.length < 1 ? iqamahTimings.length === 0 ? [] : [iqamahTimings] : iqamahTimings;
+}
+
+async function getPrayerTimings(masjidId: string) {
+  const prayerTimings = await prisma.prayerTime.findMany({
+    where: {
+      masjidId, 
+    }
+  });
+  return prayerTimings.length < 2 ? prayerTimings.length === 0 ? [] : [prayerTimings] : prayerTimings;
 }
 
 async function getPrayerCalculationSettings(masjidId: string) {
@@ -112,6 +122,15 @@ export async function addIqamahTiming(formData: FormData) {
 export async function fetchIqamahTimings(masjidId: string) {
   try {
     const timings = await getIqamahTimings(masjidId)
+    return { success: true, data: timings }
+  } catch (error) {
+    return { success: false, error: JSON.stringify(error) }
+  }
+}
+
+export async function fetchPrayerTimings(masjidId: string) {
+  try {
+    const timings = await getPrayerTimings(masjidId)
     return { success: true, data: timings }
   } catch (error) {
     return { success: false, error: JSON.stringify(error) }
