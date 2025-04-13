@@ -260,7 +260,7 @@ export default function PrayerTimesClient() {
           </TabsTrigger>
           <TabsTrigger value="calculation" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
-            Prayer Calculation
+            Salah Timings/Prayer Calculation
           </TabsTrigger>
         </TabsList>
 

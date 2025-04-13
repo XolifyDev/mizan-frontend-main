@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Download, Loader2, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight } from "lucide-react"
+import { Calendar, Download, Loader2, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -13,6 +13,7 @@ import type { Masjid } from "@prisma/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { mockMonthlyTimings } from "@/lib/mock/monthlyTimings"
 import moment from "moment";
+import { EditPrayerTimeDialog } from "@/components/dashboard/edit-prayer-time-dialog"
 
 type MonthlyPrayerTimesProps = {
   masjidId: string
@@ -45,6 +46,12 @@ export function MonthlyPrayerTimes({
   )
   const [isLoading, setIsLoading] = useState(false)
   const [saveToDatabase, setSaveToDatabase] = useState(false);
+  const [editPrayerTime, setEditPrayerTime] = useState<{
+    id: string
+    date: string
+    prayer: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha"
+    time: string
+  } | null>(null);
   const { toast } = useToast()
 
   // Hardcoded coordinates for demo - in production, get these from the masjid record
@@ -347,7 +354,30 @@ export function MonthlyPrayerTimes({
     }
   }
 
-  // Update displayed prayer times when display month changes in year view
+  const handleEditPrayerTime = (timing: any, prayer: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha") => {
+    const time = timing[prayer]
+    const formattedTime =
+      typeof time === "string"
+        ? time
+        : new Intl.DateTimeFormat("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          }).format(time)
+
+    setEditPrayerTime({
+      id: timing.id,
+      date: timing.date,
+      prayer,
+      time: formattedTime,
+    })
+  }
+
+  const handleEditSuccess = () => {
+    // Refresh the prayer times for the current month
+    handleMonthYearChange(displayMonth, selectedYear)
+  }
+
   useEffect(() => {
     if (monthOrYear === "year" && yearlyPrayerTimes[displayMonth]) {
       setPrayerTimes(yearlyPrayerTimes[displayMonth])
@@ -417,6 +447,16 @@ export function MonthlyPrayerTimes({
         </div>
       </CardHeader>
       <CardContent>
+        {/* Edit Prayer Time Dialog */}
+        {editPrayerTime && (
+          <EditPrayerTimeDialog
+            open={!!editPrayerTime}
+            onOpenChange={(open) => !open && setEditPrayerTime(null)}
+            prayerTime={editPrayerTime}
+            masjidId={masjidId}
+            onSuccess={handleEditSuccess}
+          />
+        )}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
             <DialogHeader>
@@ -689,47 +729,125 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-gray-500">
                             {timing.date ? moment(timing.date).format("L") : "N/A"}
                           </TableCell>
-                          <TableCell className="text-[#3A3A3A]">
-                            {timing.fajr instanceof Date
-                              ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                  timing.fajr,
-                                )
-                              : timing.fajr}
+                          <TableCell className="text-[#3A3A3A] group relative">
+                            <div className="flex items-center">
+                              <span>
+                                {timing.fajr instanceof Date
+                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
+                                      timing.fajr,
+                                    )
+                                  : timing.fajr}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrayerTime(timing, "fajr")}
+                              >
+                                <Edit2 className="h-3 w-3 text-[#550C18]" />
+                                <span className="sr-only">Edit Fajr</span>
+                              </Button>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-[#3A3A3A]">
-                            {timing.sunrise instanceof Date
-                              ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                  timing.sunrise,
-                                )
-                              : timing.sunrise}
+                          <TableCell className="text-[#3A3A3A] group relative">
+                            <div className="flex items-center">
+                              <span>
+                                {timing.sunrise instanceof Date
+                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
+                                      timing.sunrise,
+                                    )
+                                  : timing.sunrise}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrayerTime(timing, "sunrise")}
+                              >
+                                <Edit2 className="h-3 w-3 text-[#550C18]" />
+                                <span className="sr-only">Edit Sunrise</span>
+                              </Button>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-[#3A3A3A]">
-                            {timing.dhuhr instanceof Date
-                              ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                  timing.dhuhr,
-                                )
-                              : timing.dhuhr}
+                          <TableCell className="text-[#3A3A3A] group relative">
+                            <div className="flex items-center">
+                              <span>
+                                {timing.dhuhr instanceof Date
+                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
+                                      timing.dhuhr,
+                                    )
+                                  : timing.dhuhr}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrayerTime(timing, "dhuhr")}
+                              >
+                                <Edit2 className="h-3 w-3 text-[#550C18]" />
+                                <span className="sr-only">Edit Dhuhr</span>
+                              </Button>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-[#3A3A3A]">
-                            {timing.asr instanceof Date
-                              ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                  timing.asr,
-                                )
-                              : timing.asr}
+                          <TableCell className="text-[#3A3A3A] group relative">
+                            <div className="flex items-center">
+                              <span>
+                                {timing.asr instanceof Date
+                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
+                                      timing.asr,
+                                    )
+                                  : timing.asr}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrayerTime(timing, "asr")}
+                              >
+                                <Edit2 className="h-3 w-3 text-[#550C18]" />
+                                <span className="sr-only">Edit Asr</span>
+                              </Button>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-[#3A3A3A]">
-                            {timing.maghrib instanceof Date
-                              ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                  timing.maghrib,
-                                )
-                              : timing.maghrib}
+                          <TableCell className="text-[#3A3A3A] group relative">
+                            <div className="flex items-center">
+                              <span>
+                                {timing.maghrib instanceof Date
+                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
+                                      timing.maghrib,
+                                    )
+                                  : timing.maghrib}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrayerTime(timing, "maghrib")}
+                              >
+                                <Edit2 className="h-3 w-3 text-[#550C18]" />
+                                <span className="sr-only">Edit Maghrib</span>
+                              </Button>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-[#3A3A3A]">
-                            {timing.isha instanceof Date
-                              ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                  timing.isha,
-                                )
-                              : timing.isha}
+                          <TableCell className="text-[#3A3A3A] group relative">
+                            <div className="flex items-center">
+                              <span>
+                                {timing.isha instanceof Date
+                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
+                                      timing.isha,
+                                    )
+                                  : timing.isha}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={() => handleEditPrayerTime(timing, "isha")}
+                              >
+                                <Edit2 className="h-3 w-3 text-[#550C18]" />
+                                <span className="sr-only">Edit Isha</span>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}

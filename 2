@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import { iqamahTimingSchema, prayerCalculationSchema } from "../models/iqamah-timings"
 import { prisma } from "../db"
+// Import Adhan.js for prayer time calculations
 import { CalculationMethod, Coordinates, Madhab, PrayerTimes } from "adhan"
-import moment from "moment";
-
+import { PrayerTime } from "@prisma/client"
+import { parseDaytime } from "../utils"
 
 async function savePrayerCalculationSettings(data: any, masjidId: string) {
   const update = await prisma.prayerCalculation.findFirst({
@@ -362,24 +363,22 @@ export async function updatePrayerTime(
         id: prayerTimeId
       }
     });
-    if (!timing) {
-      return { success: false, error: "Prayer time not found" };
-    }
-
-    const baseDate = moment(timing.date);
-    const parsedTime = moment(time, ["h:mm A"]);
-
-    if (!parsedTime.isValid()) {
-      return { success: false, error: "Invalid time format" };
-    }
-
-    // Set hour and minute correctly
-    baseDate.set("hour", parsedTime.hour());
-    baseDate.set("minute", parsedTime.minute());
-
+    const newTiming = timing;
+    if(!timing || !newTiming) return {
+      success: false,
+      error: "IDEK"
+    };
+    const newTime = new Date(+timing.date+parseDaytime(time))
+    // @ts-ignore Ignore;
+    newTiming[prayer] = newTime;
+    delete newTiming.updatedAt;
     const update = await prisma.prayerTime.update({
-      where: { id: prayerTimeId },
-      data: { [prayer]: baseDate.toDate() }
+      where: {
+        id: prayerTimeId
+      },
+      data: {
+        [prayer]: time
+      }
     });
     return { success: true }
   } catch (error) {
