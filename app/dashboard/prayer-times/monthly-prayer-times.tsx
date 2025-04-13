@@ -69,11 +69,6 @@ export function MonthlyPrayerTimes({
   const currentYear = new Date().getFullYear()
   const years = Array.from({ length: 10 }, (_, i) => currentYear + i - 2)
 
-  // Update display month when selected month changes
-  useEffect(() => {
-    setDisplayMonth(selectedMonth)
-  }, [selectedMonth])
-
   // Update current month string when display month changes
   useEffect(() => {
     const monthName = months.find((m) => m.value === displayMonth)?.label
@@ -320,7 +315,7 @@ export function MonthlyPrayerTimes({
 
   const handleMonthYearChange = async (month: number, year: number) => {
     setIsLoading(true)
-    setSelectedMonth(month)
+    setDisplayMonth(month)
     setSelectedYear(year)
 
     try {
@@ -373,7 +368,7 @@ export function MonthlyPrayerTimes({
           {/* Month/Year Picker - Added in the highlighted area */}
           <div className="flex items-center gap-2">
             <Select
-              value={selectedMonth.toString()}
+              value={displayMonth.toString()}
               onValueChange={(value) => handleMonthYearChange(Number.parseInt(value), selectedYear)}
             >
               <SelectTrigger className="w-[130px] border-[#550C18]/20 focus:ring-[#550C18]">
