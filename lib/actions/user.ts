@@ -1,6 +1,5 @@
 "use server";
 import { auth } from "../auth";
-import { authClient } from "../auth-client"
 import { prisma } from "../db";
 import { headers } from "next/headers";
 

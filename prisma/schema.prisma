@@ -96,6 +96,8 @@ model PrayerTime {
   isCalculated Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  month String
+  year Int
 
   // Relation to Masjid
   masjid      Masjid   @relation(fields: [masjidId], references: [id])

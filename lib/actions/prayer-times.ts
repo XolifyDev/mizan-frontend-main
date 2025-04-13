@@ -5,82 +5,84 @@ import { z } from "zod"
 import { iqamahTimingSchema, prayerCalculationSchema } from "../models/iqamah-timings"
 import { prisma } from "../db"
 // Import Adhan.js for prayer time calculations
-import { CalculationMethod, Coordinates, Madhab, PrayerTimes, SunnahTimes } from "adhan"
+import { CalculationMethod, Coordinates, Madhab, PrayerTimes } from "adhan"
 
 async function savePrayerCalculationSettings(data: any, masjidId: string) {
   const update = await prisma.prayerCalculation.findFirst({
     where: {
-      masjidId
-    }
-  });
+      masjidId,
+    },
+  })
 
-  if(!update) {
+  if (!update) {
     const prayerCalculation = await prisma.prayerCalculation.create({
       data: {
         ...data,
-        masjidId
-      }
-    });
-    return prayerCalculation;
+        masjidId,
+      },
+    })
+    return prayerCalculation
   } else {
     const prayerCalculation = await prisma.prayerCalculation.update({
       where: {
-        id: update.id
+        id: update.id,
       },
-      data: data
-    });
-    return prayerCalculation;
-  };
+      data: data,
+    })
+    return prayerCalculation
+  }
 }
 
 async function saveIqamahTiming(data: any, masjidId: string) {
   const iqamahTiming = await prisma.iqamahTiming.create({
     data: {
       ...data,
-      masjidId
-    }
-  });
-  return iqamahTiming;
+      masjidId,
+    },
+  })
+  return iqamahTiming
 }
 
 async function getIqamahTimings(masjidId: string) {
   const iqamahTimings = await prisma.iqamahTiming.findMany({
     where: {
-      masjidId
-    }
-  });
+      masjidId,
+    },
+  })
   console.log(iqamahTimings, iqamahTimings.length)
-  return iqamahTimings.length < 1 ? iqamahTimings.length === 0 ? [] : [iqamahTimings] : iqamahTimings;
+  return iqamahTimings.length < 1 ? (iqamahTimings.length === 0 ? [] : [iqamahTimings]) : iqamahTimings
 }
 
 async function getPrayerTimings(masjidId: string) {
   const prayerTimings = await prisma.prayerTime.findMany({
     where: {
-      masjidId, 
-    }
-  });
-  return prayerTimings.length < 2 ? prayerTimings.length === 0 ? [] : [prayerTimings] : prayerTimings;
+      masjidId,
+    },
+  })
+  return prayerTimings.length < 2 ? (prayerTimings.length === 0 ? [] : [prayerTimings]) : prayerTimings
 }
 
 async function getPrayerCalculationSettings(masjidId: string) {
   const prayerCalculation = await prisma.prayerCalculation.findFirst({
     where: {
-      masjidId
-    }
+      masjidId,
+    },
   })
-  return prayerCalculation || {
-    id: "calc-1",
-    masjidId,
-    calculationMethod: "ISNA",
-    asrMethod: "Standard",
-    higherLatitudeMethod: "None",
-    fajrOffset: 0,
-    sunriseOffset: 0,
-    dhuhrOffset: 0,
-    asrOffset: 0,
-    maghribOffset: 0,
-    ishaOffset: 0,
-  };
+  return (
+    prayerCalculation || {
+      id: "calc-1",
+      masjidId,
+      calculationMethod: "ISNA",
+      asrMethod: "Standard",
+      higherLatitudeMethod: "None",
+      fajrOffset: 0,
+      sunriseOffset: 0,
+      dhuhrOffset: 0,
+      asrOffset: 0,
+      maghribOffset: 0,
+      ishaOffset: 0,
+    }
+  )
 }
 
 export async function updatePrayerCalculationSettings(data: z.infer<typeof prayerCalculationSchema>) {
@@ -149,23 +151,23 @@ export async function fetchPrayerCalculationSettings(masjidId: string) {
 function getCalculationMethod(methodName: string) {
   switch (methodName) {
     case "ISNA":
-      return CalculationMethod.NorthAmerica();
+      return CalculationMethod.NorthAmerica()
     case "MWL":
-      return CalculationMethod.MuslimWorldLeague();
+      return CalculationMethod.MuslimWorldLeague()
     case "Karachi":
-      return CalculationMethod.Karachi();
+      return CalculationMethod.Karachi()
     case "Makkah":
-      return CalculationMethod.UmmAlQura();
+      return CalculationMethod.UmmAlQura()
     case "Egypt":
-      return CalculationMethod.Egypt();
+      return CalculationMethod.Egyptian()
     default:
-      return CalculationMethod.NorthAmerica();
+      return CalculationMethod.NorthAmerica()
   }
 }
 
 // Function to get the Madhab (Asr calculation method)
 function getMadhab(asrMethod: string) {
-  return asrMethod === "Hanafi" ? Madhab.Hanafi : Madhab.Shafi;
+  return asrMethod === "Hanafi" ? Madhab.Hanafi : Madhab.Shafi
 }
 
 // Function to apply offsets to prayer times
@@ -177,41 +179,41 @@ function applyOffsets(prayerTimes: PrayerTimes, offsets: Record<string, number>)
     asr: new Date(prayerTimes.asr.getTime() + offsets.asrOffset * 60 * 1000),
     maghrib: new Date(prayerTimes.maghrib.getTime() + offsets.maghribOffset * 60 * 1000),
     isha: new Date(prayerTimes.isha.getTime() + offsets.ishaOffset * 60 * 1000),
-  };
-  
-  return adjustedTimes;
+  }
+
+  return adjustedTimes
 }
 
 // Format time as HH:MM AM/PM
 function formatTime(date: Date) {
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: true 
-  });
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  })
 }
 
 // Generate prayer times for a specific month and year
 export async function generateMonthlyPrayerTimes(
-  masjidId: string, 
-  month: number, 
+  masjidId: string,
+  month: number,
   year: number,
   latitude: number,
-  longitude: number
+  longitude: number,
 ) {
   try {
     // Get prayer calculation settings
-    const settings = await getPrayerCalculationSettings(masjidId);
-    
+    const settings = await getPrayerCalculationSettings(masjidId)
+
     // Create coordinates
-    const coordinates = new Coordinates(latitude, longitude);
-    
+    const coordinates = new Coordinates(latitude, longitude)
+
     // Get calculation method based on settings
-    const calculationMethod = getCalculationMethod(settings.calculationMethod);
-    
+    const calculationMethod = getCalculationMethod(settings.calculationMethod)
+
     // Set madhab for Asr calculation
-    calculationMethod.madhab = getMadhab(settings.asrMethod);
-    
+    calculationMethod.madhab = getMadhab(settings.asrMethod)
+
     // Create offsets object
     const offsets = {
       fajrOffset: settings.fajrOffset,
@@ -220,34 +222,34 @@ export async function generateMonthlyPrayerTimes(
       asrOffset: settings.asrOffset,
       maghribOffset: settings.maghribOffset,
       ishaOffset: settings.ishaOffset,
-    };
-    
+    }
+
     // Get the number of days in the month
-    const daysInMonth = new Date(year, month, 0).getDate();
-    
+    const daysInMonth = new Date(year, month, 0).getDate()
+
     // Generate prayer times for each day of the month
-    const monthlyTimes = [];
-    
+    const monthlyTimes = []
+
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day);
-      const prayerTimes = new PrayerTimes(coordinates, date, calculationMethod);
-      const adjustedTimes = applyOffsets(prayerTimes, offsets);
-      
+      const date = new Date(year, month - 1, day)
+      const prayerTimes = new PrayerTimes(coordinates, date, calculationMethod)
+      const adjustedTimes = applyOffsets(prayerTimes, offsets)
+
       monthlyTimes.push({
-        date: date.toISOString().split('T')[0],
+        date: date.toISOString().split("T")[0],
         fajr: formatTime(adjustedTimes.fajr),
         sunrise: formatTime(adjustedTimes.sunrise),
         dhuhr: formatTime(adjustedTimes.dhuhr),
         asr: formatTime(adjustedTimes.asr),
         maghrib: formatTime(adjustedTimes.maghrib),
         isha: formatTime(adjustedTimes.isha),
-      });
+      })
     }
-    
-    return { success: true, data: monthlyTimes };
+
+    return { success: true, data: monthlyTimes }
   } catch (error) {
-    console.error("Error generating monthly prayer times:", error);
-    return { success: false, error: "Failed to generate monthly prayer times" };
+    console.error("Error generating monthly prayer times:", error)
+    return { success: false, error: "Failed to generate monthly prayer times" }
   }
 }
 
@@ -255,38 +257,38 @@ export async function generateMonthlyPrayerTimes(
 export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[]) {
   try {
     // First delete existing prayer times for this month to avoid duplicates
-    const firstDate = new Date(prayerTimes[0].date);
-    const lastDate = new Date(prayerTimes[prayerTimes.length - 1].date);
-    
+    const firstDate = new Date(prayerTimes[0].date)
+    const lastDate = new Date(prayerTimes[prayerTimes.length - 1].date)
+
     await prisma.prayerTime.deleteMany({
       where: {
         masjidId,
         date: {
           gte: firstDate,
-          lte: lastDate
-        }
-      }
-    });
-    
+          lte: lastDate,
+        },
+      },
+    })
+
     // Now insert the new prayer times
     const createdTimes = await Promise.all(
       prayerTimes.map(async (pt) => {
-        const date = new Date(pt.date);
-        
+        const date = new Date(pt.date)
+
         // Parse time strings to Date objects
         const parseTimeString = (timeStr: string, baseDate: Date) => {
-          const [time, period] = timeStr.split(' ');
-          const [hours, minutes] = time.split(':').map(Number);
-          
-          let hour = hours;
-          if (period === 'PM' && hours < 12) hour += 12;
-          if (period === 'AM' && hours === 12) hour = 0;
-          
-          const newDate = new Date(baseDate);
-          newDate.setHours(hour, minutes, 0, 0);
-          return newDate;
-        };
-        
+          const [time, period] = timeStr.split(" ")
+          const [hours, minutes] = time.split(":").map(Number)
+
+          let hour = hours
+          if (period === "PM" && hours < 12) hour += 12
+          if (period === "AM" && hours === 12) hour = 0
+
+          const newDate = new Date(baseDate)
+          newDate.setHours(hour, minutes, 0, 0)
+          return newDate
+        }
+
         return prisma.prayerTime.create({
           data: {
             masjidId,
@@ -296,15 +298,49 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
             asr: parseTimeString(pt.asr, date),
             maghrib: parseTimeString(pt.maghrib, date),
             isha: parseTimeString(pt.isha, date),
-            sunrise: parseTimeString(pt.sunrise, date)
-          }
-        });
-      })
-    );
-    
-    return { success: true, data: createdTimes };
+            sunrise: parseTimeString(pt.sunrise, date),
+            month: String(date.getMonth()),
+            year: date.getFullYear()
+          },
+        })
+      }),
+    )
+
+    return { success: true, data: createdTimes }
   } catch (error) {
-    console.error("Error saving monthly prayer times:", error);
-    return { success: false, error: "Failed to save monthly prayer times" };
+    console.error("Error saving monthly prayer times:", error)
+    return { success: false, error: "Failed to save monthly prayer times" }
+  }
+}
+
+export async function getMonthPrayerTimes({
+  month,
+  year,
+  masjidId
+}: {
+    month: number;
+    year: number;
+    masjidId: string;
+}) {
+  const prayerTimes = await prisma.prayerTime.findMany({
+    where: {
+      masjidId,
+      month: String(month),
+      year
+    },
+    orderBy: {
+      date: "asc"
+    }
+  });
+
+  return prayerTimes || [];
+}
+
+export async function fetchMonthPrayerTimes(masjidId: string, month: number, year: number) {
+  try {
+    const timings = await getMonthPrayerTimes({month, year, masjidId})
+    return { success: true, data: timings }
+  } catch (error) {
+    return { success: false, error: JSON.stringify(error) }
   }
 }

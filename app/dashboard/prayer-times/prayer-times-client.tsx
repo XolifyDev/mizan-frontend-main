@@ -193,15 +193,8 @@ export default function PrayerTimesClient() {
       }
   }
 
-  const fetchMonthlyTimings = async () => {
-    // Get current month and year
-    const now = new Date()
-    const month = now.getMonth() + 1 // JavaScript months are 0-indexed
-    const year = now.getFullYear()
-
+  const fetchMonthlyTimings = async (month: number, year: number) => {
     try {
-      // This would be replaced with your actual API call
-      // For now, we'll check if there are any iqamah timings for the current month
       const currentMonthTimings = iqamahTimings.filter((timing) => {
         const timingDate = new Date(timing.changeDate)
         return timingDate.getMonth() + 1 === month && timingDate.getFullYear() === year
@@ -209,6 +202,8 @@ export default function PrayerTimesClient() {
 
       setMonthlyTimings(currentMonthTimings)
       setHasMonthlyTimings(currentMonthTimings.length > 0)
+
+      setCurrentMonth(new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" }))
     } catch (error) {
       toast({
         title: "Error",
@@ -309,7 +304,7 @@ export default function PrayerTimesClient() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
+                  <CardTitle className="text-xl font-semibold text-[#3A3A3A] flex flex-row gap-1 items-center">
                     Prayer Calculation Settings
                     {calculationSettings?.updatedAt && (
                       <p className="text-gray-500 font-bold text-sm mt-1">
@@ -344,7 +339,9 @@ export default function PrayerTimesClient() {
             masjidId={masjidId}
             hasMonthlyTimings={hasMonthlyTimings}
             monthlyTimings={monthlyTimings || []}
+            setMonthlyTimings={setMonthlyTimings}
             masjid={masjid}
+            currentMonth={currentMonth}
           />
         </TabsContent>
       </Tabs>
