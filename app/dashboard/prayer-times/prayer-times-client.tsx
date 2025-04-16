@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { RefreshCw, Plus, Settings, Bell } from "lucide-react"
+import { RefreshCw, Plus, Settings, Bell, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,11 +11,12 @@ import { PrayerCalculationSettings } from "./prayer-calculation-settings"
 import { IqamahTimingsTable } from "./iqamah-timings-table"
 import { AddIqamahTimingForm } from "./add-iqamah-timing-form"
 import { useToast } from "@/components/ui/use-toast"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MonthlyPrayerTimes } from "./monthly-prayer-times"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getUserMasjid } from "@/lib/actions/masjid"
 import { Masjid } from "@prisma/client"
+import { UploadIqamahTimings } from "./upload-iqamah-timings"
 
 export default function PrayerTimesClient() {
   const [autoAdjust, setAutoAdjust] = useState(true)
@@ -31,6 +32,7 @@ export default function PrayerTimesClient() {
   )
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [loadingMasjid, setLoadingMasjid] = useState(true);
+  const [openUploadDialog, setOpenUploadDialog] = useState(false)
   const masjidId = useSearchParams().get("masjidId") || "";
   const router = useRouter();
 
@@ -274,23 +276,48 @@ export default function PrayerTimesClient() {
                     Manage the iqamah times for each prayer
                   </CardDescription>
                 </div>
-                <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-                  <DialogTrigger asChild>
-                    <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Iqamah Timing
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px]">
-                    <AddIqamahTimingForm
-                      masjidId={masjidId}
-                      onSuccess={() => {
-                        setOpenAddDialog(false)
-                        handleRefresh()
-                      }}
-                    />
-                  </DialogContent>
-                </Dialog>
+                <div className="flex flex-row items-center gap-3">
+                  <Dialog open={openUploadDialog} onOpenChange={setOpenUploadDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="flex items-center gap-2" onClick={() => setOpenUploadDialog(true)}>
+                        <Upload className="h-4 w-4" />
+                        Upload CSV
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[800px]">
+                      <DialogTitle>
+                      </DialogTitle>
+                      <UploadIqamahTimings
+                        masjidId={masjidId}
+                        onSuccess={() => {
+                          setOpenUploadDialog(false)
+                          handleRefresh()
+                        }}
+                        onCancel={() => setOpenUploadDialog(false)}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Iqamah Timing
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="p-0 max-w-xl">
+                      <DialogTitle>
+                      </DialogTitle>
+                      <AddIqamahTimingForm
+                        masjidId={masjidId}
+                        lastIqamah={iqamahTimings[-1] || null}
+                        onSuccess={() => {
+                          setOpenAddDialog(false)
+                          handleRefresh()
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

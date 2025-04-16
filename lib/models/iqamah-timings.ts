@@ -4,6 +4,25 @@ import { z } from "zod"
 export const iqamahTimingSchema = z.object({
   id: z.string().optional(),
   masjidId: z.string(),
+  changeDate: z.object({
+    from: z.date(),
+    to: z.date(),
+  }),
+  fajr: z.string(), // Time format: "HH:MM AM/PM" or "HH:MM" (24h)
+  dhuhr: z.string(),
+  asr: z.string(),
+  maghrib: z.string(),
+  isha: z.string(),
+  jumuahI: z.string().optional(),
+  jumuahII: z.string().optional(),
+  jumuahIII: z.string().optional(),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional(),
+});
+
+export const iqamahTimingSchemaAPI = z.object({
+  id: z.string().optional(),
+  masjidId: z.string(),
   changeDate: z.date(),
   fajr: z.string(), // Time format: "HH:MM AM/PM" or "HH:MM" (24h)
   dhuhr: z.string(),

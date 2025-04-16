@@ -20,7 +20,6 @@ export default function RootLayout({
         <StoreProvider>
           {children}
         </StoreProvider>
-        <Toaster />
       </body>
     </html>
   );

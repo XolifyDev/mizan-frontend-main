@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
-import { iqamahTimingSchema, prayerCalculationSchema } from "../models/iqamah-timings"
+import { iqamahTimingSchema, iqamahTimingSchemaAPI, prayerCalculationSchema } from "../models/iqamah-timings"
 import { prisma } from "../db"
 import { CalculationMethod, Coordinates, Madhab, PrayerTimes } from "adhan"
 import moment from "moment";
@@ -35,6 +35,7 @@ async function savePrayerCalculationSettings(data: any, masjidId: string) {
 }
 
 async function saveIqamahTiming(data: any, masjidId: string) {
+  console.log(data, "DATA");
   const iqamahTiming = await prisma.iqamahTiming.create({
     data: {
       ...data,
@@ -105,17 +106,14 @@ export async function updatePrayerCalculationSettings(data: z.infer<typeof praye
   }
 }
 
-export async function addIqamahTiming(formData: FormData) {
-  const rawData = Object.fromEntries(formData.entries())
-
+export async function addIqamahTiming(rawData: z.infer<typeof iqamahTimingSchema>) {
   const data = {
     ...rawData,
     masjidId: rawData.masjidId as string,
-    changeDate: new Date(rawData.changeDate as string),
-  }
-
+    changeDate: new Date(rawData.changeDate.to),
+  };
   try {
-    const validatedData = iqamahTimingSchema.parse(data)
+    const validatedData = iqamahTimingSchemaAPI.parse(data)
     const result = await saveIqamahTiming(validatedData, validatedData.masjidId)
     revalidatePath("/dashboard/prayer-times")
     return { success: true, data: result }
@@ -373,7 +371,6 @@ export async function updatePrayerTime(
       return { success: false, error: "Invalid time format" };
     }
 
-    // Set hour and minute correctly
     baseDate.set("hour", parsedTime.hour());
     baseDate.set("minute", parsedTime.minute());
 
@@ -388,5 +385,95 @@ export async function updatePrayerTime(
       success: false,
       error: error instanceof Error ? error.message : "Failed to update prayer time",
     }
+  }
+}
+
+export async function updateIqamahTiming(rawData: z.infer<typeof iqamahTimingSchema>) {
+  console.log(rawData);
+  const id = rawData.id as string
+  const data = {
+    ...rawData,
+    masjidId: rawData.masjidId as string,
+    changeDate: new Date(rawData.changeDate.to),
+  }
+  try {
+    const validatedData = iqamahTimingSchemaAPI.parse(data)
+    const result = await prisma.iqamahTiming.update({
+      where: {
+        id: id,
+      },
+      data: {
+        changeDate: validatedData.changeDate,
+        fajr: validatedData.fajr,
+        dhuhr: validatedData.dhuhr,
+        asr: validatedData.asr,
+        maghrib: validatedData.maghrib,
+        isha: validatedData.isha,
+        jumuahI: validatedData.jumuahI,
+        jumuahII: validatedData.jumuahII,
+        jumuahIII: validatedData.jumuahIII,
+      },
+    })
+
+    revalidatePath("/dashboard/prayer-times")
+    return { success: true, data: result }
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { success: false, error: error.errors }
+    }
+    return { success: false, error: "Failed to update Iqamah timing" }
+  }
+}
+
+// Add these functions to your existing prayer-times.ts file
+
+export async function deleteIqamahTiming(id: string) {
+  try {
+    await prisma.iqamahTiming.delete({
+      where: {
+        id,
+      },
+    })
+
+    revalidatePath("/dashboard/prayer-times")
+    return { success: true }
+  } catch (error) {
+    console.error("Error deleting Iqamah timing:", error)
+    return { success: false, error: "Failed to delete Iqamah timing" }
+  }
+}
+
+export async function duplicateIqamahTiming(id: string) {
+  try {
+    // Get the original timing
+    const original = await prisma.iqamahTiming.findUnique({
+      where: {
+        id,
+      },
+    })
+
+    if (!original) {
+      return { success: false, error: "Iqamah timing not found" }
+    }
+
+    // Create a new timing with the same values but a new ID
+    const { id: _, createdAt, updatedAt, ...timingData } = original
+
+    // Set the change date to tomorrow
+    const tomorrow = new Date(original.changeDate)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+
+    const duplicated = await prisma.iqamahTiming.create({
+      data: {
+        ...timingData,
+        changeDate: tomorrow,
+      },
+    })
+
+    revalidatePath("/dashboard/prayer-times")
+    return { success: true, data: duplicated }
+  } catch (error) {
+    console.error("Error duplicating Iqamah timing:", error)
+    return { success: false, error: "Failed to duplicate Iqamah timing" }
   }
 }

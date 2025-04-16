@@ -4,22 +4,26 @@ import { useState } from "react"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Edit2, Trash2, Copy, ArrowUpDown } from "lucide-react"
+import { Edit2, Trash2, Copy, ArrowUpDown, Upload } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/components/ui/use-toast"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { EditIqamahTimingForm } from "./edit-iqamah-timing-form"
+import { UploadIqamahTimings } from "./upload-iqamah-timings"
+import { deleteIqamahTiming, duplicateIqamahTiming } from "@/lib/actions/prayer-times"
 
 type IqamahTimingsTableProps = {
   timings: any[]
   loading: boolean
   onRefresh: () => void
+  masjidId?: string
 }
 
-export function IqamahTimingsTable({ timings, loading, onRefresh }: IqamahTimingsTableProps) {
+export function IqamahTimingsTable({ timings, loading, onRefresh, masjidId = "" }: IqamahTimingsTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [editingTiming, setEditingTiming] = useState<any>(null)
   const [openEditDialog, setOpenEditDialog] = useState(false)
+  const [openUploadDialog, setOpenUploadDialog] = useState(false)
   const { toast } = useToast()
 
   const sortedTimings = [...timings].sort((a, b) => {
@@ -38,19 +42,57 @@ export function IqamahTimingsTable({ timings, loading, onRefresh }: IqamahTiming
   }
 
   const handleDelete = async (id: string) => {
-    // Implement delete functionality
-    toast({
-      title: "Not implemented",
-      description: "Delete functionality would be implemented here",
-    })
+    if (confirm("Are you sure you want to delete this Iqamah timing?")) {
+      try {
+        const result = await deleteIqamahTiming(id)
+
+        if (result.success) {
+          toast({
+            title: "Iqamah timing deleted",
+            description: "The Iqamah timing has been deleted successfully.",
+          })
+          onRefresh()
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to delete Iqamah timing.",
+            variant: "destructive",
+          })
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred.",
+          variant: "destructive",
+        })
+      }
+    }
   }
 
-  const handleDuplicate = (timing: any) => {
-    // Implement duplicate functionality
-    toast({
-      title: "Not implemented",
-      description: "Duplicate functionality would be implemented here",
-    })
+  const handleDuplicate = async (timing: any) => {
+    try {
+      const result = await duplicateIqamahTiming(timing.id)
+
+      if (result.success) {
+        toast({
+          title: "Iqamah timing duplicated",
+          description: "The Iqamah timing has been duplicated successfully.",
+        })
+        onRefresh()
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to duplicate Iqamah timing.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred.",
+        variant: "destructive",
+      })
+    }
   }
 
   if (loading) {
@@ -74,6 +116,8 @@ export function IqamahTimingsTable({ timings, loading, onRefresh }: IqamahTiming
       <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
         {editingTiming && (
           <DialogContent className="sm:max-w-[600px]">
+            <DialogTitle>
+            </DialogTitle>
             <EditIqamahTimingForm
               timing={editingTiming}
               onSuccess={() => {
@@ -109,7 +153,7 @@ export function IqamahTimingsTable({ timings, loading, onRefresh }: IqamahTiming
           <TableBody>
             {sortedTimings.map((timing) => (
               <TableRow key={timing.id}>
-                <TableCell className="font-medium">{format(new Date(timing.changeDate), "dd MMM, yyyy")}</TableCell>
+                <TableCell className="font-medium">{format(new Date(timing.changeDate), "MM/dd/yyyy")}</TableCell>
                 <TableCell>{timing.fajr}</TableCell>
                 <TableCell>{timing.dhuhr}</TableCell>
                 <TableCell>{timing.asr}</TableCell>

@@ -1,5 +1,6 @@
 import React from "react";
 import Footer from "@/components/Footer";
+import { Toaster } from "@/components/ui/toaster";
 
 const Layout = ({
   children,
@@ -9,6 +10,7 @@ const Layout = ({
   return (
     <>
       {children}
+      <Toaster />
       <Footer />
     </>
   );

@@ -75,6 +75,7 @@ import { createMasjid, getUserMasjid, } from "@/lib/actions/masjid"
 import { toast } from "@/components/ui/use-toast"
 import { OpenStreetMapAddressAutocomplete } from "@/components/dashboard/openstreetmap-address-autocomplete"
 import { CreateMasjidForm } from "@/components/dashboard/create-masjid-form"
+import { Toaster } from "@/components/ui/toaster"
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] })
 
@@ -252,6 +253,7 @@ export default function DashboardLayout({
 
   return (
     <>
+      <Toaster />
       {!masjid && (
         <AlertDialog defaultOpen>
           <AlertDialogTrigger>Open</AlertDialogTrigger>
