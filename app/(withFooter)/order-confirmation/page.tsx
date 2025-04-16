@@ -13,6 +13,7 @@ import { StripeCheckoutSession } from "@stripe/stripe-js"
 import { getPaymentAndOrder, getSessionAndOrder } from "@/lib/actions/order"
 import { CartItem } from "@/lib/cartItemSchema"
 import useCart from "@/lib/useCart"
+import { formatDate } from "@/lib/utils"
 
 // This would typically come from your database or API
 type OrderDetails = {
@@ -86,18 +87,6 @@ export default function OrderConfirmationPage() {
       setError("No order information found. Please check your confirmation email for order details.")
     }
   }, [sessionId])
-
-  // Format date for display
-  const formatDate = (dateString: number) => {
-    const date = new Date(dateString * 1000)
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-  }
 
   return (
     <div className="min-h-screen bg-white">

@@ -123,7 +123,6 @@ export default function SignUpForm() {
         name: values.name
       })
 
-      console.log(user);
       toast({
         title: "Account created successfully",
         description: "Welcome to Mizan!",

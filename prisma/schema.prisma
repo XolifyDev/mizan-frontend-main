@@ -39,6 +39,8 @@ model Masjid {
   themes      Theme[]
   flyers      Flyer[]
   events      Event[]
+  iqamahTimings IqamahTiming[]
+  prayerCalculation PrayerCalculation[]
 }
 
 model Device {
@@ -82,17 +84,27 @@ model Theme {
 }
 
 model PrayerTime {
-  id       String @id @default(cuid())
-  masjidId String
-  masjid   Masjid @relation(fields: [masjidId], references: [id])
+  id          String   @id @default(cuid())
+  masjidId    String
+  date        DateTime
+  fajr        DateTime
+  sunrise     DateTime
+  dhuhr       DateTime
+  asr         DateTime
+  maghrib     DateTime
+  isha        DateTime
+  isCalculated Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  month String
+  year Int
 
-  date    DateTime // use one row per day, or recurring if fixed
-  fajr    DateTime
-  dhuhr   DateTime
-  asr     DateTime
-  maghrib DateTime
-  isha    DateTime
-  jummah  DateTime?
+  // Relation to Masjid
+  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+
+  @@index([masjidId])
+  @@index([date])
+  @@unique([masjidId, date])
 }
 
 model Flyer {
@@ -234,3 +246,36 @@ model MizanTv {
   accessCode String
 }
 
+model PrayerCalculation {
+  id                   String   @id @default(cuid())
+  masjidId             String
+  masjid               Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  calculationMethod    String   // ISNA, MWL, Karachi, Makkah, Egypt, Custom
+  asrMethod            String   // Standard, Hanafi
+  higherLatitudeMethod String   // None, MiddleOfNight, SeventhOfNight, TwilightAngle
+  fajrOffset           Int
+  sunriseOffset        Int
+  dhuhrOffset          Int
+  asrOffset            Int
+  maghribOffset        Int
+  ishaOffset           Int
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt @default(now())
+}
+
+model IqamahTiming {
+  id          String   @id @default(cuid())
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  changeDate  DateTime
+  fajr        String
+  dhuhr       String
+  asr         String
+  maghrib     String
+  isha        String
+  jumuahI     String?
+  jumuahII    String?
+  jumuahIII   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

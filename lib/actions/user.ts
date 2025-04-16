@@ -1,6 +1,5 @@
 "use server";
 import { auth } from "../auth";
-import { authClient } from "../auth-client"
 import { prisma } from "../db";
 import { headers } from "next/headers";
 
@@ -17,8 +16,5 @@ export const getUser = async () => {
       sessions: true
     }
   });
-
-  console.log(user);
-
   return user;
 }
