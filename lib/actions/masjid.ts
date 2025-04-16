@@ -1,11 +1,10 @@
 "use server";
 
-import { z } from "zod"
-import { v4 } from "uuid"
-import { getUser } from "./user"
-import { prisma } from "@/lib/db"
+import { v4 } from "uuid";
+import { prisma } from "../db";
+import { getUser } from "./user";
+import { z } from "zod";
 
-// Update the CreateMasjidFormSchema to include latitude and longitude
 const CreateMasjidFormSchema = z.object({
   name: z.string().min(2, {
     message: "Masjid name must be at least 2 characters.",
@@ -26,28 +25,22 @@ const CreateMasjidFormSchema = z.object({
     message: "Country is required.",
   }),
   description: z.string().optional(),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
 })
 
-// Update the createMasjid function to accept latitude and longitude
 export async function createMasjid({
-  name,
+  name, 
   description,
   address,
   city,
   state,
   zipCode,
   country,
-  latitude,
-  longitude,
 }: z.infer<typeof CreateMasjidFormSchema>) {
-  const user = await getUser()
-  if (!user)
-    return {
-      error: true,
-      message: "Please Login!",
-    }
+  const user = await getUser();
+  if(!user) return {
+    error: true,
+    message: "Please Login!"
+  };
   const masjid = await prisma.masjid.create({
     data: {
       city,
@@ -57,20 +50,20 @@ export async function createMasjid({
       postal: zipCode,
       id: `m_${v4()}`,
       email: "",
-      latitude: String(latitude) || "",
+      latitude: "",
       locationAddress: "",
-      longitude: String(longitude) || "",
+      longitude: "",
       phone: "",
       timezone: "",
       websiteUrl: "",
-      description: description || "",
-      ownerId: user.id,
-    },
-  })
+      description: description!,
+      ownerId: user.id
+    }
+  });
 
   return {
     error: false,
-    message: "Masjid Created!",
+    message: "Masjid Created!"
   }
 }
 

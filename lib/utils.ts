@@ -72,4 +72,3 @@ const stateAbbreviations: any = {
 export function getStateAbbreviation(state: string) {
   return stateAbbreviations[state] || null;
 }
-
