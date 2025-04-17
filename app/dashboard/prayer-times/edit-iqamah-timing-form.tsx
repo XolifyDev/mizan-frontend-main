@@ -36,14 +36,16 @@ export function EditIqamahTimingForm({ timing, onSuccess }: EditIqamahTimingForm
 
   console.log(form.getValues());
 
-  async function onSubmit(values: z.infer<typeof iqamahTimingSchema>) {
-    setIsSubmitting(true)
-    console.log(values);
-    try {
-      const result = await updateIqamahTiming({
-        ...values,
-        id: timing.id
-      });
+  
+    async function onSubmit(values: z.infer<typeof iqamahTimingSchema>) {
+      setIsSubmitting(true)
+
+      // Convert range to a single date string or the expected format
+      try {
+        const result = await updateIqamahTiming({
+          ...values,
+          id: timing.id,
+        })
 
       if (result.success) {
         toast({

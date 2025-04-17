@@ -43,10 +43,37 @@ export function AddIqamahTimingForm({ masjidId, lastIqamah, onSuccess }: AddIqam
     },
   })
 
+  function formatTime(time: string): string {
+    if (!time) return "";
+
+    // Match common time formats like HH:MM or HH:MM am/pm
+    const match = time.match(/^(\d{1,2}):(\d{1,2})(\s?[aApP][mM])?$/);
+
+    if (!match) return time;
+
+    let [, hour, minute, suffix] = match;
+    hour = hour.padStart(2, "0");
+    minute = minute.slice(0, 2).padStart(2, "0"); // prevent 045
+
+    return `${hour}:${minute}${suffix ? suffix.trim().toLowerCase() : ""}`;
+  }
+
   async function onSubmit(values: z.infer<typeof iqamahTimingSchema>) {
     setIsSubmitting(true)
     try {
-      const result = await addIqamahTiming(values)
+      const cleanedValues = {
+        ...values,
+        fajr: formatTime(values.fajr),
+        dhuhr: formatTime(values.dhuhr),
+        asr: formatTime(values.asr),
+        maghrib: formatTime(values.maghrib),
+        isha: formatTime(values.isha),
+        jumuahI: formatTime(values.jumuahI || ""),
+        jumuahII: formatTime(values.jumuahII || ""),
+        jumuahIII: formatTime(values.jumuahIII || ""),
+      }
+
+      const result = await addIqamahTiming(cleanedValues)
 
       if (result.success) {
         toast({
