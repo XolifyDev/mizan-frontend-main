@@ -35,8 +35,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         day: cn(buttonVariants({ variant: "ghost" }), "h-9 w-9 p-0 font-normal aria-selected:opacity-100"),
         day_range_end: "day-range-end",
         day_selected:
-          "bg-[#550C18] text-primary-foreground hover:bg-[#550C18] hover:text-primary-foreground focus:bg-[#550C18] focus:text-primary-foreground",
-        day_today: "bg-accent text-accent-foreground",
+          "bg-[#550C18] text-primary-foreground hover:bg-[#550C18] focus:bg-[#550C18] focus:text-primary-foreground",
         day_outside:
           "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
         day_disabled: "text-muted-foreground opacity-50",
@@ -48,6 +47,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }: C
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
       }}
+      selected={props.selected.to}
       {...props}
     />
   )

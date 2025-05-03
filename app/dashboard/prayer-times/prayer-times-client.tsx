@@ -309,7 +309,7 @@ export default function PrayerTimesClient() {
                       </DialogTitle>
                       <AddIqamahTimingForm
                         masjidId={masjidId}
-                        lastIqamah={iqamahTimings[-1] || null}
+                        lastIqamah={iqamahTimings.length > 0 ? iqamahTimings[iqamahTimings.length - 1] : null}
                         onSuccess={() => {
                           setOpenAddDialog(false)
                           handleRefresh()

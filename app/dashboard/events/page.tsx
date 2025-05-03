@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CalendarIcon,
   Clock,
@@ -21,68 +21,52 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { getEvents, deleteEvent } from "@/lib/actions/events";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/components/ui/use-toast";
+
+type Event = {
+  id: string;
+  title: string;
+  date: Date;
+  timeStart: Date;
+  timeEnd: Date;
+  location: string;
+  description: string;
+  type: string;
+  tagColor: string;
+  masjidId: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [events, setEvents] = useState<Event[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const masjidId = useSearchParams().get("masjidId") || "";
+  const router = useRouter();
+  const { toast } = useToast();
 
-  const events = [
-    {
-      id: 1,
-      title: "Friday Prayer",
-      date: "2023-04-15",
-      time: "13:30 - 14:30",
-      location: "Main Prayer Hall",
-      description: "Weekly Friday prayer service with khutbah.",
-      type: "prayer",
-    },
-    {
-      id: 2,
-      title: "Quran Study",
-      date: "2023-04-16",
-      time: "10:00 - 12:00",
-      location: "Classroom 2",
-      description: "Weekly Quran study and tafsir session.",
-      type: "education",
-    },
-    {
-      id: 3,
-      title: "Community Iftar",
-      date: "2023-04-17",
-      time: "19:30 - 21:00",
-      location: "Community Hall",
-      description: "Community iftar gathering with food and socializing.",
-      type: "community",
-    },
-    {
-      id: 4,
-      title: "Youth Program",
-      date: "2023-04-18",
-      time: "18:00 - 20:00",
-      location: "Youth Center",
-      description: "Weekly youth program with activities and discussions.",
-      type: "youth",
-    },
-    {
-      id: 5,
-      title: "Islamic Finance Workshop",
-      date: "2023-04-20",
-      time: "19:00 - 21:00",
-      location: "Conference Room",
-      description: "Workshop on Islamic finance principles and practices.",
-      type: "education",
-    },
-  ];
+  useEffect(() => {
+    const fetchEvents = async () => {
+      const events = await getEvents(masjidId);
+      setEvents(events);
+    };
+    fetchEvents();
+  }, [masjidId]);
 
   const filteredEvents = events.filter(
     (event) =>
@@ -90,6 +74,28 @@ export default function EventsPage() {
       event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleDelete = async () => {
+    if (!eventToDelete) return;
+
+    try {
+      await deleteEvent(eventToDelete.id);
+      setEvents(events.filter((event) => event.id !== eventToDelete.id));
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setEventToDelete(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -100,71 +106,13 @@ export default function EventsPage() {
             Manage and schedule events for your masjid
           </p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Event
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[525px]">
-            <DialogHeader>
-              <DialogTitle>Add New Event</DialogTitle>
-              <DialogDescription>
-                Create a new event for your masjid. Fill in the details below.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="event-title">Event Title</Label>
-                <Input id="event-title" placeholder="Enter event title" />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="event-date">Date</Label>
-                  <Input id="event-date" type="date" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="event-time">Time</Label>
-                  <Input id="event-time" type="time" />
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="event-location">Location</Label>
-                <Input id="event-location" placeholder="Enter event location" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="event-type">Event Type</Label>
-                <select
-                  id="event-type"
-                  className="w-full rounded-md border border-[#550C18]/20 bg-white px-3 py-2 text-sm focus:border-[#550C18] focus:outline-none focus:ring-1 focus:ring-[#550C18]"
-                >
-                  <option value="prayer">Prayer</option>
-                  <option value="education">Education</option>
-                  <option value="community">Community</option>
-                  <option value="youth">Youth</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="event-description">Description</Label>
-                <Textarea
-                  id="event-description"
-                  placeholder="Enter event description"
-                  className="min-h-[100px] border-[#550C18]/20 focus:border-[#550C18] focus:ring-[#550C18]"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                type="submit"
-                className="bg-[#550C18] hover:bg-[#78001A] text-white"
-              >
-                Create Event
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          className="bg-[#550C18] hover:bg-[#78001A] text-white"
+          onClick={() => router.push(`/dashboard/events/new?masjidId=${masjidId}`)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add New Event
+        </Button>
       </div>
 
       <Card className="bg-white border-[#550C18]/10">
@@ -213,17 +161,7 @@ export default function EventsPage() {
                               {event.title}
                             </h3>
                             <Badge
-                              className={
-                                event.type === "prayer"
-                                  ? "bg-blue-500"
-                                  : event.type === "education"
-                                  ? "bg-green-500"
-                                  : event.type === "community"
-                                  ? "bg-purple-500"
-                                  : event.type === "youth"
-                                  ? "bg-orange-500"
-                                  : "bg-gray-500"
-                              }
+                              className={`${event.tagColor}`}
                             >
                               {event.type.charAt(0).toUpperCase() +
                                 event.type.slice(1)}
@@ -232,11 +170,14 @@ export default function EventsPage() {
                           <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm text-[#3A3A3A]/70 mt-1">
                             <div className="flex items-center gap-1">
                               <CalendarIcon className="h-3 w-3" />
-                              <span>{event.date}</span>
+                              <span>{event.date.toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              <span>{event.time}</span>
+                              <span>
+                                {event.timeStart.toLocaleTimeString()} -{" "}
+                                {event.timeEnd.toLocaleTimeString()}
+                              </span>
                             </div>
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
@@ -253,6 +194,7 @@ export default function EventsPage() {
                           variant="outline"
                           size="sm"
                           className="h-8 w-8 p-0"
+                          onClick={() => router.push(`/dashboard/events/${event.id}/edit?masjidId=${masjidId}`)}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -260,6 +202,10 @@ export default function EventsPage() {
                           variant="outline"
                           size="sm"
                           className="h-8 w-8 p-0"
+                          onClick={() => {
+                            setEventToDelete(event);
+                            setDeleteDialogOpen(true);
+                          }}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -295,6 +241,27 @@ export default function EventsPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the event
+              "{eventToDelete?.title}".
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

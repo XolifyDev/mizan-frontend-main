@@ -23,7 +23,6 @@ export function IqamahTimingsTable({ timings, loading, onRefresh, masjidId = "" 
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
   const [editingTiming, setEditingTiming] = useState<any>(null)
   const [openEditDialog, setOpenEditDialog] = useState(false)
-  const [openUploadDialog, setOpenUploadDialog] = useState(false)
   const { toast } = useToast()
 
   const sortedTimings = [...timings].sort((a, b) => {

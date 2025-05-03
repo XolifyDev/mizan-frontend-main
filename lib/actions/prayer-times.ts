@@ -42,6 +42,7 @@ async function saveIqamahTiming(data: any, masjidId: string) {
       masjidId,
     },
   })
+  console.log(iqamahTiming, "TIMING");
   return iqamahTiming
 }
 
@@ -110,11 +111,13 @@ export async function addIqamahTiming(rawData: z.infer<typeof iqamahTimingSchema
   const data = {
     ...rawData,
     masjidId: rawData.masjidId as string,
+    maghribOffset: String(rawData.maghribOffset),
     changeDate: new Date(rawData.changeDate.to),
   };
   try {
     const validatedData = iqamahTimingSchemaAPI.parse(data)
     const result = await saveIqamahTiming(validatedData, validatedData.masjidId)
+    console.log(result, "INSERT RESULT");
     revalidatePath("/dashboard/prayer-times")
     return { success: true, data: result }
   } catch (error) {
@@ -389,7 +392,6 @@ export async function updatePrayerTime(
 }
 
 export async function updateIqamahTiming(rawData: z.infer<typeof iqamahTimingSchema>) {
-  console.log(rawData);
   const id = rawData.id as string
   const data = {
     ...rawData,

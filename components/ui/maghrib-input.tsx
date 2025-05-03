@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TimeInput } from "./time-input"
 import { cn } from "@/lib/utils"
+import { Input } from "./input"
 
 interface MaghribInputProps {
   value: string
@@ -13,14 +14,17 @@ interface MaghribInputProps {
 
 export function MaghribInput({ value, onChange, className }: MaghribInputProps) {
   const [inputType, setInputType] = useState<"Fixed" | "Offset">("Offset")
-  const [timeValue, setTimeValue] = useState<string>("06:00 PM")
+  const [timeValue, setTimeValue] = useState<string>("")
+  const [offsetValue, setOffsetValue] = useState<number>(0)
 
   useEffect(() => {
-    if (value === "0") {
-      setInputType("Offset")
-    } else {
+    console.log(value, timeValue, inputType, "VALUE");
+    if(value.includes("AM") || value.includes("PM")) {
       setInputType("Fixed")
-      setTimeValue(value || "06:00 PM")
+      setTimeValue(value);
+    } else {
+      setInputType("Offset");
+      setOffsetValue(value.length < 3 ? Number(value) : 0);
     }
   }, [value])
 
@@ -34,16 +38,19 @@ export function MaghribInput({ value, onChange, className }: MaghribInputProps) 
     }
   }
 
-  const handleTimeChange = (newTime: string) => {
-    setTimeValue(newTime)
+  const handleTimeChange = (newTime: string | number) => {
     if (inputType === "Fixed") {
-      onChange(newTime)
+      setTimeValue(newTime as string)
+      onChange(newTime as string)
+    } else {
+      setOffsetValue(newTime as number);
+      onChange(String(newTime));
     }
   }
 
   return (
     <div className={cn("space-y-2", className)}>
-      <Select value={inputType} onValueChange={handleTypeChange}>
+      <Select defaultValue={inputType} value={inputType} onValueChange={handleTypeChange}>
         <SelectTrigger className="w-full border-[#550C18]/20 focus-visible:ring-[#550C18]/30">
           <SelectValue placeholder="Type" />
         </SelectTrigger>
@@ -60,7 +67,19 @@ export function MaghribInput({ value, onChange, className }: MaghribInputProps) 
           className="mt-2 border-[#550C18]/20 focus-visible:ring-[#550C18]/30"
         />
       ) : (
-        <p className="text-sm text-[#3A3A3A]/70 mt-1">Maghrib Iqamah will be at sunset</p>
+        <Input
+          value={offsetValue}
+          type="number"
+          // @ts-ignore
+          onChange={(e) => handleTimeChange(e.target.value)}
+          onInput={(e) => {
+            // @ts-ignore
+            if (e.target.value.length > e.target.maxLength) e.target.value = e.target.value.slice(0, e.target.maxLength);
+          }}
+          maxLength={2}
+          min={0}
+          max={20}
+        />
       )}
     </div>
   )
