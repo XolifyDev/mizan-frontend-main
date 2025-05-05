@@ -55,7 +55,6 @@ export async function POST(request: Request) {
         });
       
         if(!paymentIntent) return;
-        console.log("PAYMENTCHECKOUT FOUND");
         // 1. Update your database with the order status
         await prisma.checkoutSessions.update({
           where: {
@@ -80,7 +79,6 @@ export async function POST(request: Request) {
       case "invoice.payment_succeeded":
         // Continue to provision the subscription as payments continue to be made
         // Store the status in your database and check when a user accesses your service
-        console.log("Invoice payment succeeded:", event.data.object)
         break
 
       default:

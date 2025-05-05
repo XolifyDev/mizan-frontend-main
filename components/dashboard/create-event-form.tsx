@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -14,6 +14,8 @@ import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { TooltipProvider } from "../ui/tooltip"
 import EditorComponent from "../markdown-editor/EditorComponent"
+import { Switch } from "@/components/ui/switch"
+import { getUserMasjid } from "@/lib/actions/masjid"
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -40,6 +42,7 @@ const formSchema = z.object({
   tagColor: z.string().min(1, {
     message: "Tag color is required.",
   }),
+  syncToGoogleCalendar: z.boolean().default(false),
 })
 
 type Event = {
@@ -55,11 +58,13 @@ type Event = {
   masjidId: string;
   createdAt: Date;
   updatedAt: Date;
+  syncToGoogleCalendar: boolean;
+  googleCalendarEventId: string | null;
+  lastSyncedAt: Date | null;
+  syncStatus: string | null;
 };
 
 interface CreateEventFormProps {
-  isOpen: boolean
-  onClose: () => void
   onSuccess: () => void
   masjidId: string
   initialData?: Event
@@ -67,16 +72,23 @@ interface CreateEventFormProps {
 }
 
 export function CreateEventForm({ 
-  isOpen, 
-  onClose, 
   onSuccess, 
   masjidId, 
   initialData,
   isEditMode = false 
 }: CreateEventFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [masjid, setMasjid] = useState<any>(null);
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    const loadMasjid = async () => {
+      const m = await getUserMasjid();
+      setMasjid(m);
+    };
+    loadMasjid();
+  }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -89,6 +101,7 @@ export function CreateEventForm({
       description: initialData?.description || `<h2 class="tiptap-heading" style="text-align: center">Hello world 🌍</h2>`,
       type: initialData?.type || "",
       tagColor: initialData?.tagColor || "#550C18",
+      syncToGoogleCalendar: initialData?.syncToGoogleCalendar || false,
     },
   });
 
@@ -98,10 +111,13 @@ export function CreateEventForm({
       const eventData = {
         ...values,
         masjidId,
-        date: new Date(values.date),
+        date: new Date(values.date + 'T00:00:00'),
         timeStart: new Date(`2000-01-01T${values.timeStart}`),
         timeEnd: new Date(`2000-01-01T${values.timeEnd}`),
+        syncStatus: values.syncToGoogleCalendar ? 'pending' : null,
       };
+
+      console.log(eventData);
 
       if (isEditMode && initialData) {
         await updateEvent(initialData.id, eventData);
@@ -118,7 +134,6 @@ export function CreateEventForm({
       }
       
       onSuccess();
-      onClose();
       form.reset();
     } catch (error) {
       toast({
@@ -270,16 +285,34 @@ export function CreateEventForm({
           )}
         />
 
+        {masjid?.googleCalendarId && (
+          <FormField
+            control={form.control}
+            name="syncToGoogleCalendar"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Sync with Google Calendar</FormLabel>
+                  <div className="text-sm text-muted-foreground">
+                    Automatically sync this event with your masjid's Google Calendar
+                  </div>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        )}
+
         <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
           <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
+            type="submit"
             disabled={isLoading}
           >
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

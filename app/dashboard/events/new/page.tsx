@@ -7,6 +7,7 @@ import { CreateEventForm } from "@/components/dashboard/create-event-form"
 
 export default function NewEventPage() {
   const router = useRouter()
+  const masjidId = new URLSearchParams(window.location.search).get("masjidId") || ""
 
   return (
     <div className="space-y-6">
@@ -20,19 +21,17 @@ export default function NewEventPage() {
         <Button
           variant="outline"
           size="md"
-          onClick={() => router.back()}
+          onClick={() => router.push("/dashboard/events")}
           className="mt-auto mb-auto"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
       </div>
 
-      <div className="bg-white rounded-lg border border-[#550C18]/10 p-6 px-20">
+      <div className="bg-white rounded-lg border border-[#550C18]/10 p-6">
         <CreateEventForm
-          isOpen={true}
-          onClose={() => router.back()}
           onSuccess={() => router.push("/dashboard/events")}
-          masjidId={new URLSearchParams(window.location.search).get("masjidId") || ""}
+          masjidId={masjidId}
         />
       </div>
     </div>

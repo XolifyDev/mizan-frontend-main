@@ -1,78 +1,76 @@
 "use server";
 
 import { prisma } from "../db";
+import { syncEventToGoogleCalendar, deleteEventFromGoogleCalendar } from "./google-calendar";
 
-export const getEvents = async (masjidId: string) => {
-  const events = await prisma.event.findMany({
-    where: {
-      masjidId,
-    },
-    orderBy: {
-      date: "asc",
-    },
-    include: {
-      masjid: true,
-    },
-  });
-  return events || [];
-};
-
-type CreateEventData = {
-  title: string;
-  date: Date;
-  timeStart: Date;
-  timeEnd: Date;
-  location: string;
-  description: string;
-  type: string;
-  tagColor: string;
-  masjidId: string;
-};
-
-export const createEvent = async (event: CreateEventData) => {
-  const newEvent = await prisma.event.create({
+export async function createEvent(data: any) {
+  const event = await prisma.event.create({
     data: {
-      title: event.title,
-      date: event.date,
-      timeStart: event.timeStart,
-      timeEnd: event.timeEnd,
-      location: event.location,
-      description: event.description,
-      type: event.type,
-      tagColor: event.tagColor,
-      masjidId: event.masjidId,
+      ...data,
+      syncToGoogleCalendar: data.syncToGoogleCalendar || false,
+      googleCalendarEventId: null,
+      lastSyncedAt: null,
+      syncStatus: data.syncToGoogleCalendar ? 'pending' : null,
     },
   });
-  return newEvent;
-};
 
-export const getEventsById = async (id: string) => {
+  if (data.syncToGoogleCalendar) {
+    try {
+      await syncEventToGoogleCalendar(event.id);
+    } catch (error) {
+      console.error('Error syncing event to Google Calendar:', error);
+    }
+  }
+
+  return event;
+}
+
+export async function updateEvent(id: string, data: any) {
+  const event = await prisma.event.update({
+    where: { id },
+    data: {
+      ...data,
+      syncToGoogleCalendar: data.syncToGoogleCalendar || false,
+      googleCalendarEventId: data.syncToGoogleCalendar ? undefined : null,
+      lastSyncedAt: data.syncToGoogleCalendar ? undefined : null,
+      syncStatus: data.syncToGoogleCalendar ? 'pending' : null,
+    },
+  });
+
+  if (data.syncToGoogleCalendar) {
+    try {
+      await syncEventToGoogleCalendar(event.id);
+    } catch (error) {
+      console.error('Error syncing event to Google Calendar:', error);
+    }
+  }
+
+  return event;
+}
+
+export async function deleteEvent(id: string) {
+  try {
+    await deleteEventFromGoogleCalendar(id);
+  } catch (error) {
+    console.error('Error deleting event from Google Calendar:', error);
+  }
+
+  return prisma.event.delete({
+    where: { id },
+  });
+}
+
+export async function getEvents(masjidId: string) {
+  return prisma.event.findMany({
+    where: { masjidId },
+    orderBy: { date: 'asc' },
+  });
+}
+
+export async function getEventsById(id: string) {
   const event = await prisma.event.findUnique({
     where: { id },
+    include: { masjid: true },
   });
   return event;
-};
-
-export const updateEvent = async (id: string, event: Partial<CreateEventData>) => {
-  const updatedEvent = await prisma.event.update({
-    where: { id },
-    data: {
-      title: event.title,
-      date: event.date,
-      timeStart: event.timeStart,
-      timeEnd: event.timeEnd,
-      location: event.location,
-      description: event.description,
-      type: event.type,
-      tagColor: event.tagColor,
-    },
-  });
-  return updatedEvent;
-};
-
-export const deleteEvent = async (id: string) => {
-  await prisma.event.delete({
-    where: { id },
-  });
-  return { success: true };
-};
+}

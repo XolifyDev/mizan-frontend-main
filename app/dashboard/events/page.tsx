@@ -35,6 +35,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/components/ui/use-toast";
+import { GoogleCalendarSettings } from "@/components/dashboard/google-calendar-settings";
+import { Masjid } from "@prisma/client";
+import { getUserMasjid } from "@/lib/actions/masjid";
+import { toast } from "@/hooks/use-toast";
 
 type Event = {
   id: string;
@@ -54,18 +58,22 @@ type Event = {
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [events, setEvents] = useState<Event[]>([]);
+  const [masjidCalendarId, setMasjid] = useState<string>("");
+  const [masjidPfp, setMasjidPfp] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const masjidId = useSearchParams().get("masjidId") || "";
   const router = useRouter();
-  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchEvents = async () => {
+    const loadData = async () => {
       const events = await getEvents(masjidId);
+      const m = await getUserMasjid();
       setEvents(events);
+      setMasjid(m.googleCalendarId || "");
+      setMasjidPfp(m.googleCalendarPfp || "");
     };
-    fetchEvents();
+    loadData();
   }, [masjidId]);
 
   const filteredEvents = events.filter(
@@ -106,13 +114,16 @@ export default function EventsPage() {
             Manage and schedule events for your masjid
           </p>
         </div>
-        <Button 
-          className="bg-[#550C18] hover:bg-[#78001A] text-white"
-          onClick={() => router.push(`/dashboard/events/new?masjidId=${masjidId}`)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Event
-        </Button>
+        <div className="flex items-center gap-2">
+          <GoogleCalendarSettings masjidId={masjidId} currentCalendarId={masjidCalendarId} currentCalendarPfp={masjidPfp} />
+          <Button 
+            className="bg-[#550C18] hover:bg-[#78001A] text-white"
+            onClick={() => router.push(`/dashboard/events/new?masjidId=${masjidId}`)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Event
+          </Button>
+        </div>
       </div>
 
       <Card className="bg-white border-[#550C18]/10">
@@ -152,8 +163,8 @@ export default function EventsPage() {
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                          <CalendarIcon className="h-6 w-6" />
+                        <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-[#550C18]/10 text-[#550C18]">
+                          <CalendarIcon className="h-6 w-8" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
@@ -184,9 +195,6 @@ export default function EventsPage() {
                               <span>{event.location}</span>
                             </div>
                           </div>
-                          <p className="text-sm text-[#3A3A3A]/70 mt-1">
-                            {event.description}
-                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -255,7 +263,7 @@ export default function EventsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
+              className="bg-primary hover:bg-primary/90"
             >
               Delete
             </AlertDialogAction>
