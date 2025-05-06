@@ -21,7 +21,7 @@ export default function NewEventPage() {
         <Button
           variant="outline"
           size="md"
-          onClick={() => router.push("/dashboard/events")}
+          onClick={() => router.push("/dashboard/events?masjidId=" + masjidId)}
           className="mt-auto mb-auto"
         >
           <ArrowLeft className="h-4 w-4" /> Back

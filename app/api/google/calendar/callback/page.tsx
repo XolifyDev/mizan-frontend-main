@@ -58,7 +58,10 @@ export default function GoogleCalendarCallback() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="text-2xl font-bold">Connecting to Google Calendar...</h1>
+        <div className="flex flex-col items-center">
+          <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
+        </div>
+        <h1 className="text-2xl font-bold text-[#550C18]">Connecting to Google Calendar...</h1>
         <p className="text-muted-foreground">
           Please wait while we connect your calendar.
         </p>

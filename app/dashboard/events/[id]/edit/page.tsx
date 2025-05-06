@@ -65,7 +65,7 @@ export default function EditEventPage() {
         <Button
           variant="outline"
           size="md"
-          onClick={() => router.back()}
+          onClick={() => router.push('/dashboard/events')}
           className="mt-auto mb-auto"
         >
           <ArrowLeft className="h-4 w-4" /> Back

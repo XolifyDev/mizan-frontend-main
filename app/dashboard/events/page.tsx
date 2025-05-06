@@ -39,6 +39,7 @@ import { GoogleCalendarSettings } from "@/components/dashboard/google-calendar-s
 import { Masjid } from "@prisma/client";
 import { getUserMasjid } from "@/lib/actions/masjid";
 import { toast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 type Event = {
   id: string;
@@ -163,9 +164,21 @@ export default function EventsPage() {
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                          <CalendarIcon className="h-6 w-8" />
-                        </div>
+                      {event.flyerUrl ? (
+                          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-[#550C18]/10 text-[#550C18] rounded-md">
+                            <Image
+                              src={event.flyerUrl}
+                              alt="Flyer"
+                              height={120}
+                              width={120}
+                              className="object-cover rounded-md max-h-full"
+                            />
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-[#550C18]/10 text-[#550C18]">
+                            <CalendarIcon className="h-6 w-8" />
+                          </div>
+                        )}
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="font-medium text-[#3A3A3A] text-lg">
@@ -181,18 +194,18 @@ export default function EventsPage() {
                           <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm text-[#3A3A3A]/70 mt-1">
                             <div className="flex items-center gap-1">
                               <CalendarIcon className="h-3 w-3" />
-                              <span>{event.date.toLocaleDateString()}</span>
+                              <span className="text-[#550C18]">{event.date.toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              <span>
-                                {event.timeStart.toLocaleTimeString()} -{" "}
-                                {event.timeEnd.toLocaleTimeString()}
+                              <span className="text-[#550C18]">
+                                {event.timeStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
+                                {event.timeEnd.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
-                              <span>{event.location}</span>
+                              <span className="text-[#550C18]">{event.location}</span>
                             </div>
                           </div>
                         </div>
