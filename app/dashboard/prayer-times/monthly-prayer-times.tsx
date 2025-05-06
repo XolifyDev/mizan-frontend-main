@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useToast } from "@/components/ui/use-toast"
+import { toast } from "@/components/ui/use-toast"
 import { fetchMonthPrayerTimes, generateMonthlyPrayerTimes, saveMonthlyPrayerTimes } from "@/lib/actions/prayer-times"
 import type { Masjid } from "@prisma/client"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -35,6 +35,7 @@ export function MonthlyPrayerTimes({
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [savingError, setSavingError] = useState<string | null>(null);
   const [monthOrYear, setMonthOrYear] = useState("month")
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
@@ -52,7 +53,6 @@ export function MonthlyPrayerTimes({
     prayer: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha"
     time: string
   } | null>(null);
-  const { toast } = useToast()
 
   // Hardcoded coordinates for demo - in production, get these from the masjid record
   const latitude = masjid?.latitude ? Number.parseFloat(masjid.latitude) : 0
@@ -148,7 +148,9 @@ export function MonthlyPrayerTimes({
         toast({
           title: "Success",
           description: "Prayer times for the entire year generated successfully",
+          variant: "default"
         })
+        
       }
     } catch (error) {
       toast({
@@ -170,7 +172,6 @@ export function MonthlyPrayerTimes({
     if (monthOrYear === "month" && !prayerTimes.length) return;
     if (monthOrYear === "year" && Object.keys(yearlyPrayerTimes).length === 0) return;
 
-    console.log(saveToDatabase);
     try {
       if (monthOrYear === "month") {
         // Save a single month
@@ -180,10 +181,13 @@ export function MonthlyPrayerTimes({
           toast({
             title: "Success",
             description: "Prayer times saved successfully",
-          })
+          });
           setIsDialogOpen(false);
           setPrayerTimes([]);
+          await fetch("/api/revalidate?path=/dashboard/prayer-times");
+          setIsDialogOpen(false);
         } else {
+          setSavingError(result.error!);
           toast({
             title: "Error",
             description: result.error || "Failed to save prayer times",
@@ -222,7 +226,6 @@ export function MonthlyPrayerTimes({
               title: "Success",
               description: "Prayer times for the entire year saved successfully",
             });
-            console.log("CLOSIGN")
             setIsDialogOpen(false);
             setPrayerTimes([]);
           }
@@ -538,6 +541,11 @@ export function MonthlyPrayerTimes({
                 )}
               </Button>
             </div>
+            {savingError && (
+              <p className="text-red-400 text-left font-semibold">
+                  {savingError || "There was an error saving your timings.. Please try again!"}
+              </p>
+            )}
 
             {(prayerTimes.length > 0 || Object.keys(yearlyPrayerTimes).length > 0) && (
               <>

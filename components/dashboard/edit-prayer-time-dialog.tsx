@@ -45,12 +45,22 @@ export function EditPrayerTimeDialog({
   // Parse the time when the dialog opens
   useEffect(() => {
     if (open && prayerTime.time) {
-      const [timeStr, timePeriod] = prayerTime.time.split(" ")
-      const [hoursStr, minutesStr] = timeStr.split(":")
+      // Convert the time to a Date object if it's a string
+      const timeDate = typeof prayerTime.time === 'string' 
+        ? new Date(`2000-01-01T${prayerTime.time}`)
+        : new Date(prayerTime.time);
 
-      setHours(hoursStr)
-      setMinutes(minutesStr)
-      setPeriod(timePeriod as "AM" | "PM")
+      // Format the time in 12-hour format
+      const hours = timeDate.getHours();
+      const minutes = timeDate.getMinutes();
+      
+      // Convert to 12-hour format
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12;
+      
+      setHours(hours12.toString().padStart(2, '0'));
+      setMinutes(minutes.toString().padStart(2, '0'));
+      setPeriod(period);
     }
   }, [open, prayerTime.time])
 
@@ -108,10 +118,10 @@ export function EditPrayerTimeDialog({
       setIsSubmitting(false)
     }
   }
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] border-1 border-[#78001A]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold">Update {getPrayerName(prayerTime.prayer)} Time</DialogTitle>
           <DialogDescription>{formatDate(prayerTime.date)}</DialogDescription>
@@ -136,7 +146,7 @@ export function EditPrayerTimeDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white" disabled={isSubmitting}>
+          <Button onClick={handleSubmit} className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isSubmitting}>
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

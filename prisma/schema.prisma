@@ -20,6 +20,9 @@ model Masjid {
   email       String
   websiteUrl  String
   phone       String
+  googleCalendarId  String @default("")
+  googleCalendarCredentials Json?
+  googleCalendarPfp String?
 
   latitude        String
   longitude       String
@@ -134,12 +137,28 @@ model Products {
 }
 
 model Event {
-  id          Int      @id @default(autoincrement())
+  id          String   @id @default(cuid())
   masjidId    String
-  eventName   String
-  eventDate   DateTime
+  title       String
+  date        DateTime
+  timeStart   DateTime
+  timeEnd     DateTime
+  location    String
   description String
+  type        String   // prayer, education, community, youth, etc.
+  tagColor    String   // blue-500, green-500, purple-500, orange-500, gray-500
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+   
+  // Google Calendar sync fields
+  syncToGoogleCalendar Boolean @default(false)
+  googleCalendarEventId String? // Stores the Google Calendar event ID for two-way sync
+  lastSyncedAt DateTime? // Tracks when the event was last synced with Google Calendar
+  syncStatus String? // Can be 'pending', 'synced', 'failed'
+   
   masjid      Masjid   @relation(fields: [masjidId], references: [id])
+
+  @@index([masjidId])
 }
 
 model User {
@@ -272,6 +291,8 @@ model IqamahTiming {
   dhuhr       String
   asr         String
   maghrib     String
+  maghribType String
+  maghribOffset String
   isha        String
   jumuahI     String?
   jumuahII    String?

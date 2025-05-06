@@ -52,18 +52,6 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
 
   const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let newMinute = e.target.value.replace(/\D/g, "")
-
-    // Ensure minute is between 0 and 59
-    if (newMinute === "") {
-      newMinute = "00"
-    } else {
-
-      const minuteNum = Number.parseInt(newMinute, 10)
-      if (minuteNum > 59) newMinute = "59"
-      // Pad with leading zero if needed
-      if (newMinute.length === 1) newMinute = "0" + newMinute
-    }
-
     setMinute(newMinute)
     updateTime(hour, newMinute, period)
   }
@@ -89,6 +77,8 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
           className="w-12 text-center p-2 border-none focus-visible:text-[#550C18]"
           placeholder="--"
           inputMode="numeric"
+          min={0}
+          max={12}
           maxLength={2}
         />
         <span className="mx-1 text-[#3A3A3A]">:</span>
@@ -100,10 +90,16 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
           placeholder="--"
           inputMode="numeric"
           required
+          min={0}
+          max={59}
           maxLength={2}
+          onInput={(e) => {
+            // @ts-ignore
+            if (e.target.value.length > e.target.maxLength) e.target.value = e.target.value.slice(0, e.target.maxLength);
+          }}
         />
       </div>
-      <Select defaultValue={period} value={period} onValueChange={handlePeriodChange}>
+      <Select defaultValue={value.split(" ")[1]} value={value.split(" ")[1]} onValueChange={handlePeriodChange}>
         <SelectTrigger className="w-full border-[#550C18]/20 focus-visible:ring-[#550C18]/30">
           <SelectValue placeholder="AM/PM" />
         </SelectTrigger>
