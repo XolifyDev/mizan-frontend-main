@@ -40,7 +40,7 @@ import { Masjid } from "@prisma/client";
 import { getUserMasjid } from "@/lib/actions/masjid";
 import { toast } from "@/hooks/use-toast";
 import Image from "next/image";
-
+import { CalendarView } from "@/components/dashboard/calendar-view";
 type Event = {
   id: string;
   title: string;
@@ -82,7 +82,7 @@ export default function EventsPage() {
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.location.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  ) as Event[];
 
   const handleDelete = async () => {
     if (!eventToDelete) return;
@@ -249,14 +249,7 @@ export default function EventsPage() {
             </TabsContent>
             <TabsContent value="calendar" className="space-y-4">
               <div className="text-center p-8">
-                <CalendarIcon className="h-16 w-16 mx-auto text-[#550C18]/50 mb-4" />
-                <h3 className="text-lg font-medium text-[#3A3A3A] mb-2">
-                  Calendar View
-                </h3>
-                <p className="text-[#3A3A3A]/70 mb-4">
-                  Calendar view is coming soon. You can use the list view to
-                  manage events for now.
-                </p>
+                <CalendarView events={filteredEvents} masjidId={masjidId} />
               </div>
             </TabsContent>
           </Tabs>

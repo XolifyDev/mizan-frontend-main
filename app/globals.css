@@ -287,7 +287,6 @@
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     transform: scale(0);
@@ -300,8 +299,6 @@
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
@@ -310,7 +307,6 @@
     @apply bg-background text-foreground;
   }
 }
-
 
 .ProseMirror {
 	@apply px-4 pt-2;
@@ -358,4 +354,178 @@ h3.tiptap-heading + h2.tiptap-heading {
 	border-left: 3px solid gray;
 	margin: 1.5rem 0;
 	padding-left: 1rem;
+}
+
+/* Calendar Theme */
+.calendar-theme {
+  --fc-border-color: #550C18;
+  --fc-button-text-color: #ffffff;
+  --fc-button-bg-color: #550C18;
+  --fc-button-border-color: #550C18;
+  --fc-button-hover-bg-color: #78001A;
+  --fc-button-hover-border-color: #78001A;
+  --fc-button-active-bg-color: #78001A;
+  --fc-button-active-border-color: #78001A;
+  --fc-today-bg-color: #550C18/10;
+  --fc-neutral-bg-color: #ffffff;
+  --fc-list-event-hover-bg-color: #550C18/10;
+  --fc-highlight-color: #550C18/10;
+}
+
+.calendar-theme .fc {
+  font-family: inherit;
+}
+
+.calendar-theme .fc-toolbar-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #550C18;
+}
+
+.calendar-theme .fc-button {
+  font-weight: 500;
+  text-transform: capitalize;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+  color: #ffffff;
+}
+
+.calendar-theme .fc-button:hover {
+  color: #ffffff;
+  background-color: #78001A;
+  border-color: #78001A;
+}
+
+.calendar-theme .fc-button-primary:not(:disabled).fc-button-active,
+.calendar-theme .fc-button-primary:not(:disabled):active {
+  background-color: #78001A;
+  border-color: #78001A;
+  color: #ffffff;
+}
+
+.calendar-theme .fc-daygrid-day.fc-day-today {
+  background-color: #550C18/5;
+}
+
+.calendar-theme .fc-event {
+  border-radius: 0.375rem;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.calendar-theme .fc-event:hover {
+  transform: scale(1.02);
+}
+
+.calendar-theme .fc-daygrid-event {
+  background-color: transparent;
+  border: none;
+  padding: 0.25rem;
+}
+
+.calendar-theme .fc-daygrid-day-number {
+  color: #3A3A3A;
+  text-decoration: none;
+  padding: 0.5rem;
+}
+
+.calendar-theme .fc-col-header-cell {
+  padding: 0.5rem;
+  background-color: #550C18/5;
+  color: #550C18;
+  font-weight: 600;
+}
+
+.calendar-theme .fc-timegrid-slot {
+  height: 3rem;
+}
+
+.calendar-theme .fc-timegrid-slot-label {
+  color: #3A3A3A/70;
+}
+
+.calendar-theme .fc-timegrid-now-indicator-line {
+  border-color: #550C18;
+}
+
+.calendar-theme .fc-timegrid-now-indicator-arrow {
+  border-color: #550C18;
+}
+
+.calendar-theme .fc-more-link {
+  color: #550C18;
+  font-weight: 500;
+}
+
+.calendar-theme .fc-daygrid-more-link {
+  background-color: #550C18/10;
+  color: #550C18;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+}
+
+/* Event text overflow handling */
+.calendar-theme .fc-event-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.calendar-theme .fc-event-title-container {
+  max-width: 100%;
+}
+
+.calendar-theme .fc-event-main {
+  max-width: 100%;
+}
+
+.calendar-theme .fc-event-main-frame {
+  max-width: 100%;
+}
+
+.calendar-theme .fc-event-time {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.calendar-theme .fc-event-title-container {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.calendar-theme .fc-event-title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Calendar Table Border Radius */
+.calendar-theme .fc-scrollgrid,
+.calendar-theme .fc-scrollgrid table {
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+/* Top left corner */
+.calendar-theme .fc-scrollgrid thead tr:first-child th:first-child {
+  border-top-left-radius: 0.25rem;
+}
+/* Top right corner */
+.calendar-theme .fc-scrollgrid thead tr:first-child th:last-child {
+  border-top-right-radius: 0.25rem;
+}
+/* Bottom left corner */
+.calendar-theme .fc-scrollgrid tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 0.25rem;
+}
+/* Bottom right corner */
+.calendar-theme .fc-scrollgrid tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 0.25rem;
 }
