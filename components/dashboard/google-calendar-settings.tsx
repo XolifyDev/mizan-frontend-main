@@ -17,9 +17,10 @@ interface GoogleCalendarSettingsProps {
   masjidId: string;
   currentCalendarId: string;
   currentCalendarPfp: string;
+  refreshEvents: () => void;
 }
 
-export function GoogleCalendarSettings({ masjidId, currentCalendarId, currentCalendarPfp }: GoogleCalendarSettingsProps) {
+export function GoogleCalendarSettings({ masjidId, currentCalendarId, currentCalendarPfp, refreshEvents }: GoogleCalendarSettingsProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
@@ -58,12 +59,7 @@ export function GoogleCalendarSettings({ masjidId, currentCalendarId, currentCal
         title: "Success",
         description: "Disconnected from Google Calendar",
       });
-      await fetch("/api/revalidate", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      await refreshEvents();
     } catch (error) {
       toast({
         title: "Error",
@@ -100,9 +96,14 @@ export function GoogleCalendarSettings({ masjidId, currentCalendarId, currentCal
                   <Image
                     width={120}
                     height={120}
-                    src={`${currentCalendarPfp}`}
+                    src={currentCalendarPfp || '/default-avatar.png'}
                     alt="Google Account"
                     className="h-full w-full object-cover"
+                    unoptimized
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/default-avatar.png';
+                    }}
                   />
                 </div>
                 <div className="flex-1">

@@ -157,9 +157,10 @@ export function CreateEventForm({
       const eventData = {
         ...values,
         masjidId,
-        date: new Date(values.date),
+        date: new Date(values.date + 'T00:00:00'),
         timeStart: new Date(`2000-01-01T${values.timeStart}`),
         timeEnd: new Date(`2000-01-01T${values.timeEnd}`),
+        syncToGoogleCalendar: values.syncToGoogleCalendar,
         syncStatus: values.syncToGoogleCalendar ? 'pending' : null,
         flyerUrl,
         tvFlyerUrl,

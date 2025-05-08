@@ -529,3 +529,40 @@ h3.tiptap-heading + h2.tiptap-heading {
 .calendar-theme .fc-scrollgrid tbody tr:last-child td:last-child {
   border-bottom-right-radius: 0.25rem;
 }
+
+@media (max-width: 640px) {
+  .calendar-theme .fc-header-toolbar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.5rem;
+  }
+  .calendar-theme .fc-toolbar-chunk {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    justify-content: space-between;
+  }
+  .calendar-theme .fc-button {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    min-width: 2.5rem;
+  }
+  .calendar-theme .fc-toolbar-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.25rem;
+  }
+  .calendar-theme .fc-col-header-cell {
+    font-size: 0.9rem;
+    padding: 0.25rem;
+  }
+  .calendar-theme .fc-daygrid-day-number {
+    font-size: 0.9rem;
+    padding: 0.25rem;
+  }
+  .calendar-theme .fc-scrollgrid {
+    font-size: 0.9rem;
+  }
+  .calendar-theme .fc-view-harness {
+    min-width: 500px;
+  }
+}

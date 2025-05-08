@@ -27,8 +27,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
-  const [progress, setProgress] = useState(65);
-
   return (
     <>
       <div className="mb-8">

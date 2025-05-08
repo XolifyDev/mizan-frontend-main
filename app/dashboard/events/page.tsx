@@ -9,6 +9,7 @@ import {
   Search,
   Trash,
   Edit,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -63,19 +64,35 @@ export default function EventsPage() {
   const [masjidPfp, setMasjidPfp] = useState<string>("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
-  const masjidId = useSearchParams().get("masjidId") || "";
+  const [refreshing, setRefreshing] = useState(false);
+  const searchParams = useSearchParams();
   const router = useRouter();
+  const masjidId = searchParams.get("masjidId") || "";
+  const currentTab = searchParams.get("tab") || "list";
+
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    router.push(`?${params.toString()}`);
+  };
+
+  const loadData = async () => {
+    const events = await getEvents(masjidId);
+    const m = await getUserMasjid();
+    setEvents(events);
+    setMasjid(m.googleCalendarId || "");
+    setMasjidPfp(m.googleCalendarPfp || "");
+  };
 
   useEffect(() => {
-    const loadData = async () => {
-      const events = await getEvents(masjidId);
-      const m = await getUserMasjid();
-      setEvents(events);
-      setMasjid(m.googleCalendarId || "");
-      setMasjidPfp(m.googleCalendarPfp || "");
-    };
     loadData();
   }, [masjidId]);
+
+  const refreshEvents = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   const filteredEvents = events.filter(
     (event) =>
@@ -90,12 +107,12 @@ export default function EventsPage() {
     try {
       await deleteEvent(eventToDelete.id);
       setEvents(events.filter((event) => event.id !== eventToDelete.id));
-      toast({
+      toast({ 
         title: "Success",
         description: "Event deleted successfully",
       });
     } catch (error) {
-      toast({
+      toast({ 
         title: "Error",
         description: "Failed to delete event",
         variant: "destructive",
@@ -116,7 +133,7 @@ export default function EventsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <GoogleCalendarSettings masjidId={masjidId} currentCalendarId={masjidCalendarId} currentCalendarPfp={masjidPfp} />
+          <GoogleCalendarSettings masjidId={masjidId} currentCalendarId={masjidCalendarId} currentCalendarPfp={masjidPfp} refreshEvents={refreshEvents} />
           <Button 
             className="bg-[#550C18] hover:bg-[#78001A] text-white"
             onClick={() => router.push(`/dashboard/events/new?masjidId=${masjidId}`)}
@@ -125,6 +142,13 @@ export default function EventsPage() {
             Add New Event
           </Button>
         </div>
+      </div>
+
+      <div className="flex justify-end mb-2">
+        <Button onClick={refreshEvents} variant="outline" className="flex items-center gap-2">
+          {refreshing ? <Loader2 className="animate-spin h-4 w-4" /> : <></>}
+          Refresh
+        </Button>
       </div>
 
       <Card className="bg-white border-[#550C18]/10">
@@ -150,7 +174,7 @@ export default function EventsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="list">
+          <Tabs defaultValue={currentTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="list">List View</TabsTrigger>
               <TabsTrigger value="calendar">Calendar View</TabsTrigger>
@@ -194,7 +218,7 @@ export default function EventsPage() {
                           <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm text-[#3A3A3A]/70 mt-1">
                             <div className="flex items-center gap-1">
                               <CalendarIcon className="h-3 w-3" />
-                              <span className="text-[#550C18]">{event.date.toLocaleDateString()}</span>
+                              <span className="text-[#550C18]">{new Date(event.date).toLocaleDateString()}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
@@ -249,7 +273,7 @@ export default function EventsPage() {
             </TabsContent>
             <TabsContent value="calendar" className="space-y-4">
               <div className="text-center p-8">
-                <CalendarView events={filteredEvents} masjidId={masjidId} />
+                <CalendarView events={filteredEvents} masjidId={masjidId} refreshEvents={refreshEvents} />
               </div>
             </TabsContent>
           </Tabs>

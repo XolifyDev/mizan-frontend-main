@@ -9,7 +9,7 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-export async function syncEventToGoogleCalendar(eventId: string) {
+export async function syncEventToGoogleCalendar(eventId: string, data?: any) {
   try {
     const session = await auth.api.getSession({
       headers: await headers()
@@ -18,9 +18,14 @@ export async function syncEventToGoogleCalendar(eventId: string) {
       throw new Error('Not authenticated');
     }
 
-    const event = await prisma.event.findUnique({
+    const event = data || await prisma.event.findUnique({
       where: { id: eventId },
       include: { masjid: true },
+    });
+
+    const eventGoogleCalendarId = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { googleCalendarEventId: true },
     });
 
     if (!event || !event.syncToGoogleCalendar) {
@@ -44,16 +49,18 @@ export async function syncEventToGoogleCalendar(eventId: string) {
 
     // Prepare the event data
     const startDateTime = new Date(event.date);
+    const [startHours, startMinutes] = event.timeStart.toTimeString().split(':');
     startDateTime.setHours(
-      event.timeStart.getHours(),
-      event.timeStart.getMinutes(),
+      parseInt(startHours),
+      parseInt(startMinutes),
       0
     );
 
     const endDateTime = new Date(event.date);
+    const [endHours, endMinutes] = event.timeEnd.toTimeString().split(':');
     endDateTime.setHours(
-      event.timeEnd.getHours(),
-      event.timeEnd.getMinutes(),
+      parseInt(endHours),
+      parseInt(endMinutes),
       0
     );
 
@@ -70,30 +77,26 @@ export async function syncEventToGoogleCalendar(eventId: string) {
         timeZone: 'UTC',
       },
     };
-
-    // If the event has a Google Calendar ID, update it; otherwise, create a new one
-    if (event.googleCalendarEventId) {
-      await calendar.events.update({
-        calendarId: masjid.googleCalendarId,
-        eventId: event.googleCalendarEventId,
-        requestBody: calendarEvent,
-      });
-    } else {
-      const response = await calendar.events.insert({
-        calendarId: masjid.googleCalendarId,
-        requestBody: calendarEvent,
-      });
-
-      // Update the event with the Google Calendar event ID
-      await prisma.event.update({
-        where: { id: eventId },
-        data: {
-          googleCalendarEventId: response.data.id,
-          lastSyncedAt: new Date(),
-          syncStatus: 'synced',
-        },
-      });
+    // If the event has a Google Calendar ID, delete the old one and create a new one
+    if (eventGoogleCalendarId) {
+      await deleteEventFromGoogleCalendar(eventId);
     }
+
+    // Create a new event
+    const response = await calendar.events.insert({
+      calendarId: masjid.googleCalendarId,
+      requestBody: calendarEvent,
+    });
+
+    // Update the event with the new Google Calendar event ID and sync status
+    await prisma.event.update({
+      where: { id: eventId },
+      data: {
+        googleCalendarEventId: response.data.id,
+        lastSyncedAt: new Date(),
+        syncStatus: 'synced',
+      },
+    });
 
     return { success: true };
   } catch (error) {
@@ -110,6 +113,7 @@ export async function syncEventToGoogleCalendar(eventId: string) {
     throw error;
   }
 }
+
 
 export async function deleteEventFromGoogleCalendar(eventId: string) {
   try {

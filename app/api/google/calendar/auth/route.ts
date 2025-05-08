@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     // Generate OAuth URL
     const url = oauth2Client.generateAuthUrl({
       access_type: "offline",
+      prompt: "consent", // Force to show consent screen to get refresh token
       scope: [
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/calendar.events",
@@ -59,8 +60,12 @@ export async function POST(request: Request) {
       code,
       redirect_uri: process.env.GOOGLE_REDIRECT_URI + '/api/google/calendar/callback',
     });
-    oauth2Client.setCredentials(tokens);
 
+    if (!tokens.refresh_token) {
+      throw new Error('No refresh token received from Google');
+    }
+
+    oauth2Client.setCredentials(tokens);
 
     // Get the calendar ID
     const calendar = google.calendar({ version: "v3", auth: oauth2Client });
@@ -84,7 +89,7 @@ export async function POST(request: Request) {
       where: { id: masjidId },
       data: {
         googleCalendarId: primaryCalendar.id,
-        googleCalendarCredentials: tokens,
+        googleCalendarCredentials: tokens as any,
         googleCalendarPfp: profilePicture,
       },
     });

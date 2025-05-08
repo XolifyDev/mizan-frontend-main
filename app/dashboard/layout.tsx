@@ -111,26 +111,9 @@ export default function DashboardLayout({
   const [masjid, setMasjid] = useState<Masjid | null>(null)
   const [loadingMasjid, setLoadingMasjid] = useState(true)
   const [masjidCreatedStep, setMasjidCreationStep] = useState<number>(0)
-  const [isLoading, setLoading] = useState(false)
   const pathname = usePathname()
   const { data: session, isPending } = authClient.useSession()
-  const router = useRouter()
   const searchParams = useSearchParams()
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      address: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      country: "United States",
-      description: "",
-      latitude: 0,
-      longitude: 0,
-    },
-  })
 
   useEffect(() => {
     const fetchMasjid = async () => {
@@ -226,30 +209,6 @@ export default function DashboardLayout({
     const currentItem = allNavItems.find((item) => item.path === pathname)
     return currentItem?.title || "Dashboard"
   }
-
-  async function onSubmit(values: z.infer<typeof formSchema>) {
-    setLoading(true)
-    // @ts-ignore Ignore
-    const masjid = await createMasjid({
-      ...values,
-    })
-
-    if (!masjid || masjid.error)
-      return toast({
-        title: "Error",
-        description: masjid?.message || "There was an error creating the masjid. Please try again!",
-        variant: "destructive",
-      })
-
-    router.refresh()
-    toast({
-      title: `${values.name} was created!`,
-      description: "Your masjid was created. You may purchase products/configure your masjid!",
-      variant: "default",
-    })
-  }
-
-  async function onClose() {}
 
   return (
     <>
