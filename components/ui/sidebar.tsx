@@ -549,6 +549,7 @@ const SidebarMenuButton = React.forwardRef<
     asChild?: boolean
     isActive?: boolean
     tooltip?: string | React.ComponentProps<typeof TooltipContent>
+    indicatorColor?: string
   } & VariantProps<typeof sidebarMenuButtonVariants>
 >(
   (
@@ -559,6 +560,7 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
+      indicatorColor = "#550C18",
       ...props
     },
     ref
@@ -566,13 +568,22 @@ const SidebarMenuButton = React.forwardRef<
     const Comp = asChild ? Slot : "button"
     const { isMobile, state } = useSidebar()
 
+    const indicatorClass = isActive
+      ? `font-semibold pl-5 before:content-[''] before:absolute before:-left-2 before:top-1/2 before:-translate-y-1/2 before:w-2.5 before:h-8 before:rounded-full before:bg-[#550C18] before:shadow-[0_0_8px_2px_#550C18] before:transition-all`
+      : ""
+
     const button = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
         data-size={size}
         data-active={isActive}
-        className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
+        className={cn(
+          "relative flex items-center gap-3",
+          sidebarMenuButtonVariants({ variant, size }),
+          indicatorClass,
+          className
+        )}
         {...props}
       />
     )

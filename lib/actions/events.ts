@@ -56,7 +56,6 @@ export async function updateEvent(id: string, data: any) {
 
   if (event.syncToGoogleCalendar) {
     try { 
-      console.log('Syncing event to Google Calendar:', event.id);
       await syncEventToGoogleCalendar(event.id, {
         ...data,
         syncToGoogleCalendar: typeof data.syncToGoogleCalendar !== 'undefined' || undefined ? data.syncToGoogleCalendar : existingEvent.syncToGoogleCalendar,

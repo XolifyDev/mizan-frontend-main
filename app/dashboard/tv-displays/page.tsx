@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Monitor,
   Plus,
@@ -11,6 +11,8 @@ import {
   Edit,
   Trash,
   ImageIcon,
+  Tv,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,71 +37,329 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { getAllTVDisplays, createTVDisplay, updateTVDisplay, deleteTVDisplay, assignContentToDisplay, updateDisplayStatus } from "@/lib/actions/tvdisplays";
+import { getAllContentTemplates, createContentTemplate, updateContentTemplate, deleteContentTemplate, toggleContentTemplate } from "@/lib/actions/content-templates";
+import { useParams } from 'next/navigation';
+import { toast } from 'sonner';
+import { authClient } from "@/lib/auth-client";
+
+interface TVDisplay {
+  id: string;
+  name: string;
+  location: string | null;
+  isActive: boolean;
+  lastSeen: Date | null;
+  ipAddress: string | null;
+  status: string;
+  config: any;
+  assignedContentId: string | null;
+  masjidId: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  content?: string;
+}
+
+interface Content {
+  id: string;
+  title: string;
+  type: string;
+  url: string | null;
+  data: any;
+  startDate: string | Date | null;
+  endDate: string | Date | null;
+  zones: string[];
+  active: boolean;
+  masjidId: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  description?: string;
+  config?: any;
+  name?: string;
+}
+
+interface TVDisplayForm {
+  name: string;
+  location: string;
+  content: string;
+  notes: string;
+  autoPower: boolean;
+}
+
+interface TVDisplayUpdate {
+  name: string;
+  location: string;
+  status: string;
+  config?: {
+    notes: string;
+    autoPower: boolean;
+  };
+}
+
+interface ContentTemplate {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  active: boolean;
+  config: {
+    layout: string;
+    refreshInterval: number;
+    customSettings?: Record<string, any>;
+  };
+}
 
 export default function TVDisplaysPage() {
-  const [activeDisplays, setActiveDisplays] = useState(2);
+  const params = useParams();
+  const masjidId = params.masjidId as string;
+  const [displays, setDisplays] = useState<TVDisplay[]>([]);
+  const [activeDisplays, setActiveDisplays] = useState(0);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [form, setForm] = useState<TVDisplayForm>({ 
+    name: "", 
+    location: "", 
+    content: "prayer", 
+    notes: "", 
+    autoPower: false 
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editForm, setEditForm] = useState<TVDisplay | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [displayToDelete, setDisplayToDelete] = useState<TVDisplay | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [templates, setTemplates] = useState<Content[]>([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateForm, setTemplateForm] = useState<Partial<ContentTemplate>>({
+    name: "",
+    type: "prayer",
+    description: "",
+    active: true,
+    config: {
+      layout: "default",
+      refreshInterval: 30
+    }
+  });
+  const [wsConnected, setWsConnected] = useState(false);
+  const [isCreatingDisplay, setIsCreatingDisplay] = useState(false);
+  const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
+  const [newDisplay, setNewDisplay] = useState({ name: '', location: '' });
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    type: 'announcement',
+    content: '',
+  });
+  const { isPending, data: session } = authClient.useSession();
+  // @ts-ignore
+  const isAdmin = session?.user?.admin;
 
-  const displays = [
-    {
-      id: 1,
-      name: "Men Lobby - Left",
-      location: "Main Entrance",
-      status: "online",
-      content: "Prayer Times",
-      lastUpdated: "5 minutes ago",
-    },
-    {
-      id: 2,
-      name: "Sisters Side",
-      location: "Sisters Entrance",
-      status: "online",
-      content: "Announcements",
-      lastUpdated: "10 minutes ago",
-    },
-    {
-      id: 3,
-      name: "Main Hall",
-      location: "Prayer Hall",
-      status: "offline",
-      content: "Events Calendar",
-      lastUpdated: "2 hours ago",
-    },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [masjidId]);
 
-  const contentTemplates = [
-    {
-      id: 1,
-      name: "Prayer Times",
-      type: "prayer",
-      description: "Display daily prayer times with countdown to next prayer",
-      preview: "/placeholder.svg?height=100&width=200",
-      active: true,
-    },
-    {
-      id: 2,
-      name: "Announcements",
-      type: "announcement",
-      description: "Rotating announcements for community events",
-      preview: "/placeholder.svg?height=100&width=200",
-      active: true,
-    },
-    {
-      id: 3,
-      name: "Events Calendar",
-      type: "calendar",
-      description: "Weekly calendar of upcoming events",
-      preview: "/placeholder.svg?height=100&width=200",
-      active: false,
-    },
-    {
-      id: 4,
-      name: "Donation Progress",
-      type: "donation",
-      description: "Show progress towards fundraising goals",
-      preview: "/placeholder.svg?height=100&width=200",
-      active: false,
-    },
-  ];
+  useEffect(() => {
+    fetchData(); // initial fetch
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000); // 10 seconds
+    return () => clearInterval(interval);
+  }, [masjidId]);
+
+  const fetchData = async () => {
+    try {
+      const displaysData = await getAllTVDisplays();
+      const templatesData = await getAllContentTemplates();
+      setDisplays(displaysData);
+      setTemplates(templatesData);
+      setActiveDisplays(displaysData.filter((d: TVDisplay) => d.status === "online").length);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      setError("Failed to fetch data. Please try again.");
+    }
+  };
+
+  const handleAddDisplay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const display = await createTVDisplay({
+        ...form,
+        masjidId,
+        isActive: true,
+        config: { notes: form.notes, autoPower: form.autoPower },
+        assignedContentId: null,
+        status: 'offline',
+      });
+      setForm({ name: "", location: "", content: "prayer", notes: "", autoPower: false });
+      setAddDialogOpen(false);
+      setDisplays([...displays, display]);
+      setActiveDisplays(displays.filter((d: any) => d.status === "online").length + 1);
+      toast.success('Display created successfully');
+    } catch (err: any) {
+      setError("Failed to add display. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditDisplay = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editForm) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const updateData = {
+        name: editForm.name,
+        location: editForm.location || '',
+        status: editForm.status,
+        config: editForm.config,
+      };
+      const updatedDisplay = await updateTVDisplay(editForm.id, updateData);
+      setDisplays(displays.map(d => d.id === updatedDisplay.id ? updatedDisplay : d));
+      setActiveDisplays(displays.filter((d: TVDisplay) => d.status === "online").length);
+      toast.success('Display updated successfully');
+    } catch (err: any) {
+      setError("Failed to update display. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDisplay = async () => {
+    if (!displayToDelete) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await deleteTVDisplay(displayToDelete.id);
+      setDeleteDialogOpen(false);
+      setDisplayToDelete(null);
+      setDisplays(displays.filter(d => d.id !== displayToDelete.id));
+      setActiveDisplays(displays.filter((d: any) => d.status === "online").length - 1);
+      toast.success('Display deleted successfully');
+    } catch (err: any) {
+      setError("Failed to delete display. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshStatus = async (displayId: string) => {
+    setRefreshing(true);
+    try {
+      const updatedDisplay = await updateDisplayStatus(displayId, 'online');
+      setDisplays(displays.map(d => d.id === displayId ? updatedDisplay : d));
+      setActiveDisplays(displays.filter((d: TVDisplay) => d.status === "online").length);
+      toast.success('Display status updated');
+    } catch (err: any) {
+      setError("Failed to refresh display status. Please try again.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleToggleDisplay = async (display: TVDisplay) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const newStatus = display.status === "online" ? "offline" : "online";
+      const updatedDisplay = await updateDisplayStatus(display.id, newStatus);
+      setDisplays(displays.map(d => d.id === updatedDisplay.id ? updatedDisplay : d));
+      setActiveDisplays(prev => newStatus === "online" ? prev + 1 : prev - 1);
+      toast.success('Display status updated');
+    } catch (err: any) {
+      setError("Failed to update display status. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!templateForm.name || !templateForm.type || !templateForm.description) {
+      setError("Please fill in all required fields");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const template = await createContentTemplate({
+        name: templateForm.name,
+        type: templateForm.type,
+        description: templateForm.description,
+        active: templateForm.active ?? true,
+        config: templateForm.config!,
+        masjidId,
+      });
+      setTemplates([...templates, template]);
+      setTemplateDialogOpen(false);
+      setTemplateForm({
+        name: "",
+        type: "prayer",
+        description: "",
+        active: true,
+        config: {
+          layout: "default",
+          refreshInterval: 30
+        }
+      });
+      toast.success('Template created successfully');
+    } catch (err: any) {
+      setError("Failed to create template. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleTemplate = async (template: Content) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const updatedTemplate = await toggleContentTemplate(template.id, !template.active);
+      setTemplates(templates.map(t => 
+        t.id === updatedTemplate.id ? updatedTemplate : t
+      ));
+    } catch (err: any) {
+      setError("Failed to update template status. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTemplateFormChange = (field: keyof ContentTemplate, value: any) => {
+    setTemplateForm(prev => {
+      if (field === 'config') {
+        return {
+          ...prev,
+          config: {
+            ...prev.config,
+            ...value
+          }
+        };
+      }
+      return {
+        ...prev,
+        [field]: value
+      };
+    });
+  };
+
+  // Add connection status indicator
+  const ConnectionStatus = () => {
+    const hasActive = displays.some((d) => d.status === "online");
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <div className={`w-2 h-2 rounded-full ${hasActive ? 'bg-green-500' : 'bg-red-500'}`} />
+        <span className={hasActive ? 'text-green-600' : 'text-red-600'}>
+          {hasActive ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -111,73 +371,84 @@ export default function TVDisplaysPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Display
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Add New Display</DialogTitle>
-                <DialogDescription>
-                  Register a new display screen for your masjid.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="display-name">Display Name</Label>
-                  <Input id="display-name" placeholder="Enter display name" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="display-location">Location</Label>
-                  <Input
-                    id="display-location"
-                    placeholder="Where is this display located?"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="display-content">Default Content</Label>
-                  <select
-                    id="display-content"
-                    className="w-full rounded-md border border-[#550C18]/20 bg-white px-3 py-2 text-sm focus:border-[#550C18] focus:outline-none focus:ring-1 focus:ring-[#550C18]"
-                  >
-                    <option value="prayer">Prayer Times</option>
-                    <option value="announcements">Announcements</option>
-                    <option value="events">Events Calendar</option>
-                    <option value="donation">Donation Progress</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="display-notes">Notes</Label>
-                  <Textarea
-                    id="display-notes"
-                    placeholder="Any additional information about this display"
-                    className="min-h-[100px] border-[#550C18]/20 focus:border-[#550C18] focus:ring-[#550C18]"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch id="auto-power" />
-                  <Label htmlFor="auto-power">Enable auto power schedule</Label>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  className="bg-[#550C18] hover:bg-[#78001A] text-white"
-                >
+          <ConnectionStatus />
+          {isAdmin && (
+            <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
+                  <Plus className="mr-2 h-4 w-4" />
                   Add Display
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[525px]">
+                <DialogHeader>
+                  <DialogTitle>Add New Display</DialogTitle>
+                  <DialogDescription>
+                    Register a new display screen for your masjid.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAddDisplay} className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="display-name">Display Name</Label>
+                    <Input id="display-name" placeholder="Enter display name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="display-location">Location</Label>
+                    <Input id="display-location" placeholder="Where is this display located?" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="display-content">Default Content</Label>
+                    <select
+                      id="display-content"
+                      className="w-full rounded-md border border-[#550C18]/20 bg-white px-3 py-2 text-sm focus:border-[#550C18] focus:outline-none focus:ring-1 focus:ring-[#550C18]"
+                      value={form.content}
+                      onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+                    >
+                      <option value="prayer">Prayer Times</option>
+                      <option value="announcements">Announcements</option>
+                      <option value="events">Events Calendar</option>
+                      <option value="donation">Donation Progress</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="display-notes">Notes</Label>
+                    <Textarea
+                      id="display-notes"
+                      placeholder="Any additional information about this display"
+                      className="min-h-[100px] border-[#550C18]/20 focus:border-[#550C18] focus:ring-[#550C18]"
+                      value={form.notes}
+                      onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="auto-power" checked={form.autoPower} onCheckedChange={v => setForm(f => ({ ...f, autoPower: v }))} />
+                    <Label htmlFor="auto-power">Enable auto power schedule</Label>
+                  </div>
+                  {error && <div className="text-red-600 text-sm">{error}</div>}
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      className="bg-[#550C18] hover:bg-[#78001A] text-white"
+                      disabled={loading}
+                    >
+                      {loading ? "Adding..." : "Add Display"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
           <Button
             variant="outline"
             className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+            onClick={() => {
+              setIsCreatingDisplay(true);
+              setIsCreatingTemplate(false);
+            }}
+            disabled={refreshing}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh Status
+            <Tv className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh Status'}
           </Button>
         </div>
       </div>
@@ -213,10 +484,10 @@ export default function TVDisplaysPage() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-[#550C18]">
-              {contentTemplates.length}
+              {templates.length}
             </div>
             <p className="text-xs text-[#3A3A3A]/70 mt-1">
-              {contentTemplates.filter((t) => t.active).length} currently active
+              {templates.filter((t) => t.active).length} currently active
             </p>
           </CardContent>
         </Card>
@@ -286,7 +557,7 @@ export default function TVDisplaysPage() {
                         </p>
                         <p className="text-sm text-[#3A3A3A]/70">
                           Content: {display.content} • Updated{" "}
-                          {display.lastUpdated}
+                          {display.lastSeen ? display.lastSeen.toLocaleString() : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -295,21 +566,36 @@ export default function TVDisplaysPage() {
                         variant="outline"
                         size="sm"
                         className="h-8 w-8 p-0"
+                        onClick={() => {
+                          setEditForm({
+                            ...display,
+                            config: {
+                              notes: display.config?.notes || "",
+                              autoPower: display.config?.autoPower || false
+                            }
+                          });
+                          setEditDialogOpen(true);
+                        }}
                       >
-                        <Settings className="h-4 w-4" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         className="h-8 w-8 p-0"
+                        onClick={() => {
+                          setDisplayToDelete(display);
+                          setDeleteDialogOpen(true);
+                        }}
                       >
-                        <RefreshCw className="h-4 w-4" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
                         className="h-8 w-8 p-0"
-                        disabled={display.status === "offline"}
+                        onClick={() => handleToggleDisplay(display)}
+                        disabled={loading}
                       >
                         {display.status === "online" ? (
                           <Pause className="h-4 w-4" />
@@ -324,7 +610,7 @@ export default function TVDisplaysPage() {
             </TabsContent>
             <TabsContent value="content" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {contentTemplates.map((template) => (
+                {templates.map((template) => (
                   <div
                     key={template.id}
                     className="border border-[#550C18]/10 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -352,15 +638,14 @@ export default function TVDisplaysPage() {
                               variant="outline"
                               size="sm"
                               className="h-8 w-8 p-0"
+                              onClick={() => handleToggleTemplate(template)}
+                              disabled={loading}
                             >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash className="h-4 w-4" />
+                              {template.active ? (
+                                <Pause className="h-4 w-4" />
+                              ) : (
+                                <Play className="h-4 w-4" />
+                              )}
                             </Button>
                           </div>
                         </div>
@@ -382,6 +667,156 @@ export default function TVDisplaysPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Edit Display</DialogTitle>
+          </DialogHeader>
+          {editForm && (
+            <form onSubmit={handleEditDisplay} className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-display-name">Display Name</Label>
+                <Input 
+                  id="edit-display-name" 
+                  value={editForm?.name || ''} 
+                  onChange={e => setEditForm(f => f ? ({ ...f, name: e.target.value }) : null)} 
+                  required 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-display-location">Location</Label>
+                <Input 
+                  id="edit-display-location" 
+                  value={editForm?.location || ''} 
+                  onChange={e => setEditForm(f => f ? ({ ...f, location: e.target.value }) : null)} 
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-display-notes">Notes</Label>
+                <Textarea 
+                  id="edit-display-notes" 
+                  value={editForm?.config?.notes || ''} 
+                  onChange={e => setEditForm(f => f ? ({ 
+                    ...f, 
+                    config: { 
+                      ...(f.config || { notes: '', autoPower: false }), 
+                      notes: e.target.value 
+                    } 
+                  }) : null)} 
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch 
+                  id="edit-auto-power" 
+                  checked={editForm?.config?.autoPower || false} 
+                  onCheckedChange={v => setEditForm(f => f ? ({ 
+                    ...f, 
+                    config: { 
+                      ...(f.config || { notes: '', autoPower: false }), 
+                      autoPower: v 
+                    } 
+                  }) : null)} 
+                />
+                <Label htmlFor="edit-auto-power">Enable auto power schedule</Label>
+              </div>
+              {error && <div className="text-red-600 text-sm">{error}</div>}
+              <DialogFooter>
+                <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={loading}>
+                  {loading ? "Saving..." : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Display</DialogTitle>
+          </DialogHeader>
+          <div>Are you sure you want to delete <b>{displayToDelete?.name}</b>? This action cannot be undone.</div>
+          {error && <div className="text-red-600 text-sm">{error}</div>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} type="button">Cancel</Button>
+            <Button className="bg-red-600 text-white" onClick={handleDeleteDisplay} type="button" disabled={loading}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-[525px]">
+          <DialogHeader>
+            <DialogTitle>Create New Template</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateTemplate} className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="template-name">Template Name</Label>
+              <Input id="template-name" placeholder="Enter template name" value={templateForm.name} onChange={e => handleTemplateFormChange('name', e.target.value)} required />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="template-type">Template Type</Label>
+              <select
+                id="template-type"
+                className="w-full rounded-md border border-[#550C18]/20 bg-white px-3 py-2 text-sm focus:border-[#550C18] focus:outline-none focus:ring-1 focus:ring-[#550C18]"
+                value={templateForm.type}
+                onChange={e => handleTemplateFormChange('type', e.target.value)}
+              >
+                <option value="prayer">Prayer Times</option>
+                <option value="announcement">Announcements</option>
+                <option value="calendar">Events Calendar</option>
+                <option value="donation">Donation Progress</option>
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="template-description">Description</Label>
+              <Textarea
+                id="template-description"
+                placeholder="Enter template description"
+                className="min-h-[100px] border-[#550C18]/20 focus:border-[#550C18] focus:ring-[#550C18]"
+                value={templateForm.description}
+                onChange={e => handleTemplateFormChange('description', e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="template-active">Active</Label>
+              <Switch id="template-active" checked={templateForm.active} onCheckedChange={v => handleTemplateFormChange('active', v)} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="template-layout">Layout</Label>
+              <select
+                id="template-layout"
+                className="w-full rounded-md border border-[#550C18]/20 bg-white px-3 py-2 text-sm focus:border-[#550C18] focus:outline-none focus:ring-1 focus:ring-[#550C18]"
+                value={templateForm.config?.layout}
+                onChange={e => handleTemplateFormChange('config', { layout: e.target.value })}
+              >
+                <option value="default">Default</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="template-refresh-interval">Refresh Interval</Label>
+              <select
+                id="template-refresh-interval"
+                className="w-full rounded-md border border-[#550C18]/20 bg-white px-3 py-2 text-sm focus:border-[#550C18] focus:outline-none focus:ring-1 focus:ring-[#550C18]"
+                value={templateForm.config?.refreshInterval}
+                onChange={e => handleTemplateFormChange('config', { refreshInterval: parseInt(e.target.value) })}
+              >
+                <option value="30">30 minutes</option>
+                <option value="60">60 minutes</option>
+                <option value="300">300 minutes</option>
+              </select>
+            </div>
+            {error && <div className="text-red-600 text-sm">{error}</div>}
+            <DialogFooter>
+              <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={loading}>
+                {loading ? "Creating..." : "Create Template"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

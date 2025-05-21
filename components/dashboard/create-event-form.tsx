@@ -19,6 +19,10 @@ import { getUserMasjid } from "@/lib/actions/masjid"
 import Image from "next/image"
 import { uploadFiles } from "@/lib/actions/uploadthing"
 import { toast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useForm as useReactHookForm, Controller } from "react-hook-form"
+import Link from "next/link"
+import { cn } from "@/lib/utils"
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -89,6 +93,10 @@ export function CreateEventForm({
   const [selectedFlyer, setSelectedFlyer] = useState<File | null>(null);
   const [selectedTvFlyer, setSelectedTvFlyer] = useState<File | null>(null);
   const router = useRouter();
+  const [recurrenceModalOpen, setRecurrenceModalOpen] = useState(false);
+  const [recurrence, setRecurrence] = useState<any>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
+  const [typeState, setType] = useState<string>("");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -106,6 +114,8 @@ export function CreateEventForm({
       tvFlyerUrl: initialData?.tvFlyerUrl || "",
     },
   });
+
+  const typeWatch = form.watch("type");
 
   useEffect(() => {
     if (masjidId) {
@@ -154,16 +164,28 @@ export function CreateEventForm({
         }
       }
 
+      const start = new Date(`2000-01-01T${values.timeStart}`);
+      const end = new Date(`2000-01-01T${values.timeEnd}`);
+      if (end <= start) {
+        if (!(end.getHours() === 0 && end.getMinutes() === 0)) {
+          setTimeError("End time must be after start time, or set to 12:00am for overnight events.");
+          setIsLoading(false);
+          return;
+        }
+      }
+      setTimeError(null);
+
       const eventData = {
         ...values,
         masjidId,
         date: new Date(values.date + 'T00:00:00'),
-        timeStart: new Date(`2000-01-01T${values.timeStart}`),
-        timeEnd: new Date(`2000-01-01T${values.timeEnd}`),
+        timeStart: start,
+        timeEnd: end,
         syncToGoogleCalendar: values.syncToGoogleCalendar,
         syncStatus: values.syncToGoogleCalendar ? 'pending' : null,
         flyerUrl,
         tvFlyerUrl,
+        recurrence,
       };
 
       if (isEditMode && initialData) {
@@ -266,6 +288,33 @@ export function CreateEventForm({
               </FormItem>
             )}
           />
+
+        <div className="flex flex-col w-full h-full">
+          {recurrence && (
+            <div className="flex flex-row w-full justify-between mt-auto">
+              <div className="text-xs text-[#550C18] mt-auto">Recurs: {recurrence.summary}</div>
+              <Link href="javascript:void(0)" onClick={() => setRecurrence(null)} className="text-[#550C18] text-xs underline hover:text-[#78001A]">
+                Remove Recurrence
+              </Link>
+            </div>
+          )}
+          {timeError && <div className="text-xs text-red-600 mt-1">{timeError}</div>}
+          <Button className={cn("animate-in fade-in-0", recurrence ? "mt-1" : "mt-auto")} type="button" variant="outline" onClick={() => setRecurrenceModalOpen(true)}>
+            Custom Recurrence
+          </Button>
+        </div>
+          <Dialog open={recurrenceModalOpen} onOpenChange={setRecurrenceModalOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Custom recurrence</DialogTitle>
+              </DialogHeader>
+              <RecurrenceForm
+                value={recurrence}
+                onChange={setRecurrence}
+                onDone={() => setRecurrenceModalOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -276,9 +325,15 @@ export function CreateEventForm({
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Event Type</FormLabel>
+                  <div className="flex flex-row gap-2 text-center items-center">
+                    <FormLabel>Event Type</FormLabel>
+                    <FormDescription>(Select from list or enter custom)</FormDescription>
+                  </div>
                   <FormControl>
-                    <Input placeholder="Enter event type" {...field} />
+                    <Input placeholder="Enter event type" {...field} onChange={(e) => {
+                      setType(e.target.value);
+                      field.onChange(e.target.value);
+                    }} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -291,8 +346,11 @@ export function CreateEventForm({
                   key={type}
                   variant="outline"
                   size="md"
-                  onClick={() => form.setValue("type", type)}
-                  className="capitalize"
+                  onClick={() => {
+                    setType(type);
+                    form.setValue("type", type);
+                  }}
+                  className={cn("capitalize", typeState === type && "bg-[#550C18] text-white", typeState.length > 0 && type === "other" && !["prayer", "education", "community", "youth"].includes(typeState) && typeState !== type && "bg-[#550C18] text-white")}
                   type="button"
                 >
                   {type}
@@ -529,6 +587,8 @@ export function CreateEventForm({
           />
         )}
 
+        
+
         <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
           <Button
             type="submit"
@@ -550,4 +610,118 @@ export function CreateEventForm({
       </form>
     </Form>
   )
+}
+
+function RecurrenceForm({ value, onChange, onDone }: any) {
+  const [frequency, setFrequency] = useState(value?.frequency || 'week');
+  const [interval, setInterval] = useState(value?.interval || 1);
+  const [byDay, setByDay] = useState(value?.byDay || []);
+  const [endsType, setEndsType] = useState(value?.ends?.type || 'never');
+  const [endsOn, setEndsOn] = useState(value?.ends?.on || '');
+  const [endsAfter, setEndsAfter] = useState(value?.ends?.after || 1);
+
+  const days = [
+    { label: 'S', value: 'SU' },
+    { label: 'M', value: 'MO' },
+    { label: 'T', value: 'TU' },
+    { label: 'W', value: 'WE' },
+    { label: 'T', value: 'TH' },
+    { label: 'F', value: 'FR' },
+    { label: 'S', value: 'SA' },
+  ];
+
+  function toggleDay(day: string) {
+    setByDay((prev: string[]) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  }
+
+  function handleDone() {
+    // Generate summary
+    let summary = `Repeats every ${interval} ${frequency}${interval > 1 ? 's' : ''}`;
+    if (frequency === 'week' && byDay.length > 0) {
+      summary += ' on ' + byDay.map((d) => days.find((x) => x.value === d)?.label).join(', ');
+    }
+    if (endsType === 'on' && endsOn) summary += ` until ${endsOn}`;
+    if (endsType === 'after') summary += ` for ${endsAfter} occurrences`;
+    if (endsType === 'never') summary += ', never ends';
+    onChange({ frequency, interval, byDay, ends: { type: endsType, on: endsOn, after: endsAfter }, summary });
+    onDone();
+  }
+
+  return (
+    <form className="space-y-6" onSubmit={e => { e.preventDefault(); handleDone(); }}>
+      <div className="flex items-center gap-2">
+        <span>Repeat every</span>
+        <input
+          type="number"
+          min={1}
+          value={interval}
+          onChange={e => setInterval(Number(e.target.value))}
+          className="w-16 border rounded px-2 py-1 bg-transparent text-center"
+        />
+        <select
+          value={frequency}
+          onChange={e => setFrequency(e.target.value)}
+          className="border rounded px-2 py-1 bg-transparent"
+        >
+          <option value="day">day</option>
+          <option value="week">week</option>
+          <option value="month">month</option>
+          <option value="year">year</option>
+        </select>
+      </div>
+      {frequency === 'week' && (
+        <div>
+          <div className="mb-1">Repeat on</div>
+          <div className="flex gap-2">
+            {days.map((d) => (
+              <button
+                type="button"
+                key={d.value}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${byDay.includes(d.value) ? 'bg-[#550C18] text-white' : 'bg-[#9f253a] text-gray-100'}`}
+                onClick={() => toggleDay(d.value)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div>
+        <div className="mb-1">Ends</div>
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={endsType === 'never'} onChange={() => setEndsType('never')} /> Never
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={endsType === 'on'} onChange={() => setEndsType('on')} /> On
+            <input
+              type="date"
+              value={endsOn}
+              onChange={e => setEndsOn(e.target.value)}
+              disabled={endsType !== 'on'}
+              className="border rounded px-2 py-1 bg-transparent"
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <input type="radio" checked={endsType === 'after'} onChange={() => setEndsType('after')} /> After
+            <input
+              type="number"
+              min={1}
+              value={endsAfter}
+              onChange={e => setEndsAfter(Number(e.target.value))}
+              disabled={endsType !== 'after'}
+              className="w-16 border rounded px-2 py-1 bg-transparent"
+            />
+            occurrences
+          </label>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="outline" type="button" onClick={onDone}>Cancel</Button>
+        <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" type="button" onClick={handleDone}>Done</Button>
+      </div>
+    </form>
+  );
 } 

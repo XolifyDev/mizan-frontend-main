@@ -57,3 +57,33 @@ export const getPaymentAndOrder = async (sessionId: string) => {
     } : null
   };
 }
+
+// Get all orders (admin)
+export const getAllOrders = async () => {
+  return prisma.orders.findMany({
+    include: {
+      user: true
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+};
+
+// Get a single order by ID
+export const getOrderById = async (id: string) => {
+  return prisma.orders.findUnique({
+    where: { id },
+    include: {
+      user: true
+    }
+  });
+};
+
+// Update an order (status, tracking number, etc.)
+export const updateOrder = async (id: string, data: { status?: string; trackingNumber?: string }) => {
+  return prisma.orders.update({
+    where: { id },
+    data
+  });
+};

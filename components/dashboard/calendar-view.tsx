@@ -7,9 +7,18 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { Event } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { updateEvent } from "@/lib/actions/events";
+import { updateEvent, deleteEvent } from "@/lib/actions/events";
 import { toast } from "@/hooks/use-toast";
 import { MobileEventList } from "./mobile-event-list";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Edit, Trash, CalendarIcon, Clock, MapPin } from "lucide-react";
 
 interface CalendarViewProps {
   events: Event[];
@@ -21,6 +30,8 @@ export function CalendarView({ events, masjidId, refreshEvents }: CalendarViewPr
   const router = useRouter();
   const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -76,15 +87,40 @@ export function CalendarView({ events, masjidId, refreshEvents }: CalendarViewPr
     try {
       await updateEvent(eventId, { ...event, date: newDate }).then(async () => {
         toast({ title: "Event updated", description: "Event date changed successfully." }); 
-        setTimeout(async () => {
-          // if (refreshEvents) await refreshEvents();
-        }, 1000);
       });
     } catch (error) {
       toast({ title: "Error", description: "Failed to update event date.", variant: "destructive" });
       info.revert();
     }
   }
+
+  const handleEventClick = (info: any) => {
+    setSelectedEvent(info.event.extendedProps.event);
+    setIsModalOpen(true);
+  };
+
+  const handleEdit = () => {
+    router.push(`/dashboard/events/${selectedEvent.id}/edit?masjidId=${masjidId}`);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedEvent) return;
+    try {
+      await deleteEvent(selectedEvent.id);
+      if (refreshEvents) await refreshEvents();
+      setIsModalOpen(false);
+      toast({
+        title: "Success",
+        description: "Event deleted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete event",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <>
@@ -99,7 +135,7 @@ export function CalendarView({ events, masjidId, refreshEvents }: CalendarViewPr
           margin: 1px 0;
         }
       `}</style>
-      <div className="bg-white rounded-lg p-4 calendar-theme w-full overflow-x-auto">
+      <div className={`bg-white rounded-lg ${isMobile ? 'p-0' : 'p-4'} calendar-theme w-full overflow-x-auto`}>
         {/* Desktop/Tablet Calendar */}
         {!isMobile && (
           <div className="min-w-[800px]">
@@ -112,9 +148,7 @@ export function CalendarView({ events, masjidId, refreshEvents }: CalendarViewPr
                 right: "dayGridMonth,timeGridWeek,timeGridDay",
               }}
               events={calendarEvents}
-              eventClick={(info) => {
-                router.push(`/dashboard/events/${info.event.id}/edit?masjidId=${masjidId}`);
-              }}
+              eventClick={handleEventClick}
               eventContent={(eventInfo) => (
                 <div className="p-1 sm:p-0.5 md:p-1 cursor-grab active:cursor-grabbing hover:bg-[#550C18]/10 rounded-md w-full flex flex-row gap-4">
                   <div className={`h-2 w-2 rounded-full bg-[${eventInfo.event.backgroundColor}] my-auto ml-1 md:hidden`}></div>
@@ -164,6 +198,56 @@ export function CalendarView({ events, masjidId, refreshEvents }: CalendarViewPr
           <MobileEventList events={events} />
         )}
       </div>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-[425px] p-6 rounded-xl border border-gray-100 shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-[#3A3A3A] mb-1">
+              {selectedEvent?.title}
+            </DialogTitle>
+            <DialogDescription className="text-[#3A3A3A]/70 mb-2">
+              Event Details
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-[#3A3A3A]/80">
+              <CalendarIcon className="h-4 w-4" />
+              <span>{new Date(selectedEvent?.date).toLocaleDateString()}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-[#3A3A3A]/80">
+              <Clock className="h-4 w-4" />
+              <span>
+                {new Date(selectedEvent?.timeStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - {new Date(selectedEvent?.timeEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-[#3A3A3A]/80">
+              <MapPin className="h-4 w-4" />
+              <span>{selectedEvent?.location}</span>
+            </div>
+            <hr className="my-2 border-gray-200" />
+            <div className="text-sm text-[#3A3A3A]/90">
+              <h4 className="font-semibold text-base mb-1">Description</h4>
+              <div className="prose prose-sm max-w-none text-left" style={{wordBreak: 'break-word'}} dangerouslySetInnerHTML={{ __html: selectedEvent?.description }} />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-2">
+            <Button
+              variant="outline"
+              onClick={handleDelete}
+              className="border-red-200 text-red-600 hover:text-white hover:bg-red-600 hover:border-red-600"
+            >
+              <Trash className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+            <Button onClick={handleEdit} className="bg-[#550C18] hover:bg-[#78001A] text-white">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 } 

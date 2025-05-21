@@ -1,9 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { PrismaClient } from "@prisma/client";
 import { prisma } from "./db";
 import { nextCookies } from "better-auth/next-js";
-import { organization } from "better-auth/plugins";
+import { customSession } from "better-auth/plugins";
 import { stripe } from "@better-auth/stripe"
 import { stripeClient } from "./stripe";
 
@@ -13,6 +12,13 @@ export const auth = betterAuth({
     }),
     emailAndPassword: {  
         enabled: true,
+        // sendResetPassword: async ({user, url, token}, request) => {
+        //     await sendEmail({
+        //         to: user.email,
+        //         subject: "Reset your password",
+        //         text: `Click the link to reset your password: ${url}`,
+        //     });
+        // },
     },
     plugins: [
         stripe({
@@ -21,5 +27,15 @@ export const auth = betterAuth({
             createCustomerOnSignUp: true,
         }),
         nextCookies(),
-    ]
+        customSession(async ({ user, session }) => {
+            const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+            return {
+                user: {
+                    ...user,
+                    admin: dbUser?.admin || false,
+                },
+                session,
+            };
+        }),
+    ],
 });

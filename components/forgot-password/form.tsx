@@ -35,8 +35,9 @@ export default function ForgotPasswordForm() {
       // This is where you would normally call your password reset API
       console.log("Reset password for:", values.email)
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const user = await resetPassword({
+        email: values.email,
+      })
 
       setIsSubmitted(true)
 

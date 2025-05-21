@@ -18,3 +18,8 @@ export const getUser = async () => {
   });
   return user;
 }
+
+// export const resetPassword = async (email: string) => {
+//   const user = await auth.api.
+//   return user;
+// }

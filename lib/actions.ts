@@ -22,6 +22,7 @@ export async function loginUser({
     });
     return user;
   } catch (err) {
+    console.log(err, typeof err);
     return err;
   }
 }
@@ -55,6 +56,13 @@ export async function registerUser({
 }
 
 export async function getProducts() {
-  const products = await prisma.products.findMany();
+  const products = await prisma.product.findMany();
   return products || [];
+}
+
+export async function getProductById(id: string) {
+  const product = await prisma.product.findUnique({
+    where: { id },
+  });
+  return product || null;
 }

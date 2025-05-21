@@ -111,15 +111,13 @@ export default function SignInForm() {
     setIsLoading(true);
     setButtonState("loading");
 
-    console.log("Sign in values:", values);
-
     try {
       const user = await loginUser({
         email: values.email,
         password: values.password,
         rememberMe: values.rememberMe || false,
       });
-      if (!user && !user?.user) {
+      if (user.status && user.status !== 200 || !user && !user?.user) {
         setIsLoading(false);
         setButtonState("error");
         toast({

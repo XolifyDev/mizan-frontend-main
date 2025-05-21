@@ -1,18 +1,18 @@
 "use server";
 
-import { Products } from "@prisma/client";
+import { Product } from "@prisma/client";
 import { prisma } from "../db";
 
 // Function to get all products
 export async function getProducts() {
-  const products = await prisma.products.findMany();
+  const products = await prisma.product.findMany();
 
   return products || [];;
 }
 
 // Function to get a product by ID
-export async function getProductById(id: string): Promise<Products | null> {
-  const product = await prisma.products.findFirst({
+export async function getProductById(id: string): Promise<Product | null> {
+  const product = await prisma.product.findFirst({
     where: {
       id
     }
@@ -21,8 +21,8 @@ export async function getProductById(id: string): Promise<Products | null> {
   return product || null;
 }
 
-export async function getProductByURL(url: string): Promise<Products | null> {
-  const product = await prisma.products.findFirst({
+export async function getProductByURL(url: string): Promise<Product | null> {
+  const product = await prisma.product.findFirst({
     where: {
       url
     }
@@ -32,7 +32,7 @@ export async function getProductByURL(url: string): Promise<Products | null> {
 }
 
 // Function to get related products (excluding the current product)
-export async function getRelatedProducts(id: string, limit = 3): Promise<Products[]> {
+export async function getRelatedProducts(id: string, limit = 3): Promise<Product[]> {
   const products = await getProducts();
   const product = products.find((e) => e.id === id);
 

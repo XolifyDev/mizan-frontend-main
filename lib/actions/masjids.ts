@@ -15,3 +15,8 @@ export const updateMasjid = async (
   });
   return masjid;
 }; 
+
+export const getMasjids = async () => {
+  const masjids = await prisma.masjid.findMany();
+  return masjids;
+};

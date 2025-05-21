@@ -27,6 +27,7 @@ import {
   Loader2,
   MapIcon as City,
   Map,
+  ShoppingBag,
 } from "lucide-react"
 import {
   SidebarProvider,
@@ -41,6 +42,9 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
@@ -76,6 +80,7 @@ import { toast } from "@/components/ui/use-toast"
 import { OpenStreetMapAddressAutocomplete } from "@/components/dashboard/openstreetmap-address-autocomplete"
 import { CreateMasjidForm } from "@/components/dashboard/create-masjid-form"
 import { Toaster } from "@/components/ui/toaster"
+import { cn } from "@/lib/utils"
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] })
 
@@ -113,15 +118,16 @@ export default function DashboardLayout({
   const [masjidCreatedStep, setMasjidCreationStep] = useState<number>(0)
   const pathname = usePathname()
   const { data: session, isPending } = authClient.useSession()
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchMasjid = async () => {
       const userMasjid = await getUserMasjid()
 
+      if(!userMasjid) return router.push("/dashboard?masjidId=");
       setMasjid(userMasjid as Masjid)
       const params = new URLSearchParams(searchParams)
-      // @ts-ignore Ignore
       params.set("masjidId", userMasjid?.id || "")
       window.history.pushState(null, "", `?${params.toString()}`)
       setLoadingMasjid(false)
@@ -156,9 +162,9 @@ export default function DashboardLayout({
       path: "/dashboard/events",
     },
     {
-      title: "Donations",
-      icon: DollarSign,
-      path: "/dashboard/donations",
+      title: "Orders",
+      icon: ShoppingBag,
+      path: "/dashboard/orders",
     },
   ]
 
@@ -185,6 +191,11 @@ export default function DashboardLayout({
       title: "Users",
       icon: Users,
       path: "/dashboard/users",
+    },
+    {
+      title: "Products",
+      icon: ShoppingBag,
+      path: "/dashboard/products",
     },
     {
       title: "Payment Kiosks",
@@ -261,10 +272,12 @@ export default function DashboardLayout({
                   <SidebarMenu>
                     {mainNavItems.map((item) => (
                       <SidebarMenuItem key={item.path}>
-                        <Link href={item.path} passHref legacyBehavior>
+                        <Link href={item.path + "?masjidId=" + masjid?.id} passHref legacyBehavior>
                           <SidebarMenuButton
-                            className="flex items-center gap-3 text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                            isActive={pathname === item.path}
+                            className={cn(
+                              "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#7c3742]/10 data-[active=true]:text-[#7c3742]"
+                            )}
+                            isActive={item.path === pathname}
                           >
                             <item.icon className="h-5 w-5" />
                             <span>{item.title}</span>
@@ -272,6 +285,47 @@ export default function DashboardLayout({
                         </Link>
                       </SidebarMenuItem>
                     ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>  
+              </SidebarGroup>
+
+              {/* Donations Group */}
+              <SidebarGroup>
+                <SidebarGroupLabel>Donations</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem key="/dashboard/donations/kiosk">
+                      <Link href={"/dashboard/donations/kiosk?masjidId=" + masjid?.id} passHref legacyBehavior>
+                        <SidebarMenuButton isActive={pathname === "/dashboard/donations/kiosk"} className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]">
+                          <CreditCard className="h-5 w-5" />
+                          <span>Kiosk</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem key="/dashboard/donations/categories">
+                      <Link href={"/dashboard/donations/categories?masjidId=" + masjid?.id} passHref legacyBehavior>
+                        <SidebarMenuButton isActive={pathname === "/dashboard/donations/categories"} className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]">
+                          <FileText className="h-5 w-5" />
+                          <span>Categories</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem key="/dashboard/donations">
+                      <Link href={"/dashboard/donations?masjidId=" + masjid?.id} passHref legacyBehavior>
+                        <SidebarMenuButton isActive={pathname === "/dashboard/donations"} className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]">
+                          <DollarSign className="h-5 w-5" />
+                          <span>Donations</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                    {/* <SidebarMenuItem key="/dashboard/donations/settings">
+                      <Link href="/dashboard/donations/settings" passHref legacyBehavior>
+                        <SidebarMenuButton isActive={pathname === "/dashboard/donations/settings"} className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]">
+                          <Settings className="h-5 w-5" />
+                          <span>Settings</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem> */}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
@@ -282,10 +336,12 @@ export default function DashboardLayout({
                   <SidebarMenu>
                     {contentNavItems.map((item) => (
                       <SidebarMenuItem key={item.path}>
-                        <Link href={item.path} passHref legacyBehavior>
+                        <Link href={item.path + "?masjidId=" + masjid?.id} passHref legacyBehavior>
                           <SidebarMenuButton
-                            className="flex items-center gap-3 text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                            isActive={pathname === item.path}
+                            className={cn(
+                              "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                            )}
+                            isActive={item.path === pathname}
                           >
                             <item.icon className="h-5 w-5" />
                             <span>{item.title}</span>
@@ -303,15 +359,43 @@ export default function DashboardLayout({
                   <SidebarMenu>
                     {managementNavItems.map((item) => (
                       <SidebarMenuItem key={item.path}>
-                        <Link href={item.path} passHref legacyBehavior>
+                        <Link href={item.path + "?masjidId=" + masjid?.id} passHref legacyBehavior>
                           <SidebarMenuButton
-                            className="flex items-center gap-3 text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                            isActive={pathname === item.path}
+                            className={cn(
+                              "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                            )}
+                            isActive={item.path === pathname}
                           >
                             <item.icon className="h-5 w-5" />
                             <span>{item.title}</span>
                           </SidebarMenuButton>
                         </Link>
+                        {item.path === "/dashboard/products" && (
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <Link href={"/dashboard/products/mizan-donations?masjidId=" + masjid?.id} passHref legacyBehavior>
+                                <SidebarMenuSubButton
+                                  isActive={pathname === "/dashboard/products/mizan-donations"}
+                                  className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                  <span>MizanDonations Kiosk</span>
+                                </SidebarMenuSubButton>
+                              </Link>
+                            </SidebarMenuSubItem>
+                            <SidebarMenuSubItem>
+                              <Link href={"/dashboard/products/manage?masjidId=" + masjid?.id} passHref legacyBehavior>
+                                <SidebarMenuSubButton
+                                  isActive={pathname === "/dashboard/products/manage"}
+                                  className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                                >
+                                  <Settings className="h-4 w-4" />
+                                  <span>Manage Products</span>
+                                </SidebarMenuSubButton>
+                              </Link>
+                            </SidebarMenuSubItem>
+                          </SidebarMenuSub>
+                        )}
                       </SidebarMenuItem>
                     ))}
                   </SidebarMenu>

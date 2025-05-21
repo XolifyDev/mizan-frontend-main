@@ -44,6 +44,13 @@ model Masjid {
   events      Event[]
   iqamahTimings IqamahTiming[]
   prayerCalculation PrayerCalculation[]
+  masjidProducts MasjidProduct[]
+  kioskInstances KioskInstance[]
+  donationCategories DonationCategory[]
+  donations Donation[]
+  tvDisplays TVDisplay[]
+  contents Content[]
+  announcements Announcement[]
 }
 
 model Device {
@@ -122,18 +129,55 @@ model Flyer {
   createdAt DateTime @default(now())
 }
 
-model Products {
-  id                     String   @id
-  name                   String
-  description            String
-  features               String[]
-  price                  Int
-  requiredSubscriptionId String
-  popular                Boolean  @default(false)
-  image                  String   @default("placeholder.svg?height=200&width=300")
-  category               String   @default("")
-  role                   String   @default("subscription")
-  url                    String   @default("")
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  description     String
+  features        String[]
+  price           Int
+  image           String   @default("placeholder.svg?height=200&width=300")
+  category        String   @default("")
+  type            String   @default("kiosk") // "kiosk", "service", "physical"
+  url             String   @default("")
+  popular         Boolean  @default(false)
+  stripeProductId String?  // For Stripe integration
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Discount fields
+  discountType    DiscountType? // "percentage" or "fixed"
+  discountValue   Int?          // Value of the discount
+  discountStart   DateTime?
+  discountEnd     DateTime?
+
+  masjids         MasjidProduct[]
+  images          ProductImage[]
+  kioskInstances KioskInstance[]
+}
+
+enum DiscountType {
+  percentage
+  fixed
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  url       String
+  alt       String?
+  order     Int      @default(0)
+}
+
+model MasjidProduct {
+  id         String   @id @default(cuid())
+  masjid     Masjid   @relation(fields: [masjidId], references: [id])
+  masjidId   String
+  product    Product  @relation(fields: [productId], references: [id])
+  productId  String
+  assignedAt DateTime @default(now())
+
+  @@unique([masjidId, productId])
 }
 
 model Event {
@@ -156,6 +200,7 @@ model Event {
   syncStatus            String?
   flyerUrl              String?
   tvFlyerUrl            String?
+  recurrence            Json?
 }
 
 model User {
@@ -296,4 +341,156 @@ model IqamahTiming {
   jumuahIII   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model KioskInstance {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  serial      String   @unique
+  activatedAt DateTime @default(now())
+  status      String   @default("active")
+  config      Json?
+  kioskName   String?
+  kioskLocation String?
+  donations   Donation[]
+}
+
+model DonationCategory {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  subtitle       String?
+  color          String @default("#550C18")
+  icon           String?
+  logo           String?
+  featured       Boolean @default(false)
+  featuredImage  String?
+  showOnKiosk    Boolean @default(true)
+  excludeFromReceipts Boolean @default(false)
+  allowPledge    Boolean @default(false)
+  quickDonate    Boolean @default(false)
+  hideTitle      Boolean @default(false)
+  showLogo       Boolean @default(true)
+  headerBgColor  String?
+  allowComments  Boolean @default(false)
+  goalAmount     Int?
+  enableAppleGooglePay Boolean @default(false)
+  intervals      String[]
+  defaultAmounts String?
+  defaultInterval String?
+  recurringCountOptions Int[]
+  ctaMessage     String?
+  designations   String[]
+  amountsPerInterval Json?
+  allowCustomAmount Boolean @default(true)
+  min            Int @default(1)
+  max            Int @default(10000)
+  enforceMax     Boolean @default(false)
+  coverFee       Boolean @default(false)
+  coverFeeDefault Boolean @default(false)
+  customLabel    String?
+  complianceText String?
+  allowAnonymous Boolean @default(false)
+  collectAddress Boolean @default(false)
+  collectPhone   Boolean @default(false)
+  mailingListOptIn Boolean @default(false)
+  appreciation   String?
+  redirectUrl    String?
+  restricted     Boolean @default(false)
+  active         Boolean @default(true)
+  order          Int @default(0)
+  masjidId       String
+  masjid         Masjid @relation(fields: [masjidId], references: [id])
+
+  amountDonated  Int @default(0)
+  donations      Donation[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Donation {
+  id              String   @id @default(cuid())
+  amount          Int
+  donorName       String?
+  donorEmail      String?
+  masjidId        String
+  masjid          Masjid   @relation(fields: [masjidId], references: [id])
+  categoryId      String
+  category        DonationCategory @relation(fields: [categoryId], references: [id])
+  kioskInstanceId String?
+  kioskInstance   KioskInstance? @relation(fields: [kioskInstanceId], references: [id])
+  status          String   @default("pending") // e.g. pending, completed, failed
+  paymentMethod   String   // e.g. card, cash, stripe
+  transactionId   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TVDisplay {
+  id          String   @id @default(cuid())
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  name        String
+  location    String?
+  isActive    Boolean  @default(true)
+  lastSeen    DateTime?
+  ipAddress   String?
+  status      String   @default("offline") // online, offline, error
+  layout      String?  // Layout/theme for this display
+  config      Json?
+  assignedContentId String?
+  assignedContent   Content? @relation("AssignedContent", fields: [assignedContentId], references: [id])
+  displayedContent  Content[] @relation("DisplayContent")
+  announcements    Announcement[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Content {m
+  id          String   @id @default(cuid())
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  title       String
+  type        ContentType
+  url         String? // for images, videos, etc.
+  data        Json?   // for countdowns, text, etc.
+  startDate   DateTime?
+  endDate     DateTime?
+  zones       String[] // e.g. ["All", "Zone1"]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  displays    TVDisplay[] @relation("DisplayContent")
+  assignedToDisplays TVDisplay[] @relation("AssignedContent")
+  announcements Announcement[]
+}
+
+enum ContentType {
+  image
+  video
+  countdown
+  announcement
+  website
+  predesigned
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  masjidId    String
+  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  title       String
+  content     String
+  type        String   // e.g. Announcement, Reminder
+  startDate   DateTime
+  endDate     DateTime
+  zones       String[]
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  displays    TVDisplay[]
+  contentItem Content? @relation(fields: [contentItemId], references: [id])
+  contentItemId String?
 }
