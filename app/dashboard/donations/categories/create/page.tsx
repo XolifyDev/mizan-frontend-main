@@ -156,7 +156,6 @@ export default function CreateDonationCategoryPage() {
         })
         if (!res.ok) throw new Error("Failed to upload images")
         const uploaded = await res.json()
-        console.log(uploaded);
         uploadedImages.push({
           url: uploaded[0].data.ufsUrl,
           alt: "",
@@ -172,7 +171,6 @@ export default function CreateDonationCategoryPage() {
         })
         if (!res.ok) throw new Error("Failed to upload images")
         const uploaded = await res.json()
-        console.log(uploaded);
         uploadedImages.push({
           url: uploaded[0].data.ufsUrl,
           alt: "",

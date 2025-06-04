@@ -8,8 +8,8 @@ type Props = {
 }
 
 export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
-  // Fetch product data
-  const product = await getProductByURL(params.id)
+  const { id } = await params;
+  const product = await getProductByURL(id)
 
   if (!product) {
     return {
@@ -25,7 +25,8 @@ export async function generateMetadata({ params }: Props, parent: ResolvingMetad
 }
 
 export default async function ProductPage({ params }: Props) {
-  const product = await getProductByURL(params.id)
+  const { id } = await params;
+  const product = await getProductByURL(id)
   const relatedProducts = await getRelatedProducts(product?.id || "", 5);
 
   if (!product) {

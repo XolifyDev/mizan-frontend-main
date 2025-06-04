@@ -4,6 +4,8 @@ import { z } from "zod"
 import { v4 } from "uuid"
 import { getUser } from "./user"
 import { prisma } from "@/lib/db"
+import { sendMasjidInvite } from "./email";
+import { auth } from "../auth";
 
 // Update the CreateMasjidFormSchema to include latitude and longitude
 const CreateMasjidFormSchema = z.object({
@@ -65,8 +67,26 @@ export async function createMasjid({
       websiteUrl: "",
       description: description || "",
       ownerId: user.id,
+      users: {
+        connect: {
+          id: user.id
+        }
+      }
     },
   })
+
+  await prisma.user.update({
+    where: {
+      id: user.id
+    },
+    data: {
+      masjids: {
+        connect: {
+          id: masjid.id
+        }
+      },
+    }
+  });
 
   return {
     error: false,
@@ -74,7 +94,7 @@ export async function createMasjid({
   }
 }
 
-export async function getUserMasjid() {
+export async function getUserMasjid(masjidId: string) {
   const user = await getUser();
   if(!user) return {
     error: true,
@@ -82,9 +102,144 @@ export async function getUserMasjid() {
   };
   const masjid = await prisma.masjid.findFirst({
     where: {
-      ownerId: user.id
+      id: masjidId,
+      users: {
+        some: {
+          id: user.id
+        }
+      }
     }
   });
 
   return masjid || null;
+}
+
+export async function inviteUserToMasjid(masjidId: string, userId: string, invitedById: string) {
+  const masjid = await prisma.masjid.findFirst({
+    where: {
+      id: masjidId
+    }
+  });
+  if (!masjid) return {
+    error: true,
+    message: "Masjid not found!"
+  };
+  const invitedTo = await prisma.user.findFirst({
+    where: {
+      id: userId
+    }
+  });
+  if (!invitedTo) return {
+    error: true,
+    message: "User not found!"
+  };
+  const invitedBy = await prisma.user.findFirst({
+    where: {
+      id: invitedById
+    }
+  });
+  if (!invitedBy) return {
+    error: true,
+    message: "Invited by user not found!"
+  };
+
+  const invite = await prisma.masjidInvite.create({
+    data: {
+      masjidId,
+      userId,
+      invitedById,
+      status: "pending",
+      token: v4(),
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+    }
+  });
+  await sendMasjidInvite({
+    to: invitedTo.email,
+    userName: invitedTo.name,
+    masjidName: masjid.name,
+    inviteLink: `${process.env.DOMAIN}/masjid/${masjid.id}/invite/${invite.token}`,
+    inviterName: invitedBy.name,
+    supportEmail: process.env.SUPPORT_EMAIL,
+    token: invite.token,
+  });
+  return {
+    error: false,
+    message: "User invited successfully!",
+  }
+}
+
+export async function getPendingInvites(masjidId: string) {
+  const invites = await prisma.masjidInvite.findMany({
+    where: {
+      masjidId,
+      status: "pending",
+    },
+    include: {
+      invitedBy: true,
+    }
+  });
+  return invites;
+}
+
+export async function declineMasjidInvite(inviteId: string) {
+  await prisma.masjidInvite.update({
+    where: {
+      id: inviteId
+    },
+    data: {
+      status: "cancelled"
+    }
+  });
+  return {
+    error: false,
+    message: "Invite declined successfully!",
+  }
+}
+
+export async function removeUserFromMasjid(masjidId: string, userId: string) {
+  const session = await getUser();
+  if (!session) return {
+    error: true,
+    message: "Please Login!"
+  };
+  const user = await prisma.user.findFirst({
+    where: {
+      id: userId
+    }
+  });
+  if (!user) return {
+    error: true,
+    message: "User not found!"
+  };
+  const masjid = await prisma.masjid.findFirst({
+    where: {
+      id: masjidId
+    }
+  });
+  if (!masjid) return {
+    error: true,
+    message: "Masjid not found!"
+  };
+  await prisma.user.update({
+    where: {
+      id: userId
+    },
+    data: {
+      masjids: {
+        disconnect: {
+          id: masjidId
+        }
+      }
+    }
+  });
+  await prisma.masjidInvite.deleteMany({
+    where: {
+      userId,
+      masjidId
+    }
+  });
+  return {
+    error: false,
+    message: "User removed from masjid successfully!",
+  }
 }

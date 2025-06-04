@@ -3,9 +3,12 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function getAllTVDisplays() {
+export async function getAllTVDisplays(masjidId: string) {
   try {
     const displays = await prisma.tVDisplay.findMany({
+      where: {
+        masjidId: masjidId
+      },
       orderBy: {
         createdAt: "desc",
       },

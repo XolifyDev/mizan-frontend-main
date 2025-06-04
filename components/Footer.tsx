@@ -4,6 +4,7 @@ import { Philosopher } from "next/font/google";
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 import Image from "next/image";
+import Link from "next/link";
 
 const Footer = () => {
   return (
@@ -13,7 +14,7 @@ const Footer = () => {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Image
-                src="mizan-white.svg"
+                src="/mizan-white.svg"
                 width={33}
                 height={33}
                 alt="Mizan Logo"
@@ -72,24 +73,24 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4 my-0">Products</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/products/mizantv" className="text-sm opacity-80 hover:opacity-100">
                   TV Display
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/products/mizdonations" className="text-sm opacity-80 hover:opacity-100">
                   Payment Kiosk
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/products/website" className="text-sm opacity-80 hover:opacity-100">
                   Cloud Website
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
-                  Admin Dashboard
-                </a>
+                <Link href="/dashboard" className="text-sm opacity-80 hover:opacity-100">
+                  Masjid Dashboard
+                </Link>
               </li>
             </ul>
           </div>
@@ -97,24 +98,24 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4 my-0">Company</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/about" className="text-sm opacity-80 hover:opacity-100">
                   About Us
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/careers" className="text-sm opacity-80 hover:opacity-100">
                   Careers
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/blog" className="text-sm opacity-80 hover:opacity-100">
                   Blog
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href="/contact" className="text-sm opacity-80 hover:opacity-100">
                   Contact
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -122,31 +123,31 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4 my-0">Support</h4>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href={`https://support.${process.env.RAW_DOMAIN}`} className="text-sm opacity-80 hover:opacity-100">
                   Help Center
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href={`https://docs.${process.env.RAW_DOMAIN}`} className="text-sm opacity-80 hover:opacity-100">
                   Documentation
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href={`https://api.${process.env.RAW_DOMAIN}`} className="text-sm opacity-80 hover:opacity-100">
                   API
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="#" className="text-sm opacity-80 hover:opacity-100">
+                <Link href={`${process.env.DOMAIN}/privacy-policy`} className="text-sm opacity-80 hover:opacity-100">
                   Privacy Policy
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
         </div>
         <div className="mt-12 pt-8 border-t border-white/10 text-center">
           <p className="text-sm opacity-60">
-            © 2025 Mizan. All rights reserved.
+            © 2025 Mizan Management. All rights reserved.
           </p>
         </div>
       </div>

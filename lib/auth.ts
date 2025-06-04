@@ -28,11 +28,12 @@ export const auth = betterAuth({
         }),
         nextCookies(),
         customSession(async ({ user, session }) => {
-            const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+            const dbUser = await prisma.user.findUnique({ where: { id: user.id }, include: { masjids: true } });
             return {
                 user: {
                     ...user,
                     admin: dbUser?.admin || false,
+                    masjids: dbUser?.masjids || [],
                 },
                 session,
             };

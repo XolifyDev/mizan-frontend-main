@@ -566,3 +566,8 @@ h3.tiptap-heading + h2.tiptap-heading {
     min-width: 500px;
   }
 }
+
+#nprogress .bar {
+  background: #550C18 !important;
+  height: 4px !important;
+}

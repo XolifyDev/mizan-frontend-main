@@ -3,9 +3,12 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function getAllContentTemplates() {
+export async function getAllContentTemplates(masjidId: string) {
   try {
     const templates = await prisma.content.findMany({
+      where: {
+        masjidId: masjidId
+      },
       orderBy: {
         createdAt: "desc",
       },

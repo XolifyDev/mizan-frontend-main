@@ -22,7 +22,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
 import { getEvents, deleteEvent } from "@/lib/actions/events";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
@@ -35,7 +34,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/components/ui/use-toast";
 import { GoogleCalendarSettings } from "@/components/dashboard/google-calendar-settings";
 import { Masjid } from "@prisma/client";
 import { getUserMasjid } from "@/lib/actions/masjid";
@@ -80,8 +78,10 @@ export default function EventsPage() {
     const events = await getEvents(masjidId);
     const m = await getUserMasjid();
     setEvents(events);
-    setMasjid(m.googleCalendarId || "");
-    setMasjidPfp(m.googleCalendarPfp || "");
+    if (m) {
+      setMasjid(m?.googleCalendarId || "");
+      setMasjidPfp(m?.googleCalendarPfp || "");
+    }
   };
 
   useEffect(() => {

@@ -13,7 +13,8 @@ export const getUser = async () => {
       id: session.user.id
     },
     include: {
-      sessions: true
+      sessions: true,
+      masjids: true,
     }
   });
   return user;
@@ -23,3 +24,49 @@ export const getUser = async () => {
 //   const user = await auth.api.
 //   return user;
 // }
+
+export const getUsersByMasjid = async (masjidId: string, userId: string) => {
+  const users = await prisma.user.findMany({
+    where: {
+      masjids: {
+        some: {
+          id: masjidId
+        }
+      },
+      id: {
+        not: userId
+      }
+    },
+    include: {
+      masjids: true,
+      masjidInvites: true,
+    }
+  });
+  return users;
+}
+
+export const filterSearchUsers = async (value: string, masjidId: string, session: any) => {
+  const results = await prisma.user.findMany({
+    where: {
+      email: {
+        contains: value.toLowerCase(),
+      },
+      NOT: {
+        id: session?.user.id,
+      },
+      masjids: {
+        none: {
+          id: masjidId
+        }
+      }
+    },
+    select: {
+      id: true,
+      name: true, 
+      email: true,
+      image: true
+    },
+    take: 5
+  });
+  return results;
+}

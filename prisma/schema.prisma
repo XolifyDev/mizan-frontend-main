@@ -51,12 +51,13 @@ model Masjid {
   tvDisplays TVDisplay[]
   contents Content[]
   announcements Announcement[]
+  masjidInvites MasjidInvite[] @relation("MasjidInviteToMasjid")
 }
 
 model Device {
   id       String @id @default(cuid())
   masjidId String
-  masjid   Masjid @relation(fields: [masjidId], references: [id])
+  masjid   Masjid @relation(fields: [masjidId], references: [id], onDelete: Cascade)
 
   name         String
   location     String?
@@ -66,7 +67,7 @@ model Device {
   ipAddress    String?
 
   currentThemeId String?
-  currentTheme   Theme?  @relation(fields: [currentThemeId], references: [id])
+  currentTheme   Theme?  @relation(fields: [currentThemeId], references: [id], onDelete: Cascade)
 
   screenLogs ScreenLog[]
 }
@@ -74,7 +75,7 @@ model Device {
 model ScreenLog {
   id       String @id @default(cuid())
   deviceId String
-  device   Device @relation(fields: [deviceId], references: [id])
+  device   Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   timestamp DateTime @default(now())
   action    String // 'boot', 'refresh', 'disconnect', etc.
@@ -84,7 +85,7 @@ model ScreenLog {
 model Theme {
   id       String @id @default(cuid())
   masjidId String
-  masjid   Masjid @relation(fields: [masjidId], references: [id])
+  masjid   Masjid @relation(fields: [masjidId], references: [id], onDelete: Cascade)
 
   name       String
   configJson Json // stores layout/colors/etc.
@@ -110,7 +111,7 @@ model PrayerTime {
   year Int
 
   // Relation to Masjid
-  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
 
   @@index([masjidId])
   @@index([date])
@@ -120,7 +121,7 @@ model PrayerTime {
 model Flyer {
   id       String @id @default(cuid())
   masjidId String
-  masjid   Masjid @relation(fields: [masjidId], references: [id])
+  masjid   Masjid @relation(fields: [masjidId], references: [id], onDelete: Cascade)
 
   title     String
   imageUrl  String
@@ -162,7 +163,7 @@ enum DiscountType {
 
 model ProductImage {
   id        String   @id @default(cuid())
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
   url       String
   alt       String?
@@ -171,9 +172,9 @@ model ProductImage {
 
 model MasjidProduct {
   id         String   @id @default(cuid())
-  masjid     Masjid   @relation(fields: [masjidId], references: [id])
+  masjid     Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   masjidId   String
-  product    Product  @relation(fields: [productId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId  String
   assignedAt DateTime @default(now())
 
@@ -191,7 +192,7 @@ model Event {
   type                  String
   tagColor              String
   masjidId              String
-  masjid                Masjid   @relation(fields: [masjidId], references: [id])
+  masjid                Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   syncToGoogleCalendar  Boolean  @default(false)
@@ -221,6 +222,8 @@ model User {
   CheckoutSessions CheckoutSessions[]
   Orders           Orders[]
   MizanTv          MizanTv[]
+  masjidInvites    MasjidInvite[] @relation("MasjidInviteToUser")
+  masjidInvitedTo  MasjidInvite[] @relation("MasjidInvitedToUser")
 
   stripeCustomerId String?
 
@@ -346,9 +349,9 @@ model IqamahTiming {
 model KioskInstance {
   id          String   @id @default(cuid())
   productId   String
-  product     Product  @relation(fields: [productId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   masjidId    String
-  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   serial      String   @unique
   activatedAt DateTime @default(now())
   status      String   @default("active")
@@ -403,7 +406,7 @@ model DonationCategory {
   active         Boolean @default(true)
   order          Int @default(0)
   masjidId       String
-  masjid         Masjid @relation(fields: [masjidId], references: [id])
+  masjid         Masjid @relation(fields: [masjidId], references: [id], onDelete: Cascade)
 
   amountDonated  Int @default(0)
   donations      Donation[]
@@ -417,11 +420,11 @@ model Donation {
   donorName       String?
   donorEmail      String?
   masjidId        String
-  masjid          Masjid   @relation(fields: [masjidId], references: [id])
+  masjid          Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   categoryId      String
-  category        DonationCategory @relation(fields: [categoryId], references: [id])
+  category        DonationCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   kioskInstanceId String?
-  kioskInstance   KioskInstance? @relation(fields: [kioskInstanceId], references: [id])
+  kioskInstance   KioskInstance? @relation(fields: [kioskInstanceId], references: [id], onDelete: Cascade)
   status          String   @default("pending") // e.g. pending, completed, failed
   paymentMethod   String   // e.g. card, cash, stripe
   transactionId   String?
@@ -432,7 +435,7 @@ model Donation {
 model TVDisplay {
   id          String   @id @default(cuid())
   masjidId    String
-  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   name        String
   location    String?
   isActive    Boolean  @default(true)
@@ -442,27 +445,35 @@ model TVDisplay {
   layout      String?  // Layout/theme for this display
   config      Json?
   assignedContentId String?
-  assignedContent   Content? @relation("AssignedContent", fields: [assignedContentId], references: [id])
+  assignedContent   Content? @relation("AssignedContent", fields: [assignedContentId], references: [id], onDelete: Cascade)
   displayedContent  Content[] @relation("DisplayContent")
   announcements    Announcement[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
-model Content {m
+model Content {
   id          String   @id @default(cuid())
   masjidId    String
-  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   title       String
+  description String
   type        ContentType
   url         String? // for images, videos, etc.
   data        Json?   // for countdowns, text, etc.
   startDate   DateTime?
   endDate     DateTime?
-  zones       String[] // e.g. ["All", "Zone1"]
+  startTime   String?
+  endTime     String?
+  duration    String?
+  dayType     String?
+  timeType    String?
+  zones       String // e.g. ["All", "Zone1"]
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  displayLocations String[]
+  fullscreen Boolean
   displays    TVDisplay[] @relation("DisplayContent")
   assignedToDisplays TVDisplay[] @relation("AssignedContent")
   announcements Announcement[]
@@ -475,22 +486,49 @@ enum ContentType {
   announcement
   website
   predesigned
+  google_calendar
+  daily_verse
+  daily_hadith
+  daily_dua
+  ramadan_countdown
+  eid_countdown
+  days_countdown
+  taraweeh_timings
+  iqamah_timings
 }
 
 model Announcement {
   id          String   @id @default(cuid())
   masjidId    String
-  masjid      Masjid   @relation(fields: [masjidId], references: [id])
+  masjid      Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   title       String
   content     String
-  type        String   // e.g. Announcement, Reminder
+  type        String  
+  fullscreen  Boolean @default(true)
   startDate   DateTime
   endDate     DateTime
-  zones       String[]
+  zones       String
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
+  displayLocations String[]
   updatedAt   DateTime @updatedAt
-  displays    TVDisplay[]
-  contentItem Content? @relation(fields: [contentItemId], references: [id])
+  displays    TVDisplay[] 
+  contentItem Content? @relation(fields: [contentItemId], references: [id], onDelete: Cascade)
   contentItemId String?
+}
+
+model MasjidInvite {
+  id          String   @id @default(cuid())
+  masjidId    String
+  masjid      Masjid   @relation("MasjidInviteToMasjid", fields: [masjidId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation("MasjidInviteToUser", fields: [userId], references: [id], onDelete: Cascade)
+  invitedById String
+  invitedBy   User     @relation("MasjidInvitedToUser", fields: [invitedById], references: [id], onDelete: Cascade)
+  status      String   @default("pending")
+  token       String
+  expiresAt   DateTime
+  joinDate    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

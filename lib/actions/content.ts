@@ -1,9 +1,19 @@
-import { prisma } from "@/lib/db";
+"use server";
 
-export const getAllContent = async (masjidId?: string) => {
+import { prisma } from "@/lib/db";
+import { ContentType } from "@prisma/client";
+
+export const getAllContent = async (masjidId: string) => {
   return prisma.content.findMany({
     where: masjidId ? { masjidId } : undefined,
     include: { displays: true, assignedToDisplays: true, announcements: true },
+    orderBy: { createdAt: "desc" },
+  });
+};
+
+export const getAllAnnouncements = async (masjidId: string) => {
+  return prisma.announcement.findMany({
+    where: masjidId ? { masjidId } : undefined,
     orderBy: { createdAt: "desc" },
   });
 };
@@ -27,7 +37,37 @@ export const deleteContent = async (id: string) => {
   return prisma.content.delete({ where: { id } });
 };
 
-// New function for rich content creation with all configuration
+export const createAnnouncement = async (data: {
+  masjidId: string;
+  title: string;
+  type: string;
+  content?: string;
+  data?: any;
+  displayLocations?: string[];
+  fullscreen?: boolean;
+  zones?: string[];
+  startDate?: string;
+  endDate?: string;
+  active?: boolean;
+}) => {
+  return prisma.announcement.create({
+    data: {
+      masjidId: data.masjidId,
+      title: data.title,
+      content: data.content,
+      type: data.type as ContentType,
+      data: data.data,
+      zones: data.zones?.join(","),
+      startDate: data.startDate ? new Date(data.startDate) : undefined,
+      endDate: data.endDate ? new Date(data.endDate) : undefined,
+      active: data.active ?? true, 
+      displayLocations: data.displayLocations,
+      fullscreen: data.fullscreen,
+    },
+  });
+};
+
+
 export const createContentWithConfig = async (data: {
   masjidId: string;
   title: string;
@@ -44,22 +84,30 @@ export const createContentWithConfig = async (data: {
   endTime?: string;
   duration?: string;
   dayType?: string;
-  active?: boolean;
+  active?: boolean; 
+  timeType?: string;
 }) => {
   return prisma.content.create({
     data: {
       masjidId: data.masjidId,
       title: data.title,
-      type: data.type,
+      type: data.type as ContentType,
       description: data.description,
       url: data.url,
       data: data.data,
-      zones: data.zones,
+      zones: typeof data.zones === "string" ? data.zones : data.zones?.join(","),
       startDate: data.startDate ? new Date(data.startDate) : undefined,
       endDate: data.endDate ? new Date(data.endDate) : undefined,
       active: data.active ?? true,
-      // You can store config as JSON if needed
-      // config: { displayLocations: data.displayLocations, fullscreen: data.fullscreen, ... }
+      displayLocations: data.displayLocations,
+      fullscreen: data.fullscreen,
+      startDate: data.startDate ? new Date(data.startDate) : undefined,
+      endDate: data.endDate ? new Date(data.endDate) : undefined,
+      startTime: data.startTime,
+      endTime: data.endTime, 
+      duration: data.duration,
+      dayType: data.dayType,
+      timeType: data.timeType,
     },
   });
 }; 

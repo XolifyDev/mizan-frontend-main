@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import StoreProvider from "../components/store-provider";
-import { Toaster } from "../components/ui/toaster";
+import 'nprogress/nprogress.css';
 
 export const metadata: Metadata = {
   title: "Mizan - All in One Masjid Management",

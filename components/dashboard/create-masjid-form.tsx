@@ -16,6 +16,7 @@ import { OpenStreetMapAddressAutocomplete } from "./openstreetmap-address-autoco
 import { createMasjid } from "@/lib/actions/masjid"
 import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "../ui/alert-dialog"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -84,11 +85,14 @@ export function CreateMasjidForm({ isOpen, onClose, onSuccess }: CreateMasjidFor
         return
       }
 
-      router.refresh();
       toast({
         title: "Masjid created successfully",
         description: `${values.name} has been created.`,
       })
+
+      setTimeout(() => {
+        router.refresh();
+      }, 500)
 
       form.reset()
     } catch (error) {
@@ -112,6 +116,11 @@ export function CreateMasjidForm({ isOpen, onClose, onSuccess }: CreateMasjidFor
           </div>
           <AlertDialogDescription className="text-white/80">
             Fill in the details below to create a new masjid in your account.
+            <br />
+            <br />
+            <span className="text-white/80">
+              <b>Note:</b> If you are a mizan home owner, and not a masjid, You can manage your home in the <Link href="https://home.mizan.app" className="text-white underline">Home Dashboard</Link> website.
+            </span>
           </AlertDialogDescription>
         </div>
 
@@ -283,15 +292,6 @@ export function CreateMasjidForm({ isOpen, onClose, onSuccess }: CreateMasjidFor
               />
 
               <AlertDialogFooter className="pt-4 border-t border-gray-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={onClose}
-                  disabled={isLoading}
-                  className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-                >
-                  Cancel
-                </Button>
                 <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isLoading}>
                   {isLoading ? (
                     <>

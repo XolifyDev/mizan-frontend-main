@@ -20,3 +20,10 @@ export const getMasjids = async () => {
   const masjids = await prisma.masjid.findMany();
   return masjids;
 };
+
+export const getMasjidById = async (id: string) => {
+  const masjid = await prisma.masjid.findUnique({
+    where: { id },
+  });
+  return masjid;
+};

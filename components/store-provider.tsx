@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import useCartStore from '../lib/useCartStore'
 
+
 const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   const [hasHydrated, setHasHydrated] = useState(false)
   const hydrated = useCartStore.persist.hasHydrated()
@@ -27,7 +28,11 @@ const StoreProvider = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 
-  return children;
+  return (
+    <>
+      {children}
+    </>
+  );
 }
 
 export default StoreProvider

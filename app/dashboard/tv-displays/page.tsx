@@ -39,9 +39,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { getAllTVDisplays, createTVDisplay, updateTVDisplay, deleteTVDisplay, assignContentToDisplay, updateDisplayStatus } from "@/lib/actions/tvdisplays";
 import { getAllContentTemplates, createContentTemplate, updateContentTemplate, deleteContentTemplate, toggleContentTemplate } from "@/lib/actions/content-templates";
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { authClient } from "@/lib/auth-client";
+import Link from "next/link";
 
 interface TVDisplay {
   id: string;
@@ -109,8 +110,7 @@ interface ContentTemplate {
 }
 
 export default function TVDisplaysPage() {
-  const params = useParams();
-  const masjidId = params.masjidId as string;
+  const masjidId = useSearchParams().get("masjidId") as string;
   const [displays, setDisplays] = useState<TVDisplay[]>([]);
   const [activeDisplays, setActiveDisplays] = useState(0);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -167,8 +167,8 @@ export default function TVDisplaysPage() {
 
   const fetchData = async () => {
     try {
-      const displaysData = await getAllTVDisplays();
-      const templatesData = await getAllContentTemplates();
+      const displaysData = await getAllTVDisplays(masjidId);
+      const templatesData = await getAllContentTemplates(masjidId);
       setDisplays(displaysData);
       setTemplates(templatesData);
       setActiveDisplays(displaysData.filter((d: TVDisplay) => d.status === "online").length);
@@ -190,6 +190,7 @@ export default function TVDisplaysPage() {
         config: { notes: form.notes, autoPower: form.autoPower },
         assignedContentId: null,
         status: 'offline',
+        layout: 'default',
       });
       setForm({ name: "", location: "", content: "prayer", notes: "", autoPower: false });
       setAddDialogOpen(false);
@@ -441,10 +442,6 @@ export default function TVDisplaysPage() {
           <Button
             variant="outline"
             className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-            onClick={() => {
-              setIsCreatingDisplay(true);
-              setIsCreatingTemplate(false);
-            }}
             disabled={refreshing}
           >
             <Tv className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -607,6 +604,9 @@ export default function TVDisplaysPage() {
                   </div>
                 </div>
               ))}
+              {displays.length === 0 && (
+                <div className="text-center text-gray-500 mt-3 mb-3">No displays found, you can buy MizanTv from our store. Click <Link href="/products/mizantv" className="text-[#550C18] hover:text-[#78001A] underline" target="_blank">here</Link> to buy.</div>
+              )}
             </TabsContent>
             <TabsContent value="content" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
