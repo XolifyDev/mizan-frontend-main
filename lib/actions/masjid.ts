@@ -95,6 +95,7 @@ export async function createMasjid({
 }
 
 export async function getUserMasjid(masjidId: string) {
+  // Small 
   const user = await getUser();
   if(!user) return {
     error: true,
