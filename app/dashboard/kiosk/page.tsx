@@ -1,3 +1,4 @@
+"use client";
 import { authClient } from "@/lib/auth-client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export default function KioskDashboardPage() {
     setLoadingMasjids(true);
     Promise.all([
       getProducts().then((products) => setProducts(products)),
+      //@ts-ignore
       getMasjids().then((masjids) => setMasjids(masjids)),
     ]).finally(() => {
       setLoadingProducts(false);
