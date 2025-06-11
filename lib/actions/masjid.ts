@@ -102,7 +102,7 @@ export async function getUserMasjid(masjidId: string) {
   };
   const masjid = await prisma.masjid.findFirst({
     where: {
-      id: masjidId,
+      id: masjidId.length < 1 ? undefined : masjidId,
       users: {
         some: {
           id: user.id
@@ -243,3 +243,4 @@ export async function removeUserFromMasjid(masjidId: string, userId: string) {
     message: "User removed from masjid successfully!",
   }
 }
+

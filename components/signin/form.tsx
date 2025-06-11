@@ -117,7 +117,8 @@ export default function SignInForm() {
         password: values.password,
         rememberMe: values.rememberMe || false,
       });
-      if (user.status && user.status !== 200 || !user && !user?.user) {
+      console.log(user)
+      if (user.statusCode || user.status && user.status !== 200 || !user && !user?.user) {
         setIsLoading(false);
         setButtonState("error");
         toast({

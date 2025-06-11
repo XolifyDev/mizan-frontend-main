@@ -26,9 +26,11 @@ import { loadStripe } from "@stripe/stripe-js"
 import { createPaymentIntent } from "@/lib/actions/payment"
 import { Elements, useStripe, useElements, PaymentElement, AddressElement } from "@stripe/react-stripe-js"
 import Navbar from "@/components/Navbar"
-import { Orders } from "@prisma/client"
+import { Masjid, Orders } from "@prisma/client"
 import { getPaymentAndOrder } from "@/lib/actions/order"
 import { formatDate, getStateAbbreviation } from "@/lib/utils"
+import { getUserMasjid } from "@/lib/actions/masjid"
+import { authClient } from "@/lib/auth-client"
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
@@ -45,6 +47,7 @@ const shippingSchema = z.object({
   zipCode: z.string().min(5, { message: "ZIP code is required" }),
   country: z.string().min(2, { message: "Country is required" }),
   saveInfo: z.boolean().default(false).optional(),
+  masjid: z.string().optional(),
 })
 
 const paymentSchema = z.object({
@@ -80,7 +83,17 @@ function CheckoutForm() {
   const { cart, clearCart, getTotal, discount } = useCart()
   const [orderData, setOrderData] = useState<any>(null);
   const [clientSecret, setClientSecret] = useState<string>("")
-  const [paymentIntentId, setPaymentId] = useState<string>("")
+  const [paymentIntentId, setPaymentId] = useState<string>("");
+  const [masjids, setMasjids] = useState<Masjid[]>([]);
+  const { data: session, isPending } = authClient.useSession();
+
+
+  useEffect(() => {
+    if(session && session.user) {
+      setMasjids(session.user.masjids || []);
+    }
+
+  }, [session])
 
   useEffect(() => {
     // @ts-ignore
@@ -97,6 +110,7 @@ function CheckoutForm() {
             amount: total,
             cart,
             discount,
+            shippingData: shippingData || null
           })
 
           setClientSecret(clientSecret!)
@@ -143,6 +157,7 @@ function CheckoutForm() {
       zipCode: "",
       country: "US",
       saveInfo: false,
+      masjid: "",
     },
   })
 
@@ -170,7 +185,11 @@ function CheckoutForm() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
-
+  if(isPending) return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-white">
@@ -381,24 +400,50 @@ function CheckoutForm() {
                         />
                       </div>
 
-                      <FormField
-                        control={shippingForm.control}
-                        name="saveInfo"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                className="data-[state=checked]:bg-[#550C18] data-[state=checked]:border-[#550C18]"
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel className="text-sm font-normal">Save this information for next time</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
+                      <div className="grid grid-cols-2 gap-4 items-center">
+                        <FormField
+                          control={shippingForm.control}
+                          name="masjid"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Masjid</FormLabel>
+                              <FormControl>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger className="border-[#550C18]/20">
+                                      <SelectValue placeholder="Select a masjid" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {masjids.map((masjid) => (
+                                      <SelectItem key={masjid.id} value={masjid.id}>{masjid.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={shippingForm.control}
+                          name="saveInfo"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-center w-full mt-5">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                  className="data-[state=checked]:bg-[#550C18] data-[state=checked]:border-[#550C18] mt-1.5 mr-2"
+                                />
+                              </FormControl>
+                              <div className="leading-none">
+                                <FormLabel className="text-sm font-normal">Save this information for next time</FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
                       <div className="flex justify-end">
                         <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white">

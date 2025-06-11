@@ -21,9 +21,14 @@ export async function loginUser({
       },
     });
     return user;
-  } catch (err) {
-    console.log(err, typeof err);
-    return err;
+  } catch (err: any) {
+    console.log(err, typeof err); 
+    return {
+      statusCode: err.statusCode,
+      status: err.status,
+      message: err.message,
+      error: err.error
+    };
   }
 }
 

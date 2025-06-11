@@ -40,7 +40,8 @@ export async function POST(request: Request) {
             id: `mizan_${v4()}_${new Date().getMilliseconds()}`,
             status: "processing",
             stripeSessionId: checkoutSession.sessionId,
-            userId: checkoutSession.userId
+            userId: checkoutSession.userId,
+            masjidId: checkoutSession.shippingData?.masjid as string
           }
         });
         // 2. Send confirmation emails
@@ -71,7 +72,8 @@ export async function POST(request: Request) {
             id: `mizan_${v4()}_${new Date().getMilliseconds()}`,
             status: "processing",
             stripeSessionId: paymentIntent.sessionId,
-            userId: paymentIntent.userId
+            userId: paymentIntent.userId,
+            masjidId: paymentIntent.shippingData?.masjid as string
           }
         });
       break

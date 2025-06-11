@@ -17,7 +17,14 @@ export const getSessionAndOrder = async (sessionId: string) => {
       stripeSessionId: sessionId
     }
   });
-  const stripeSession = await stripeClient.checkout.sessions.retrieve(checkoutSession?.sessionId);
+  if (!checkoutSession) {
+    return {
+      order: null,
+      checkoutSession: null,
+      stripeSession: null
+    };
+  }
+  const stripeSession = await stripeClient.checkout.sessions.retrieve(checkoutSession?.sessionId as string);
 
   return {
     order,
@@ -72,10 +79,11 @@ export const getAllOrders = async () => {
 
 // Get a single order by ID
 export const getOrderById = async (id: string) => {
-  return prisma.orders.findUnique({
+  return prisma.orders.findFirst({
     where: { id },
     include: {
-      user: true
+      user: true,
+      masjid: true,
     }
   });
 };

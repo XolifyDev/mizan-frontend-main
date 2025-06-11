@@ -53,7 +53,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Philosopher } from "next/font/google";
 import { Masjid } from "@prisma/client";
 import { Button } from "./ui/button";
@@ -137,7 +137,6 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const masjidId = searchParams.get("masjidId");
-  const router = useRouter();
   const user = session?.user;
   const getCurrentPageTitle = () => {
     const allNavItems = [
@@ -271,7 +270,7 @@ export default function DashboardSidebar({
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {masjid.ownerId === session.user.id && (
+            {masjid && masjid.ownerId === session.user.id && (
               <SidebarGroup>
                 <SidebarGroupLabel>Masjid Management</SidebarGroupLabel>
                 <SidebarGroupContent>
@@ -328,7 +327,9 @@ export default function DashboardSidebar({
             )}
           </SidebarContent>
           <SidebarFooter className="border-t border-[#550C18]/10 p-4 bg-white/50">
-            <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} user={session.user} setShowAddMasjidModal={setShowAddMasjidModal} />
+            {session && session.user && (
+              <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} user={session.user} setShowAddMasjidModal={setShowAddMasjidModal} />
+            )}
           </SidebarFooter>
         </Sidebar>
 

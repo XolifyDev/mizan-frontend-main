@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useEffect, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
   AlertCircle,
@@ -38,9 +38,11 @@ export default function DashboardLayout({
   const searchParams = useSearchParams();
   const masjidId = searchParams.get("masjidId");
   const [showAddMasjidModal, setShowAddMasjidModal] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchMasjid = async () => {
+      if(isPending) return;
       const userMasjid = await getUserMasjid(masjidId || "");
 
       if (!userMasjid) {
@@ -58,7 +60,7 @@ export default function DashboardLayout({
     };
 
     fetchMasjid();
-  }, [pathname, masjidId]);
+  }, [isPending, pathname, masjidId]);
   if (isPending || loadingMasjid)
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -67,6 +69,8 @@ export default function DashboardLayout({
         </div>
       </div>
     );
+
+  if(!session) router.push("/signin?message=You need to login to access this page");
 
   return (
     <>

@@ -20,7 +20,7 @@ export const createCheckoutSession = async ({ cart, discount, card }: CreateChec
   const line_items = [];
 
   for (const product of cart) {
-    const pro = await prisma.products.findFirst({
+    const pro = await prisma.product.findFirst({
       where: {
         id: product.id
       }
@@ -60,7 +60,7 @@ export const createCheckoutPage = async ({
   const line_items = [];
 
   for (const product of cart) {
-    const pro = await prisma.products.findFirst({
+    const pro = await prisma.product.findFirst({
       where: {
         id: product.productId
       }
@@ -82,12 +82,12 @@ export const createCheckoutPage = async ({
     }
   };
 
-  if(products.find((e) => e.requiredSubscriptionId.length < 1) && products.length > 1) return {
+  if(products.find((e) => e?.requiredSubscriptionId && e?.requiredSubscriptionId.length < 1) && products.length > 1) return {
     error: true,
     message: "When purchasing a subscription please only have the subscription in your cart. Jazakallahu Khair"
   };
 
-  const subscription = products.find((e) => e.requiredSubscriptionId.length > 1) || null ;
+  const subscription = products.find((e) => e?.requiredSubscriptionId && e?.requiredSubscriptionId.length > 1) || null ;
 
   if(!subscription) return {
     redirect: true
@@ -97,7 +97,7 @@ export const createCheckoutPage = async ({
   const session = await stripeClient.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: subscription ? [{
-      price: subscription.requiredSubscriptionId,
+      price: subscription?.requiredSubscriptionId,
       quantity: 1
     }] : line_items,
     mode: subscription ? "subscription" : 'payment', // or 'payment' for one-time purchases
@@ -136,9 +136,9 @@ type CreatePaymentIntentParams = {
     percent: number
     id: string
   } | null
+  shippingData: any
 }
-
-export async function createPaymentIntent({ amount, cart, discount }: CreatePaymentIntentParams) {
+export async function createPaymentIntent({ amount, cart, discount, shippingData }: CreatePaymentIntentParams) {
   const user = await getUser();
   if(!user) return {
     error: true,
@@ -174,7 +174,8 @@ export async function createPaymentIntent({ amount, cart, discount }: CreatePaym
         completed: "pending",
         paymentType: 'payment',
         sessionId: paymentIntent.id,
-        userId: user.id
+        userId: user.id,
+        shippingData: shippingData
       }
     });
 
