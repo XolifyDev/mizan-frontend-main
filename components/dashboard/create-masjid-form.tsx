@@ -14,7 +14,6 @@ import { Building2, Loader2, MapPin, Home, MapIcon as City, Map } from "lucide-r
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OpenStreetMapAddressAutocomplete } from "./openstreetmap-address-autocomplete"
 import { createMasjid } from "@/lib/actions/masjid"
-import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogTitle } from "../ui/alert-dialog"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -108,20 +107,20 @@ export function CreateMasjidForm({ isOpen, onClose, onSuccess }: CreateMasjidFor
   }
 
   return (
-      <AlertDialogContent className="sm:max-w-[600px] p-0 border-0 rounded-lg overflow-hidden">
+      <DialogContent className="sm:max-w-[600px] p-0 border-0 rounded-lg overflow-hidden">
         <div className="bg-[#550C18] text-white p-6">
           <div className="flex items-center gap-3 mb-2">
             <Building2 className="h-6 w-6" />
-            <AlertDialogTitle className="text-2xl font-bold">Create New Masjid</AlertDialogTitle>
+            <DialogTitle className="text-2xl font-bold">Create New Masjid</DialogTitle>
           </div>
-          <AlertDialogDescription className="text-white/80">
+          <DialogDescription className="text-white/80">
             Fill in the details below to create a new masjid in your account.
             <br />
             <br />
             <span className="text-white/80">
               <b>Note:</b> If you are a mizan home owner, and not a masjid, You can manage your home in the <Link href="https://home.mizan.app" className="text-white underline">Home Dashboard</Link> website.
             </span>
-          </AlertDialogDescription>
+          </DialogDescription>
         </div>
 
         <div className="p-6">
@@ -291,7 +290,7 @@ export function CreateMasjidForm({ isOpen, onClose, onSuccess }: CreateMasjidFor
                 )}
               />
 
-              <AlertDialogFooter className="pt-4 border-t border-gray-100">
+              <DialogFooter className="pt-4 border-t border-gray-100">
                 <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isLoading}>
                   {isLoading ? (
                     <>
@@ -302,10 +301,10 @@ export function CreateMasjidForm({ isOpen, onClose, onSuccess }: CreateMasjidFor
                     "Create Masjid"
                   )}
                 </Button>
-              </AlertDialogFooter>
+              </DialogFooter>
             </form>
           </Form>
         </div>
-      </AlertDialogContent>
+      </DialogContent>
   )
 }
