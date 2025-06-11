@@ -103,7 +103,7 @@ export async function getUserMasjid(masjidId: string) {
   };
   const masjid = await prisma.masjid.findFirst({
     where: {
-      id: masjidId && masjidId.length < 1 ? undefined : masjidId,
+      id: !masjidId || masjidId.length < 1 ? undefined : masjidId,
       users: {
         some: {
           id: user.id

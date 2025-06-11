@@ -55,7 +55,7 @@ const Navbar = () => {
         <div className="flex items-center gap-4">
           {data ? (
           <>
-            <Link href="/dashboard?masjidId=">
+            <Link href="/dashboard">
               <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
                 Go to Dashboard
               </Button>
