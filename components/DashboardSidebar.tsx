@@ -333,8 +333,8 @@ export default function DashboardSidebar({
           </SidebarFooter>
         </Sidebar>
 
-        <main className="flex-1 flex flex-col w-full">
-          <header className="border-b border-[#550C18]/10 bg-white p-4 py-4 flex items-center justify-between">
+        <main className="flex flex-col w-full relative h-full">
+          <header className="border-b border-[#550C18]/10 bg-white py-3 px-6 flex items-center justify-between h-min sticky top-0 z-10">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />

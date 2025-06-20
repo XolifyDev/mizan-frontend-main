@@ -44,6 +44,7 @@ model Masjid {
   Orders                    Orders[]
   prayerCalculation         PrayerCalculation[]
   prayerTimes               PrayerTime[]
+  SignageConfig             SignageConfig[]
   tvDisplays                TVDisplay[]
   themes                    Theme[]
   users                     User[]              @relation("MasjidUsers")
@@ -135,6 +136,7 @@ model Product {
   discountStart          DateTime?
   discountEnd            DateTime?
   requiredSubscriptionId String?
+  meta_data              Json?
   kioskInstances         KioskInstance[]
   masjids                MasjidProduct[]
   images                 ProductImage[]
@@ -265,17 +267,20 @@ model CheckoutSessions {
 }
 
 model Orders {
-  id              String    @id
+  id              String          @id
   userId          String
   stripeSessionId String?
   status          String
   cart            String
   trackingNumber  String?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime        @default(now())
   masjidId        String?
+  meta_data       Json?
+  KioskInstance   KioskInstance[]
   MizanTv         MizanTv[]
-  masjid          Masjid?   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  masjid          Masjid?         @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  TVDisplay       TVDisplay[]
 }
 
 model MizanTv {
@@ -333,8 +338,10 @@ model KioskInstance {
   config        Json?
   kioskName     String?
   kioskLocation String?
+  orderId       String
   donations     Donation[]
   masjid        Masjid     @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  orders        Orders     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
@@ -422,8 +429,11 @@ model TVDisplay {
   assignedContentId String?
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
+  code              String?
+  orderId           String?
   assignedContent   Content?       @relation("AssignedContent", fields: [assignedContentId], references: [id], onDelete: Cascade)
   masjid            Masjid         @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  Orders            Orders?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   announcements     Announcement[] @relation("AnnouncementToTVDisplay")
   displayedContent  Content[]      @relation("DisplayContent")
 }
@@ -504,6 +514,16 @@ model SystemLog {
   @@index([userId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+model SignageConfig {
+  id        String   @id @default(cuid())
+  masjidId  String
+  displayId String?
+  config    Json
+  updatedAt DateTime @updatedAt
+  masjid    Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  @@unique([masjidId, displayId])
 }
 
 enum DiscountType {

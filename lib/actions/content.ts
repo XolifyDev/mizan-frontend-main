@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db";
 import { ContentType } from "@prisma/client";
 
-export const getAllContent = async (masjidId: string) => {
+export const getAllContent = async (masjidId?: string) => {
   return prisma.content.findMany({
     where: masjidId ? { masjidId } : undefined,
     include: { displays: true, assignedToDisplays: true, announcements: true },

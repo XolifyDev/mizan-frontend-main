@@ -21,9 +21,8 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Edit, MoreHorizontal } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { getAllOrders } from "@/lib/actions/order";
+import { Edit } from "lucide-react";
+import Link from "next/link";
 
 const statusOptions = ["Processing", "Shipped", "Delivered", "Cancelled"];
 
@@ -36,7 +35,13 @@ export default function OrdersPage() {
   useEffect(() => {
     async function fetchOrders() {
       setIsLoading(true);
-      const data = await getAllOrders();
+      const data = await fetch("/api/orders").then(async (res) => {
+        if(!res.ok) {
+          console.log('Error fetching orders:', res.statusText);
+          return [];
+        }
+        return res.json();
+      });
       setOrders(data);
       setIsLoading(false);
     }
@@ -88,23 +93,30 @@ export default function OrdersPage() {
                         let cart = [];
                         try { cart = JSON.parse(order.cart); } catch {}
                         return cart.map((p: any, i: number) => (
-                          <Badge key={i} className="bg-[#550C18]/10 text-[#550C18]">{p.name || p.productName || p.id}</Badge>
+                          <Badge key={i} className="bg-[#550C18]/10 hover:text-white text-[#550C18] cursor-default">{p.name || p.productName || p.id}</Badge>
                         ));
                       })()}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className="bg-gray-100 text-gray-700 border-gray-200">
+                    <Badge className={`capitalize cursor-default ${
+                      order.status === "completed" ? "bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-700" :
+                      order.status === "processing" ? "bg-blue-100 text-blue-700 hover:bg-blue-200 hover:text-blue-700" :
+                      order.status === "failed" ? "bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-700" :
+                      "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-700"
+                    }`}>
                       {order.status}
                     </Badge>
                   </TableCell>
                   <TableCell>{order.trackingNumber || <span className="text-gray-400">—</span>}</TableCell>
                   <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => window.location.href = `/dashboard/orders/${order.id}`}>
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">View/Edit</span>
-                    </Button>
+                    <Link href={`/dashboard/orders/${order.id}`}>
+                      <Button variant="ghost" size="icon">
+                        <Edit className="h-4 w-4" />
+                        <span className="sr-only">View/Edit</span>
+                      </Button>
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

@@ -6,7 +6,8 @@ export const cartItemSchema = z.object({
   price: z.number().positive(),
   quantity: z.number().int().positive().default(1), // Default quantity is 1
   imagesrc: z.string(),
-  productId: z.string()
+  productId: z.string(),
+  size: z.string().optional()
 });
 
 export type CartItem = z.infer<typeof cartItemSchema>;

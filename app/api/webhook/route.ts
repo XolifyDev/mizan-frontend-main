@@ -2,6 +2,11 @@ import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
 import { v4 } from "uuid"
 
+interface ShippingData {
+  masjid?: string;
+  [key: string]: any;
+}
+
 export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get("stripe-signature") as string
@@ -13,11 +18,9 @@ export async function POST(request: Request) {
     // For now, we'll just parse the JSON
     const event = JSON.parse(body)
 
-
     // Handle different event types
     switch (event.type) {
       case "checkout.session.completed":
-
         const checkoutSession = await prisma.checkoutSessions.findFirst({
           where: {
             sessionId: event.data.id
@@ -34,6 +37,8 @@ export async function POST(request: Request) {
           }
         });
 
+        const shippingData = checkoutSession.shippingData as ShippingData;
+
         await prisma.orders.create({
           data: {
             cart: checkoutSession.cart,
@@ -41,7 +46,16 @@ export async function POST(request: Request) {
             status: "processing",
             stripeSessionId: checkoutSession.sessionId,
             userId: checkoutSession.userId,
-            masjidId: checkoutSession.shippingData?.masjid as string
+            masjidId: shippingData?.masjid,
+            meta_data: {
+              items: JSON.parse(checkoutSession.cart).map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                size: item.size
+              }))
+            }
           }
         });
         // 2. Send confirmation emails
@@ -66,6 +80,10 @@ export async function POST(request: Request) {
           }
         });
 
+        console.log(paymentIntent)
+
+        const paymentShippingData = paymentIntent.shippingData as ShippingData;
+
         await prisma.orders.create({
           data: {
             cart: paymentIntent.cart,
@@ -73,7 +91,16 @@ export async function POST(request: Request) {
             status: "processing",
             stripeSessionId: paymentIntent.sessionId,
             userId: paymentIntent.userId,
-            masjidId: paymentIntent.shippingData?.masjid as string
+            masjidId: paymentShippingData?.masjid,
+            meta_data: {
+              items: JSON.parse(paymentIntent.cart).map((item: any) => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                size: item.size
+              }))
+            }
           }
         });
       break

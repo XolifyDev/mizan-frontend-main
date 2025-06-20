@@ -12,26 +12,67 @@ import { toast } from "@/hooks/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import useCart from "@/lib/useCart"
 import Navbar from "@/components/Navbar"
-import { Products } from "@prisma/client"
+import { Product } from "@prisma/client"
 
-export default function ProductDetailClient({ product, relatedProducts }: { product: Products; relatedProducts: Products[] }) {
+interface Size {
+  size: string
+  price: number
+}
+
+interface ProductMetaData {
+  sizes?: Size[]
+}
+
+interface CartItem {
+  id: string
+  name: string
+  price: number
+  quantity: number
+  imagesrc: string
+  productId: string
+  size?: string
+}
+
+interface ExtendedProduct extends Omit<Product, 'meta_data'> {
+  meta_data: ProductMetaData
+}
+
+export default function ProductDetailClient({ product, relatedProducts }: { product: ExtendedProduct; relatedProducts: ExtendedProduct[] }) {
   const [quantity, setQuantity] = useState(1)
+  const [selectedSize, setSelectedSize] = useState<string | null>(product.meta_data?.sizes?.[0]?.size || null);
+  const [selectedSizePrice, setSelectedSizePrice] = useState<number | null>(product.price);
   const { addToCart } = useCart()
+  console.log(product)
 
   const handleAddToCart = () => {
+    const metaData = product.meta_data as ProductMetaData
+    if (metaData?.sizes && !selectedSize) {
+      toast({
+        title: "Size Required",
+        description: "Please select a size before adding to cart.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const price = selectedSizePrice || product.price
+
     addToCart({
       id: product.id,
       productId: product.id,
       name: product.name,
-      price: product.price,
+      price: Number(price),
       quantity: quantity,
       imagesrc: product.image,
-    })
+      size: selectedSize
+    } as CartItem)
 
     toast({
       title: "Added to cart",
-      description: `${product.name} has been added to your cart.`,
+      description: `${product.name}${selectedSize ? ` (${selectedSize})` : ''} has been added to your cart.`,
     })
+    setSelectedSizePrice(selectedSize ? metaData?.sizes?.find(s => s.size === selectedSize)?.price || product.price : product.price)
+    setSelectedSize(selectedSize ? selectedSize : null)
   }
 
   return (
@@ -88,10 +129,11 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
               </div>
               <h1 className="text-3xl md:text-4xl font-bold text-[#550C18] mb-2">{product.name}</h1>
               <div className="flex items-baseline mb-4">
-                <span className="text-3xl font-bold text-[#3A3A3A]">${product.price}</span>
-                <span className="text-[#3A3A3A]/70">/month</span>
+                <span className="text-3xl font-bold text-[#3A3A3A]">${selectedSizePrice}</span>
+                {product.type === "subscription" && (
+                  <span className="text-[#3A3A3A]/70">/month</span>
+                )}
               </div>
-              <p className="text-[#3A3A3A] mb-6">{product.description}</p>
             </div>
 
             <Separator className="my-6" />
@@ -100,7 +142,7 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-[#3A3A3A] mb-4">Key Features</h3>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {product.features.map((feature, index) => (
+                {product.features.map((feature: string, index: number) => (
                   <li key={index} className="flex items-start gap-2">
                     <Check className="h-5 w-5 text-[#550C18] shrink-0 mt-0.5" />
                     <span className="text-[#3A3A3A]">{feature}</span>
@@ -113,6 +155,31 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
 
             {/* Add to Cart */}
             <div className="mb-6">
+              {(product.meta_data as ProductMetaData)?.sizes && (product.meta_data as ProductMetaData).sizes?.length > 0 && (
+                <div className="mb-4">
+                  <h3 className="text-sm font-medium text-[#3A3A3A] mb-2">Select Size</h3>
+                  <div className="grid grid-cols-3 gap-2">
+                    {((product.meta_data as ProductMetaData).sizes || []).map((size) => (
+                      <Button
+                        key={size.size}
+                        variant={selectedSize === size.size ? "default" : "outline"}
+                        className={`w-full ${
+                          selectedSize === size.size
+                            ? "bg-[#550C18] text-white"
+                            : "border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+                        }`}
+                        onClick={() => {
+                          setSelectedSize(size.size)
+                          setSelectedSizePrice(size.price)
+                        }}
+                      >
+                        {size.size}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center">
                   <Button
@@ -140,12 +207,12 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
                   Add to Cart
                 </Button>
               </div>
-              <Link href="/checkout/subscription">
+              {/* <Link href="/checkout/subscription">
                 <Button className="w-full bg-white border border-[#550C18] text-[#550C18] hover:bg-[#550C18]/5">
                   Subscribe Monthly
                   <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
-              </Link>
+              </Link> */}
             </div>
 
             {/* Additional Info */}

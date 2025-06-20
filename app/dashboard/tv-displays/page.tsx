@@ -509,8 +509,13 @@ export default function TVDisplaysPage() {
 
       <Card className="bg-white border-[#550C18]/10">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
+          <CardTitle className="text-xl font-semibold text-[#3A3A3A] w-full flex items-center gap-2 justify-between">
             Display Screens
+            <Link href={`/dashboard/tv-displays/signage-config?masjidId=${masjidId}`}>
+              <Button variant="outline">
+                Display Screen Setup
+              </Button>
+            </Link>
           </CardTitle>
           <CardDescription className="text-[#3A3A3A]/70">
             Manage your masjid's display screens
@@ -559,6 +564,15 @@ export default function TVDisplaysPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Link href={`/dashboard/tv-displays/signage-config?masjidId=${masjidId}&displayId=${display.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Button
                         variant="outline"
                         size="sm"

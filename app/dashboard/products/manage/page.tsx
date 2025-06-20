@@ -15,7 +15,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import {
   Select,
@@ -24,16 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { useToast } from "@/components/ui/use-toast"
-import dynamic from "next/dynamic"
 import { useForm, Controller } from "react-hook-form"
 import Link from "next/link"
-import { getProducts } from "@/lib/actions/products"
 import { getMasjids } from "@/lib/actions/masjids"
 import { toast } from "@/hooks/use-toast"
-
-// @ts-ignore
-const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
 
 // Add type for product image
 interface ProductImage {
@@ -95,7 +88,7 @@ export default function ManageProductsPage() {
     setLoadingProducts(true)
     setError("")
     try {
-      const products = await getProducts();
+      const products = await fetch("/api/products/mizan").then(async (res) => await res.json());
       setProducts(products);
     } catch (err) {
       setError("Failed to load products.")
@@ -259,19 +252,15 @@ export default function ManageProductsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-                    >
-                      <Edit className="h-4 w-4" />
+                    <Link href={`/dashboard/products/edit/${product.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 border-[#550C18]/20 text-red-500 hover:bg-red-50"
-                    >
-                      <Trash className="h-4 w-4" />
+                    </Link>
+                    <Button variant="outline" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50">
+                      <Trash className="h-4 w-4 mr-2" />
+                      Delete
                     </Button>
                     {product.type === "kiosk" && (
                       <Button

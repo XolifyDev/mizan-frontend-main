@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { auth } from "./auth";
 import { prisma } from "./db";
 
@@ -20,6 +21,8 @@ export async function loginUser({
         password
       },
     });
+    revalidatePath("/", "layout");
+    revalidatePath("/dashboard", "layout");
     return user;
   } catch (err: any) {
     console.log(err, typeof err); 

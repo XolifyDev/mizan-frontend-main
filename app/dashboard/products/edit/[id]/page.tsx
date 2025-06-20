@@ -1,16 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm, Controller } from "react-hook-form"
-import { useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import dynamic from "next/dynamic"
-import { toast } from "@/components/ui/use-toast"
 import { Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 // @ts-ignore
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
@@ -22,8 +22,13 @@ interface ProductImagePreview {
   order: number;
 }
 
-export default function CreateProductPage() {
+export default function EditProductPage() {
   const router = useRouter()
+  const params = useParams()
+  const [loading, setLoading] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [imagePreviews, setImagePreviews] = useState<ProductImagePreview[]>([])
+
   const form = useForm({
     defaultValues: {
       name: "",
@@ -44,27 +49,12 @@ export default function CreateProductPage() {
       },
     },
   })
-  const [loading, setLoading] = useState(false)
+
   const { control, register, handleSubmit, setValue, watch, reset, formState: { errors } } = form
-  const [imagePreviews, setImagePreviews] = useState<ProductImagePreview[]>([])
   const [isPopular, setIsPopular] = useState(false)
   const features = watch("features")
   const productType = watch("type")
   const sizes = watch("meta_data.sizes")
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length === 0) return
-    setImagePreviews((prev) => [
-      ...prev,
-      ...files.map((file, i) => ({
-        file,
-        url: URL.createObjectURL(file),
-        alt: "",
-        order: prev.length + i,
-      })),
-    ])
-  }
 
   const addSize = () => {
     const currentSizes = watch("meta_data.sizes") || []
@@ -83,31 +73,97 @@ export default function CreateProductPage() {
     setValue("meta_data.sizes", newSizes)
   }
 
+  useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        const res = await fetch(`/api/products/${params.id}`)
+        if (!res.ok) throw new Error("Failed to fetch product")
+        const product = await res.json()
+      
+        // Set form values
+        setValue("name", product.name)
+        setValue("description", product.description)
+        setValue("features", product.features)
+        setValue("category", product.category)
+        setValue("type", product.type)
+        setValue("price", product.price.toString())
+        setValue("discountType", product.discountType || "")
+        setValue("discountValue", product.discountValue?.toString() || "")
+        setValue("discountStart", product.discountStart ? new Date(product.discountStart).toISOString().split('T')[0] : "")
+        setValue("discountEnd", product.discountEnd ? new Date(product.discountEnd).toISOString().split('T')[0] : "")
+        setValue("url", product.url)
+        setValue("popular", product.popular)
+        setIsPopular(product.popular)
+        setValue("meta_data", product.meta_data ? product.meta_data.sizes : false || { sizes: [] });
+
+        // Set image previews
+        if (product.images && product.images.length > 0) {
+          setImagePreviews(product.images.map((img: any) => ({
+            file: new File([], ""), // Empty file since we already have the URL
+            url: img.url,
+            alt: img.alt || "",
+            order: img.order,
+          })))
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to fetch product")
+        router.push("/dashboard/products/manage")
+      } finally {
+        setInitialLoading(false)
+      }
+    }
+
+    if (params.id) {
+      fetchProduct()
+    }
+  }, [params.id, setValue, router])
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    setImagePreviews((prev) => [
+      ...prev,
+      ...files.map((file, i) => ({
+        file,
+        url: URL.createObjectURL(file),
+        alt: "",
+        order: prev.length + i,
+      })),
+    ])
+  }
+
   const onSubmit = async (data: any) => {
     setLoading(true)
     try {
-      // Upload images if any
+      // Upload new images if any
       let uploadedImages: { url: string; alt: string; order: number }[] = []
-      if (imagePreviews.length > 0) {
+      const newImages = imagePreviews.filter(img => img.file.size > 0)
+      if (newImages.length > 0) {
         const formData = new FormData()
-        imagePreviews.forEach((img) => formData.append("files", img.file))
+        newImages.forEach((img) => formData.append("files", img.file))
         const res = await fetch("/api/uploadthing", {
           method: "POST",
           body: formData,
         })
-        if (!res.ok) throw new Error("Failed to upload images"), setLoading(false);
+        if (!res.ok) throw new Error("Failed to upload images")
         const uploaded = await res.json()
         uploadedImages = uploaded.map((img: any, i: number) => ({
           url: img.data.ufsUrl,
-          alt: imagePreviews[i]?.alt || "",
-          order: imagePreviews[i]?.order || i,
-        }));
+          alt: newImages[i]?.alt || "",
+          order: newImages[i]?.order || i,
+        }))
       }
+
+      // Combine existing and new images
+      const existingImages = imagePreviews.filter(img => img.file.size === 0)
+      const allImages = [...existingImages, ...uploadedImages]
+
       // Prepare payload
       const payload = {
         ...data,
         price: Number(data.price),
-        images: uploadedImages,
+        images: allImages,
         popular: isPopular,
         discountType: data.discountType,
         discountValue: Number(data.discountValue),
@@ -117,31 +173,42 @@ export default function CreateProductPage() {
         features: data.features,
         category: data.category,
         type: data.type,
-        meta_data: data.meta_data,
+        meta_data: {
+          ...data.meta_data,
+          sizes: data.meta_data.sizes.map((size: any) => ({
+            name: size.name,
+            size: size.size,
+            price: String(size.price),
+          })),
+        },
       }
-      const res = await fetch("/api/products", {
-        method: "POST",
+
+      const res = await fetch(`/api/products/${params.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
+
       if (!res.ok) {
-        const err = await res.json();
-        setLoading(false)
-        throw new Error(err.message || "Failed to create product")
+        const err = await res.json()
+        throw new Error(err.message || "Failed to update product")
       }
-      toast({ title: "Product Created!", description: "Product created successfully." })
-      reset()
-      setImagePreviews([])
+
+      toast.success("Product updated successfully.")
       router.push("/dashboard/products/manage")
     } catch (err: any) {
-      setLoading(false);
-      toast({ title: "Error", description: err.message || "Failed to create product", variant: "destructive" })
+      setLoading(false)
+      toast.error(err.message || "Failed to update product")
     }
+  }
+
+  if (initialLoading) {
+    return <div className="p-8 text-center text-gray-400">Loading...</div>
   }
 
   return (
     <div className="max-w-2xl mx-auto pb-10">
-      <h2 className="text-3xl font-bold mb-6 text-[#550C18]">Create New Product</h2>
+      <h2 className="text-3xl font-bold mb-6 text-[#550C18]">Edit Product</h2>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="space-y-2">
           <Label>Product Name</Label>
@@ -166,16 +233,6 @@ export default function CreateProductPage() {
             {imagePreviews.map((img, idx) => (
               <div key={idx} className="relative w-20 h-20 border rounded overflow-hidden flex flex-col items-center">
                 <img src={img.url} alt={img.alt || "Product image"} className="object-cover w-full h-full" />
-                {/* <Input
-                  className="mt-1 text-xs"
-                  placeholder="Alt text"
-                  value={img.alt}
-                  onChange={e => {
-                    const newImgs = [...imagePreviews]
-                    newImgs[idx].alt = e.target.value
-                    setImagePreviews(newImgs)
-                  }}
-                /> */}
                 <span className="absolute top-0 left-0 bg-white text-xs px-1 rounded-br">{img.order + 1}</span>
                 <button
                   type="button"
@@ -337,7 +394,7 @@ export default function CreateProductPage() {
         </div>
         <Button className="w-full bg-[#550C18] hover:bg-[#78001A] text-white" type="submit" disabled={loading}>
           {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          {loading ? "Creating..." : "Create Product"}
+          {loading ? "Updating..." : "Update Product"}
         </Button>
       </form>
     </div>

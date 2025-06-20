@@ -160,6 +160,8 @@ export async function createPaymentIntent({ amount, cart, discount, shippingData
             name: item.name,
             quantity: item.quantity,
             price: item.price,
+            size: item.size,
+            randomNumber: Math.random()
           })),
         ),
         discount_code: discount?.code || "",
@@ -167,10 +169,18 @@ export async function createPaymentIntent({ amount, cart, discount, shippingData
       },
     });
 
+    console.log(cart, "CART");
+
     const dbIntent = await prisma.checkoutSessions.create({
       data: {
         id: v4(),
-        cart: JSON.stringify(cart),
+        cart: JSON.stringify(cart.map((item) => ({
+            id: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+            size: item.size
+          }))),
         completed: "pending",
         paymentType: 'payment',
         sessionId: paymentIntent.id,

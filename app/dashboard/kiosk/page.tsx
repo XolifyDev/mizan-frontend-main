@@ -2,7 +2,7 @@
 import { authClient } from "@/lib/auth-client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw } from "lucide-react";
+import { Plus, RefreshCw, Edit, Trash } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
@@ -10,7 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table } from "@/components/ui/table";
+import { Table, TableHeader, TableHead, TableRow, TableCell, TableBody } from "@/components/ui/table";
+import { useSearchParams } from "next/navigation";
+import { getMasjids } from "@/lib/actions/masjids";
+import { getDonationCategories } from "@/lib/actions/donations";
 import { getProducts } from "@/lib/actions/products";
 
 export default function KioskDashboardPage() {
@@ -18,7 +21,16 @@ export default function KioskDashboardPage() {
   const [configureKiosk, setConfigureKiosk] = useState<any | null>(null);
   const [copiedConfigKioskId, setCopiedConfigKioskId] = useState<string | null>(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addForm, setAddForm] = useState({ productId: "", serial: "", masjidId: masjidId || "" });
+  const masjidId = useSearchParams().get("masjidId") || "";
+  const [addForm, setAddForm] = useState({
+    productId: "",
+    serial: "",
+    masjidId: masjidId,
+    layout: "default",
+    color: "#550C18",
+    timeout: 60,
+    categories: [] as string[],
+  });
   const [savingConfig, setSavingConfig] = useState(false);
   const [addingKiosk, setAddingKiosk] = useState(false);
   const [addErrors, setAddErrors] = useState<any>({});
@@ -26,19 +38,27 @@ export default function KioskDashboardPage() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [loadingMasjids, setLoadingMasjids] = useState(false);
   const [loadingKiosks, setLoadingKiosks] = useState(false);
+  const [kiosks, setKiosks] = useState<any[]>([]);
+  const [masjids, setMasjids] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [editKiosk, setEditKiosk] = useState<any | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [kioskToDelete, setKioskToDelete] = useState<any | null>(null);
+  const [donationCategories, setDonationCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   // Fetch products and masjids with loading skeletons
   useEffect(() => {
-    setLoadingProducts(true);
     setLoadingMasjids(true);
-    Promise.all([
-      getProducts().then((products) => setProducts(products)),
-      //@ts-ignore
-      getMasjids().then((masjids) => setMasjids(masjids)),
-    ]).finally(() => {
-      setLoadingProducts(false);
+    getMasjids().then((masjids) => setMasjids(masjids)).finally(() => {
       setLoadingMasjids(false);
     });
+    setLoadingProducts(true);
+    getProducts().then((products) => setProducts(products)).finally(() => {
+      setLoadingProducts(false);
+    });
+    getDonationCategories().then((categories) => setDonationCategories(categories));
+    fetchKiosks();
   }, []);
 
   // Fetch kiosks with loading skeleton
@@ -134,7 +154,7 @@ export default function KioskDashboardPage() {
       if (!res.ok) throw new Error("Failed to add kiosk");
       toast({ title: "Kiosk added!", description: "New kiosk registered successfully." });
       setAddDialogOpen(false);
-      setAddForm({ productId: "", serial: "", masjidId: masjidId || "" });
+      setAddForm({ productId: "", serial: "", masjidId: masjidId || "", layout: "default", color: "#550C18", timeout: 60, categories: [] });
       // Refresh kiosks
       fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
         .then((res) => res.json())
@@ -143,6 +163,23 @@ export default function KioskDashboardPage() {
       toast({ title: "Error", description: "Failed to add kiosk", variant: "destructive" });
     } finally {
       setAddingKiosk(false);
+    }
+  };
+
+  // Add delete handler
+  const handleDeleteKiosk = async () => {
+    if (!kioskToDelete) return;
+    setLoadingKiosks(true);
+    try {
+      await fetch(`/api/kiosk-instances/${kioskToDelete.id}`, { method: "DELETE" });
+      setKiosks(kiosks.filter((k) => k.id !== kioskToDelete.id));
+      setDeleteDialogOpen(false);
+      setKioskToDelete(null);
+      toast({ title: "Kiosk deleted!", description: "Kiosk removed successfully." });
+    } catch (err) {
+      toast({ title: "Error", description: "Failed to delete kiosk", variant: "destructive" });
+    } finally {
+      setLoadingKiosks(false);
     }
   };
 
@@ -169,6 +206,7 @@ export default function KioskDashboardPage() {
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh Status
           </Button>
+          {/* @ts-ignore */}
           {session?.user?.admin && (
             <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={() => setAddDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -177,13 +215,6 @@ export default function KioskDashboardPage() {
           )}
         </div>
       </div>
-      <Tabs defaultValue="kiosks" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="kiosks">Kiosks</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
-        <TabsContent value="kiosks">
           <Card className="bg-white border-[#550C18]/10">
             <CardHeader>
               <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Kiosk Management</CardTitle>
@@ -198,7 +229,49 @@ export default function KioskDashboardPage() {
                 </div>
               ) : (
                 <Table>
-                  {/* ... existing code ... */}
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Serial</TableHead>
+                      <TableHead>Masjid</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody> 
+                    {kiosks.map((kiosk) => (
+                      <TableRow key={kiosk.id}>
+                        <TableCell>{kiosk.name}</TableCell>
+                        <TableCell>{kiosk.serial}</TableCell>
+                        <TableCell>{kiosk.masjid.name}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setEditKiosk({ ...kiosk });
+                                setConfigureKiosk({ ...kiosk });
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setKioskToDelete(kiosk);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
                 </Table>
               )}
             </CardContent>
@@ -371,8 +444,20 @@ export default function KioskDashboardPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </TabsContent>
-      </Tabs>
+
+          {/* Delete Kiosk Dialog */}
+          <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <DialogContent className="sm:max-w-[400px]">
+              <DialogHeader>
+                <DialogTitle>Delete Kiosk</DialogTitle>
+              </DialogHeader>
+              <div>Are you sure you want to delete <b>{kioskToDelete?.name}</b>? This action cannot be undone.</div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} type="button">Cancel</Button>
+                <Button className="bg-red-600 text-white" onClick={handleDeleteKiosk} type="button" disabled={loadingKiosks}>Delete</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
     </div>
   );
 } 

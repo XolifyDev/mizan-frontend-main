@@ -7,6 +7,12 @@ try {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  webpack: (config) => {
+    // Mark esbuild as an external module, so it's not bundled.
+    // This is the correct way to handle packages with native bindings.
+    config.externals.push('esbuild');
+    return config;
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

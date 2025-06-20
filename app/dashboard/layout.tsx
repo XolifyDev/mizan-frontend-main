@@ -41,8 +41,13 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
+    if(isPending) return;
+    if(!session) return router.push("/signin?message=You need to login to access this page!");
+  }, [isPending, session, router]); 
+
+  useEffect(() => {
     const fetchMasjid = async () => {
-      if(isPending) return;
+      if(isPending || !session) return;
       const userMasjid = await getUserMasjid(masjidId || "");
 
       if (!userMasjid) {
@@ -70,8 +75,7 @@ export default function DashboardLayout({
       </div>
     );
 
-  if(!session) router.push("/signin?message=You need to login to access this page");
-
+  if(!session) return <>Loading...</>
   return (
     <>
       <ProgressProvider

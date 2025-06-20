@@ -256,7 +256,7 @@ export default function CartPage({ products }: Props) {
                           <TableCell>
                             <div>
                               <h1 className="font-medium text-lg text-[#3A3A3A]">
-                                {item.name}
+                                {item.name} {item.size && `(${item.size})`}
                               </h1>
                             </div>
                           </TableCell>

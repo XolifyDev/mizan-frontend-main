@@ -45,13 +45,12 @@ export const getPaymentAndOrder = async (sessionId: string) => {
       user: true
     }
   });
+  
   const order = await prisma.orders.findFirst({
     where: {
       stripeSessionId: sessionId
     }
   });
-
-  console.log(order, checkoutSession, sessionId);
 
   const stripeSession = await stripeClient.paymentIntents.retrieve(checkoutSession?.sessionId as string);
 
@@ -60,14 +59,14 @@ export const getPaymentAndOrder = async (sessionId: string) => {
     checkoutSession,
     stripeSession: stripeSession ? {
       amount_total: stripeSession.amount,
-      created: stripeSession.created
+      created: stripeSession.created,
     } : null
   };
 }
 
 // Get all orders (admin)
 export const getAllOrders = async () => {
-  return prisma.orders.findMany({
+  const o = await prisma.orders.findMany({
     include: {
       user: true
     },
@@ -75,23 +74,35 @@ export const getAllOrders = async () => {
       createdAt: 'desc'
     }
   });
+  return o;
 };
 
-// Get a single order by ID
-export const getOrderById = async (id: string) => {
-  return prisma.orders.findFirst({
-    where: { id },
-    include: {
-      user: true,
-      masjid: true,
-    }
-  });
-};
+export async function getOrderById(id: string) {
+  try {
+    console.log('Fetching order with ID 123:', id);
+    const order = await prisma.orders.findFirst({
+      where: {
+        id: id
+      }, 
+      include: {
+        masjid: true,
+        user: true,
+      },
+    });
+    
+    console.log('Order found:', order ? 'yes' : 'no');
+    return order;
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    throw error;
+  }
+}
 
 // Update an order (status, tracking number, etc.)
 export const updateOrder = async (id: string, data: { status?: string; trackingNumber?: string }) => {
-  return prisma.orders.update({
+  const o = await prisma.orders.update({
     where: { id },
     data
   });
+  return o;
 };

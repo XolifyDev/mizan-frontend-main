@@ -162,15 +162,15 @@ export default function OrderConfirmationPage() {
                       </div>
                     </div>
                     <div className="divide-y divide-[#550C18]/10">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="px-4 py-3">
+                      {order.items.map((item, index) => (
+                        <div key={index} className="px-4 py-3">
                           <div className="grid grid-cols-12 gap-2 items-center">
                             <div className="col-span-6">
-                              <p className="font-medium text-[#3A3A3A]">{item.name}</p>
+                              <p className="font-medium text-[#3A33A]">{item.name} {item.size && `(${item.size})`}</p>
                               <p className="text-xs text-[#3A3A3A]/70">Monthly subscription</p>
                             </div>
                             <div className="col-span-2 text-center text-[#3A3A3A]">{item.quantity}</div>
-                            <div className="col-span-2 text-right text-[#3A3A3A]">${item.price}{isSubscription ? "/mo" : null}</div>
+                            <div className="col-span-2 text-right text-[#4b4545]">${item.price}{isSubscription ? "/mo" : null}</div>
                             <div className="col-span-2 text-right font-medium text-[#550C18]">
                               ${(item.price * item.quantity).toFixed(2)}{isSubscription ? "/mo" : null}
                             </div>

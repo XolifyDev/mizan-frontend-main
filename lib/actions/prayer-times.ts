@@ -58,7 +58,7 @@ async function getIqamahTimings(masjidId: string) {
   return iqamahTimings.length < 1 ? (iqamahTimings.length === 0 ? [] : [iqamahTimings]) : iqamahTimings
 }
 
-async function getPrayerTimings(masjidId: string) {
+export async function getPrayerTimings(masjidId: string) {
   const prayerTimings = await prisma.prayerTime.findMany({
     where: {
       masjidId,
