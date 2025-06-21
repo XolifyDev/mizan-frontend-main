@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   try {
     // Get the current time minus 2 minutes
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
