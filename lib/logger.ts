@@ -10,22 +10,10 @@ interface LogEvent {
   details?: string
 }
 
-export async function logEvent({
-  action,
-  entityType,
-  entityId,
-  userId,
-  details,
-}: LogEvent) {
+export async function logEvent(data: LogEvent) {
   try {
     await prisma.systemLog.create({
-      data: {
-        action,
-        entityType,
-        entityId,
-        userId,
-        details,
-      },
+      data
     })
   } catch (error) {
     console.error("Error logging event:", error)
@@ -60,7 +48,6 @@ export async function logSystemEvent(
     action,
     entityType,
     entityId,
-    userId: "system",
     details,
   })
 }

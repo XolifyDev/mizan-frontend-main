@@ -431,11 +431,26 @@ model TVDisplay {
   updatedAt         DateTime       @updatedAt
   code              String?
   orderId           String?
+  
+  // MizanTV specific fields
+  platform          String?        // ios, android, web
+  model             String?        // Device model (iPhone 15, Samsung Galaxy, etc.)
+  osVersion         String?        // OS version
+  appVersion        String?        // App version
+  buildNumber       String?        // Build number
+  installationId    String?        // Installation ID
+  networkStatus     String?        @default("disconnected") // connected, disconnected
+  registeredAt      DateTime?      // When device was registered
+  
   assignedContent   Content?       @relation("AssignedContent", fields: [assignedContentId], references: [id], onDelete: Cascade)
   masjid            Masjid         @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   Orders            Orders?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   announcements     Announcement[] @relation("AnnouncementToTVDisplay")
   displayedContent  Content[]      @relation("DisplayContent")
+  
+  @@index([status])
+  @@index([lastSeen])
+  @@index([masjidId])
 }
 
 model Content {
@@ -506,10 +521,10 @@ model SystemLog {
   action     String
   entityType String
   entityId   String
-  userId     String
+  userId     String?
   details    String?
   createdAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([entityType, entityId])

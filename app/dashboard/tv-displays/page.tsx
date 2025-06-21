@@ -58,6 +58,16 @@ interface TVDisplay {
   createdAt: string | Date;
   updatedAt: string | Date;
   content?: string;
+  
+  // MizanTV specific fields
+  platform?: string;
+  model?: string;
+  osVersion?: string;
+  appVersion?: string;
+  buildNumber?: string;
+  installationId?: string;
+  networkStatus?: string;
+  registeredAt?: string | Date;
 }
 
 interface Content {
@@ -169,9 +179,29 @@ export default function TVDisplaysPage() {
     try {
       const displaysData = await getAllTVDisplays(masjidId);
       const templatesData = await getAllContentTemplates(masjidId);
-      setDisplays(displaysData);
+      
+      // Fetch MizanTV devices
+      const mizanTvDevicesResponse = await fetch(`/api/admin/masjids/${masjidId}/devices`);
+      let mizanTvDevices: TVDisplay[] = [];
+      
+      if (mizanTvDevicesResponse.ok) {
+        const mizanTvData = await mizanTvDevicesResponse.json();
+        mizanTvDevices = mizanTvData.devices.map((device: any) => ({
+          ...device,
+          // Convert string dates back to Date objects for consistency
+          lastSeen: device.lastSeen ? new Date(device.lastSeen) : null,
+          registeredAt: device.registeredAt ? new Date(device.registeredAt) : null,
+          createdAt: new Date(device.createdAt),
+          updatedAt: new Date(device.updatedAt),
+        }));
+      }
+      
+      // Combine regular displays and MizanTV devices
+      const allDisplays = [...displaysData, ...mizanTvDevices];
+      
+      setDisplays(allDisplays);
       setTemplates(templatesData);
-      setActiveDisplays(displaysData.filter((d: TVDisplay) => d.status === "online").length);
+      setActiveDisplays(allDisplays.filter((d: TVDisplay) => d.status === "online").length);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError("Failed to fetch data. Please try again.");
@@ -553,14 +583,39 @@ export default function TVDisplaysPage() {
                             {display.status.charAt(0).toUpperCase() +
                               display.status.slice(1)}
                           </Badge>
+                          {display.platform && (
+                            <Badge className="bg-blue-100 text-blue-800">
+                              MizanTV
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-[#3A3A3A]/70">
-                          Location: {display.location}
+                          Location: {display.location || 'Not specified'}
                         </p>
-                        <p className="text-sm text-[#3A3A3A]/70">
-                          Content: {display.content} • Updated{" "}
-                          {display.lastSeen ? display.lastSeen.toLocaleString() : 'N/A'}
-                        </p>
+                        {display.platform ? (
+                          <div className="space-y-1">
+                            <p className="text-sm text-[#3A3A3A]/70">
+                              Device ID: <code className="bg-gray-100 px-1 rounded text-xs">{display.id}</code>
+                            </p>
+                            <p className="text-sm text-[#3A3A3A]/70">
+                              Platform: {display.platform} • Model: {display.model}
+                            </p>
+                            <p className="text-sm text-[#3A3A3A]/70">
+                              App: v{display.appVersion} • Network: {display.networkStatus || 'unknown'}
+                            </p>
+                            <p className="text-sm text-[#3A3A3A]/70">
+                              Last seen: {display.lastSeen ? display.lastSeen.toLocaleString() : 'Never'}
+                              {display.registeredAt && (
+                                <span> • Registered: {new Date(display.registeredAt).toLocaleDateString()}</span>
+                              )}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-[#3A3A3A]/70">
+                            Content: {display.content} • Updated{" "}
+                            {display.lastSeen ? display.lastSeen.toLocaleString() : 'N/A'}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

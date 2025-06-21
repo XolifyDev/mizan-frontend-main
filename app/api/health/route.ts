@@ -21,7 +21,28 @@ interface HealthMetrics {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  // get device id from headers "Authorization"
+  const deviceId = request.headers.get("Authorization");
+  if (!deviceId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // get device status from database
+  const device = await prisma.tVDisplay.findFirst({
+    where: { id: deviceId.replace("Device: ", "") }
+  });
+
+  if (!device) {
+    return NextResponse.json({ error: "Device not found" }, { status: 404 });
+  }
+
+  // update device lastSeen
+  await prisma.tVDisplay.update({
+    where: { id: device.id },
+    data: { lastSeen: new Date() }
+  });
+
   const startTime = Date.now()
   const metrics: HealthMetrics = {
     status: "healthy",
