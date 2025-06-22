@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { masjidId: string } }
+  { params }: { params: Promise<{ masjidId: string }> }
 ) {
   try {
-    const masjidId = params.masjidId;
+    const { masjidId } = await params;
 
     if (!masjidId) {
       return NextResponse.json(
@@ -19,20 +19,13 @@ export async function GET(
     const devices = await prisma.tVDisplay.findMany({
       where: {
         masjidId,
-        platform: { not: null } // Only MizanTV devices
       },
       select: {
         id: true,
         name: true,
         location: true,
-        platform: true,
-        model: true,
-        osVersion: true,
-        appVersion: true,
         status: true,
         lastSeen: true,
-        networkStatus: true,
-        registeredAt: true,
         config: true,
         isActive: true,
         createdAt: true,
@@ -42,15 +35,8 @@ export async function GET(
     });
 
     return NextResponse.json({
-      devices: devices.map(device => ({
-        ...device,
-        deviceId: device.id, // Map id to deviceId for consistency
-        lastSeen: device.lastSeen?.toISOString(),
-        registeredAt: device.registeredAt?.toISOString(),
-        createdAt: device.createdAt.toISOString(),
-        updatedAt: device.updatedAt.toISOString(),
-      }))
-    });
+      devices
+    })
 
   } catch (error) {
     console.error("Error getting masjid devices:", error);

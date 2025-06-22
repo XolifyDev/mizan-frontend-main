@@ -197,10 +197,10 @@ export default function TVDisplaysPage() {
       }
       
       // Combine regular displays and MizanTV devices
-      const allDisplays = [...displaysData, ...mizanTvDevices];
+      const allDisplays = [...mizanTvDevices];
       
       setDisplays(allDisplays);
-      setTemplates(templatesData);
+      setTemplates(templatesData as any);
       setActiveDisplays(allDisplays.filter((d: TVDisplay) => d.status === "online").length);
     } catch (error) {
       console.error('Error fetching data:', error);
