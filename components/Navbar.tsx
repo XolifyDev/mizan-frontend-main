@@ -1,18 +1,32 @@
 "use client";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "./ui/button";
 import Image from "next/image";
 import { Philosopher } from "next/font/google";
 import { authClient } from "@/lib/auth-client";
 import { ShoppingBag } from "lucide-react";
 import useCart from "@/lib/useCart";
+import { usePathname } from "next/navigation";
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 const Navbar = () => {
-  const { data, isPending } = authClient.useSession();
+  const { data, isPending, refetch } = authClient.useSession();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    refetch();
+  }, [pathname, refetch]);
+
   const { cart } = useCart();
+
+  if(isPending) return (
+    <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="w-10 h-10 bg-gray-200 rounded-full animate-pulse"></div>
+    </div>
+  );
+
   return (
     <header className="border-b border-[#550C18]/10">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">

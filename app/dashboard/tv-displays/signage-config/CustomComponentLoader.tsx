@@ -1,108 +1,50 @@
 'use client';
 
-import React, { lazy, Suspense, useMemo, Component, ReactNode } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 /**
- * Creates a URL to our local API proxy for fetching the remote component.
- * A cache key can be added to ensure React re-fetches when desired.
+ * Loads a custom slide using an iframe, similar to how CustomSlide uses WebView in React Native.
+ * Passes slide, masjid, and theme as query parameters for the custom component to access.
  */
-const createProxyUrl = (githubUrl: string, cacheKey?: string | number): string | null => {
-  if (!githubUrl) return null;
-  try {
-    // Basic validation to ensure it's a plausible URL.
-    new URL(githubUrl); 
-    const apiUrl = `/api/esm?url=${encodeURIComponent(githubUrl)}`;
-    // The cacheKey forces React to re-evaluate the dynamic import.
-    return cacheKey ? `${apiUrl}&v=${cacheKey}` : apiUrl;
-  } catch (e) {
-    console.error('Invalid URL provided:', e);
-    return null;
-  }
-};
+export default function CustomComponentLoader({ url, componentProps, cacheKey }: { url: any; componentProps: any, cacheKey?: string | number }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-interface ErrorBoundaryProps {
-  fallback: ReactNode;
-  children: ReactNode;
-}
+  const params = new URLSearchParams();
+  if (componentProps?.slide) params.append('slide', encodeURIComponent(JSON.stringify(componentProps.slide)));
+  if (componentProps?.masjid) params.append('masjid', encodeURIComponent(JSON.stringify(componentProps.masjid)));
+  if (componentProps?.theme) params.append('theme', encodeURIComponent(JSON.stringify(componentProps.theme)));
+  if (url) params.append('url', encodeURIComponent(url));
+  if (cacheKey) params.append('v', String(cacheKey));
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-  error?: Error;
-}
+  const iframeUrl = `/view-component?${params.toString()}`;
 
-// A standard React Error Boundary to catch errors from the remote component
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    // Update state so the next render will show the fallback UI.
-    console.error("Error loading remote component:", error);
-    return { hasError: true, error: error };
-  }
-
-  componentDidUpdate(prevProps: ErrorBoundaryProps) {
-    if (prevProps.children !== this.props.children) {
-      this.setState({ hasError: false, error: undefined });
-    }
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
-const ErrorFallback = ({ githubUrl }: { githubUrl: string }) => (
-    <div style={{ padding: '20px', color: '#c0392b', backgroundColor: '#fbe9e7', border: '1px solid #e74c3c', borderRadius: '8px', fontFamily: 'sans-serif' }}>
-        <strong style={{ fontSize: '16px' }}>Error Loading Custom Component</strong>
-        
-        <p style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.7)', border: '1px solid #f5c6cb', borderRadius: '4px', fontSize: '13px', fontFamily: 'monospace', wordBreak: 'break-all' }}>
-            <strong>URL:</strong> {githubUrl}
-        </p>
-
-        <div style={{ marginTop: '16px', fontSize: '13px' }}>
-            <p><strong>Common Causes:</strong></p>
-            <ul style={{ margin: '8px 0 0 20px', padding: 0, listStyleType: 'disc', lineHeight: '1.6' }}>
-                <li>The GitHub repository is private. It **must be public**.</li>
-                <li>The component file is missing a `default export`.</li>
-                <li>The component has syntax errors. Check the browser's developer console for more details.</li>
-            </ul>
-        </div>
-    </div>
-);
-
-const LoadingFallback = () => (
-    <div style={{ padding: '20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
-        <p>Loading Custom Component...</p>
-    </div>
-);
-
-export default function CustomComponentLoader({ url, componentProps, cacheKey }: { url: string; componentProps: any, cacheKey?: string | number }) {
-  const proxyUrl = useMemo(() => {
-    return createProxyUrl(url, cacheKey);
-  }, [url, cacheKey]);
-
-  if (!proxyUrl) {
-    return <ErrorFallback githubUrl={url} />;
-  }
-
-  // The component is created only when proxyUrl is valid.
-  const RemoteComponent = useMemo(() => 
-    // The webpackIgnore comment is crucial to prevent Webpack from trying
-    // to bundle the remote URL at build time.
-    lazy(() => import(/* webpackIgnore: true */ proxyUrl))
-  , [proxyUrl]);
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    const injectScript = () => {
+      if (!iframe?.contentWindow) return;
+  
+      const json = JSON.stringify({
+        slide: JSON.stringify(componentProps.slide),
+        masjid: JSON.stringify(componentProps.masjid),
+        theme: JSON.stringify(componentProps.theme),
+        url: JSON.stringify(url)
+      })
+  
+      iframe.contentWindow.postMessage({ type: 'injectScript', json: JSON.stringify(json) }, '*');
+    };
+  
+    iframe?.addEventListener('load', injectScript);
+    return () => iframe?.removeEventListener('load', injectScript);
+  }, [iframeUrl]);
+  
 
   return (
-    <ErrorBoundary fallback={<ErrorFallback githubUrl={url} />}>
-      <Suspense fallback={<LoadingFallback />}>
-        <RemoteComponent {...componentProps} />
-      </Suspense>
-    </ErrorBoundary>
+    <iframe
+      src={iframeUrl}
+      style={{ width: '100%', height: '100%', border: 'none', background: 'transparent' }}
+      allowFullScreen
+      sandbox="allow-scripts allow-same-origin"
+      title="Custom Slide"
+    />
   );
 } 

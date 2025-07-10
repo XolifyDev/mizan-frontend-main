@@ -359,14 +359,7 @@ export function MonthlyPrayerTimes({
 
   const handleEditPrayerTime = (timing: any, prayer: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha") => {
     const time = timing[prayer]
-    const formattedTime =
-      typeof time === "string"
-        ? time
-        : new Intl.DateTimeFormat("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
-          }).format(time)
+    const formattedTime = moment(time).toISOString();
 
     setEditPrayerTime({
       id: timing.id,
@@ -740,11 +733,7 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-[#3A3A3A] group relative">
                             <div className="flex items-center">
                               <span>
-                                {timing.fajr instanceof Date
-                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                      timing.fajr,
-                                    )
-                                  : timing.fajr}
+                                {moment(timing.fajr).format("h:mm A")}
                               </span>
                               <Button
                                 variant="ghost"
@@ -760,11 +749,7 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-[#3A3A3A] group relative">
                             <div className="flex items-center">
                               <span>
-                                {timing.sunrise instanceof Date
-                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                      timing.sunrise,
-                                    )
-                                  : timing.sunrise}
+                                {moment(timing.sunrise).format("h:mm A")}
                               </span>
                               <Button
                                 variant="ghost"
@@ -780,11 +765,7 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-[#3A3A3A] group relative">
                             <div className="flex items-center">
                               <span>
-                                {timing.dhuhr instanceof Date
-                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                      timing.dhuhr,
-                                    )
-                                  : timing.dhuhr}
+                                {moment(timing.dhuhr).format("h:mm A")}
                               </span>
                               <Button
                                 variant="ghost"
@@ -800,11 +781,7 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-[#3A3A3A] group relative">
                             <div className="flex items-center">
                               <span>
-                                {timing.asr instanceof Date
-                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                      timing.asr,
-                                    )
-                                  : timing.asr}
+                                {moment(timing.asr).format("h:mm A")}
                               </span>
                               <Button
                                 variant="ghost"
@@ -820,11 +797,7 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-[#3A3A3A] group relative">
                             <div className="flex items-center">
                               <span>
-                                {timing.maghrib instanceof Date
-                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                      timing.maghrib,
-                                    )
-                                  : timing.maghrib}
+                                {moment(timing.maghrib).format("h:mm A")}
                               </span>
                               <Button
                                 variant="ghost"
@@ -840,11 +813,7 @@ export function MonthlyPrayerTimes({
                           <TableCell className="text-[#3A3A3A] group relative">
                             <div className="flex items-center">
                               <span>
-                                {timing.isha instanceof Date
-                                  ? new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(
-                                      timing.isha,
-                                    )
-                                  : timing.isha}
+                                {moment(timing.isha).format("h:mm A")}
                               </span>
                               <Button
                                 variant="ghost"

@@ -94,13 +94,14 @@ export async function createMasjid({
   }
 }
 
-export async function getUserMasjid(masjidId: string) {
-  // Small 
+export async function getUserMasjid(masjidId?: string) {
+
   const user = await getUser();
   if(!user) return {
     error: true,
     message: "Please Login!"
   };
+  
   const masjid = await prisma.masjid.findFirst({
     where: {
       id: !masjidId || masjidId.length < 1 ? undefined : masjidId,

@@ -6,6 +6,7 @@ import React from 'react';
 interface Masjid {
   id: string;
   name: string;
+  logo?: string;
   // Add other masjid properties as needed
 }
 
@@ -15,123 +16,74 @@ interface Slide {
   // Add other slide properties as needed
 }
 
-interface CustomComponentProps {
-  masjid?: any;
-  theme?: any;
-  [key: string]: any;
+interface Theme {
+  primary: string;
+  background: string;
+  text: string;
+  accent: string;
+  font?: string;
 }
 
-const ExampleCustomComponent: React.FC<CustomComponentProps> = ({ masjid, theme }) => {
+interface CustomComponentProps {
+  slide: Slide;
+  masjid?: Masjid;
+  theme: Theme;
+}
+
+const CustomComponent: React.FC<CustomComponentProps> = ({ slide, masjid, theme }) => {
   return (
     <div style={{
-      padding: '2rem',
-      backgroundColor: theme?.colors?.background || '#ffffff',
-      color: theme?.colors?.text || '#000000',
-      fontFamily: theme?.fonts?.body || 'Inter, sans-serif',
-      borderRadius: '1rem',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-      textAlign: 'center',
-      minHeight: '100vh',
+      width: '100%',
+      height: '100%',
+      backgroundColor: theme.background,
+      color: theme.text,
       display: 'flex',
       flexDirection: 'column',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: '20px',
+      fontFamily: theme.font || 'Arial, sans-serif'
     }}>
-      <h1 style={{
-        color: theme?.colors?.primary || '#550C18',
-        fontSize: '3rem',
+      <h1 style={{ 
+        color: theme.primary, 
+        fontSize: '2.5rem', 
         marginBottom: '1rem',
-        fontFamily: theme?.fonts?.heading || 'Inter, sans-serif'
+        textAlign: 'center'
       }}>
-        Welcome to {masjid?.name || 'Our Masjid'}
+        Custom Slide
       </h1>
       
-      <p style={{ 
-        fontSize: '1.5rem', 
+      <div style={{ 
+        fontSize: '1.2rem', 
         marginBottom: '2rem',
-        color: theme?.colors?.textSecondary || '#666666'
+        textAlign: 'center'
       }}>
-        This is an example custom component for digital signage.
-      </p>
-      
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '1.5rem',
-        marginTop: '2rem',
-        maxWidth: '800px',
-        margin: '2rem auto'
-      }}>
-        <div style={{
-          padding: '1.5rem',
-          backgroundColor: theme?.colors?.surface || '#f8f9fa',
-          borderRadius: '0.75rem',
-          border: `2px solid ${theme?.colors?.border || '#e9ecef'}`
-        }}>
-          <h3 style={{ 
-            color: theme?.colors?.primary || '#550C18', 
-            marginBottom: '1rem',
-            fontSize: '1.5rem'
-          }}>
-            Prayer Times
-          </h3>
-          <div style={{ fontSize: '1.2rem', lineHeight: '1.8' }}>
-            <p><strong>Fajr:</strong> 5:30 AM</p>
-            <p><strong>Dhuhr:</strong> 1:30 PM</p>
-            <p><strong>Asr:</strong> 4:45 PM</p>
-            <p><strong>Maghrib:</strong> 7:15 PM</p>
-            <p><strong>Isha:</strong> 8:45 PM</p>
-          </div>
-        </div>
-        
-        <div style={{
-          padding: '1.5rem',
-          backgroundColor: theme?.colors?.surface || '#f8f9fa',
-          borderRadius: '0.75rem',
-          border: `2px solid ${theme?.colors?.border || '#e9ecef'}`
-        }}>
-          <h3 style={{ 
-            color: theme?.colors?.primary || '#550C18', 
-            marginBottom: '1rem',
-            fontSize: '1.5rem'
-          }}>
-            Announcements
-          </h3>
-          <div style={{ fontSize: '1.2rem', lineHeight: '1.8' }}>
-            <p>📅 Friday prayer at 1:30 PM</p>
-            <p>📚 Quran class every Sunday</p>
-            <p>🕌 Community iftar this weekend</p>
-            <p>🎓 Islamic studies for children</p>
-          </div>
-        </div>
+        This is a custom component loaded from GitHub
       </div>
       
       <div style={{
-        marginTop: '3rem',
-        padding: '1.5rem',
-        backgroundColor: theme?.colors?.accent || '#e3f2fd',
-        borderRadius: '0.75rem',
-        border: `2px solid ${theme?.colors?.border || '#bbdefb'}`,
-        maxWidth: '600px',
-        margin: '3rem auto 0'
+        backgroundColor: theme.accent,
+        color: 'white',
+        padding: '1rem',
+        borderRadius: '8px',
+        textAlign: 'center'
       }}>
-        <p style={{ 
-          margin: 0, 
-          fontSize: '1.1rem',
-          fontWeight: 'bold',
-          color: theme?.colors?.primary || '#550C18'
-        }}>
-          ✨ Custom component loaded successfully! ✨
-        </p>
-        <p style={{ 
-          margin: '0.5rem 0 0 0', 
-          fontSize: '0.9rem',
-          color: theme?.colors?.textSecondary || '#666666'
-        }}>
-          This content is dynamically loaded from GitHub
-        </p>
+        <strong>Slide ID:</strong> {slide.id}<br/>
+        <strong>Type:</strong> {slide.type}<br/>
+        {masjid && <><strong>Masjid:</strong> {masjid.name}</>}
+      </div>
+      
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        right: '20px',
+        fontSize: '0.9rem',
+        opacity: 0.7
+      }}>
+        Loaded at: {new Date().toLocaleTimeString()}
       </div>
     </div>
   );
 };
 
-export default ExampleCustomComponent; 
+export default CustomComponent; 

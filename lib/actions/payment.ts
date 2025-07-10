@@ -169,8 +169,6 @@ export async function createPaymentIntent({ amount, cart, discount, shippingData
       },
     });
 
-    console.log(cart, "CART");
-
     const dbIntent = await prisma.checkoutSessions.create({
       data: {
         id: v4(),

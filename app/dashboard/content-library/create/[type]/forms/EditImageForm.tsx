@@ -152,6 +152,8 @@ export default function EditImageForm({ id }: { id: string }) {
         const uploaded = await res.json();
         url = uploaded[0].data.ufsUrl;
       }
+      delete values.file;
+      console.log(values, "AWDINAWDIAOWDJAWOIJD");
       await updateContent(id, {
         ...values,
         masjidId,

@@ -55,7 +55,7 @@ async function getIqamahTimings(masjidId: string) {
       changeDate: "desc"
     },
   })
-  return iqamahTimings.length < 1 ? (iqamahTimings.length === 0 ? [] : [iqamahTimings]) : iqamahTimings
+  return iqamahTimings
 }
 
 export async function getPrayerTimings(masjidId: string) {
@@ -67,7 +67,7 @@ export async function getPrayerTimings(masjidId: string) {
       date: "asc"
     }
   })
-  return prayerTimings.length < 2 ? (prayerTimings.length === 0 ? [] : [prayerTimings]) : prayerTimings
+  return prayerTimings
 }
 
 async function getPrayerCalculationSettings(masjidId: string) {
@@ -200,6 +200,24 @@ function formatTime(date: Date) {
   })
 }
 
+// Returns the most recent iqamah timing for a given masjid and date
+export async function getIqamahTimingForDate(masjidId: string, date: Date) {
+  const timings = await prisma.iqamahTiming.findMany({
+    where: { 
+      masjidId, 
+      changeDate: { lte: date } 
+    },
+    orderBy: { changeDate: "desc" },
+    take: 1,
+  });
+  return timings[0] || null;
+}
+
+// Get today's iqamah timing for a masjid
+export async function getTodayIqamahTiming(masjidId: string) {
+  return await getIqamahTimingForDate(masjidId, new Date());
+}
+
 // Generate prayer times for a specific month and year
 export async function generateMonthlyPrayerTimes(
   masjidId: string,
@@ -242,6 +260,9 @@ export async function generateMonthlyPrayerTimes(
       const prayerTimes = new PrayerTimes(coordinates, date, calculationMethod)
       const adjustedTimes = applyOffsets(prayerTimes, offsets)
 
+      // Fetch iqamah timing for this date
+      const iqamahTiming = await getIqamahTimingForDate(masjidId, date)
+
       monthlyTimes.push({
         date: date.toISOString().split("T")[0],
         fajr: formatTime(adjustedTimes.fajr),
@@ -250,6 +271,18 @@ export async function generateMonthlyPrayerTimes(
         asr: formatTime(adjustedTimes.asr),
         maghrib: formatTime(adjustedTimes.maghrib),
         isha: formatTime(adjustedTimes.isha),
+        iqamah: iqamahTiming
+          ? {
+              fajr: iqamahTiming.fajr && iqamahTiming.fajr instanceof Date && !isNaN(iqamahTiming.fajr.getTime()) ? formatTime(iqamahTiming.fajr) : null,
+              dhuhr: iqamahTiming.dhuhr && iqamahTiming.dhuhr instanceof Date && !isNaN(iqamahTiming.dhuhr.getTime()) ? formatTime(iqamahTiming.dhuhr) : null,
+              asr: iqamahTiming.asr && iqamahTiming.asr instanceof Date && !isNaN(iqamahTiming.asr.getTime()) ? formatTime(iqamahTiming.asr) : null,
+              maghrib: iqamahTiming.maghrib && iqamahTiming.maghrib instanceof Date && !isNaN(iqamahTiming.maghrib.getTime()) ? formatTime(iqamahTiming.maghrib) : null,
+              isha: iqamahTiming.isha && iqamahTiming.isha instanceof Date && !isNaN(iqamahTiming.isha.getTime()) ? formatTime(iqamahTiming.isha) : null,
+              jumuahI: iqamahTiming.jumuahI && iqamahTiming.jumuahI instanceof Date && !isNaN(iqamahTiming.jumuahI.getTime()) ? formatTime(iqamahTiming.jumuahI) : null,
+              jumuahII: iqamahTiming.jumuahII && iqamahTiming.jumuahII instanceof Date && !isNaN(iqamahTiming.jumuahII.getTime()) ? formatTime(iqamahTiming.jumuahII) : null,
+              jumuahIII: iqamahTiming.jumuahIII && iqamahTiming.jumuahIII instanceof Date && !isNaN(iqamahTiming.jumuahIII.getTime()) ? formatTime(iqamahTiming.jumuahIII) : null,
+            }
+          : null,
       })
     }
 
@@ -284,8 +317,19 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
 
         // Parse time strings to Date objects
         const parseTimeString = (timeStr: string, baseDate: Date) => {
+          if (!timeStr || timeStr.trim() === "" || timeStr === "Invalid Date") {
+            throw new Error(`Invalid time string: ${timeStr}`);
+          }
+          
           const [time, period] = timeStr.split(" ")
+          if (!time || !period) {
+            throw new Error(`Invalid time format: ${timeStr}`);
+          }
+          
           const [hours, minutes] = time.split(":").map(Number)
+          if (isNaN(hours) || isNaN(minutes)) {
+            throw new Error(`Invalid time values: ${timeStr}`);
+          }
 
           let hour = hours
           if (period === "PM" && hours < 12) hour += 12
@@ -296,18 +340,50 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
           return newDate
         }
 
+        // Parse iqamah times if available
+        const parseIqamahTime = (timeStr: string | null) => {
+          if (!timeStr || timeStr.trim() === "" || timeStr === "Invalid Date") return null;
+          try {
+            return parseTimeString(timeStr, date);
+          } catch (error) {
+            console.warn(`Invalid iqamah time format: ${timeStr}`);
+            return null;
+          }
+        };
+
+        // Validate and parse prayer times
+        const parsePrayerTime = (timeStr: string) => {
+          try {
+            return parseTimeString(timeStr, date);
+          } catch (error) {
+            console.warn(`Invalid prayer time format: ${timeStr} for date ${pt.date}`);
+            throw new Error(`Invalid prayer time: ${timeStr}`);
+          }
+        };
+
         return prisma.prayerTime.create({
           data: {
             masjidId,
             date,
-            fajr: parseTimeString(pt.fajr, date),
-            dhuhr: parseTimeString(pt.dhuhr, date),
-            asr: parseTimeString(pt.asr, date),
-            maghrib: parseTimeString(pt.maghrib, date),
-            isha: parseTimeString(pt.isha, date),
-            sunrise: parseTimeString(pt.sunrise, date),
+            fajr: parsePrayerTime(pt.fajr),
+            dhuhr: parsePrayerTime(pt.dhuhr),
+            asr: parsePrayerTime(pt.asr),
+            maghrib: parsePrayerTime(pt.maghrib),
+            isha: parsePrayerTime(pt.isha),
+            sunrise: parsePrayerTime(pt.sunrise),
             month: String(date.getMonth()),
-            year: date.getFullYear()
+            year: date.getFullYear(),
+            // Add iqamah times if available
+            ...(pt.iqamah && {
+              iqamahFajr: parseIqamahTime(pt.iqamah.fajr),
+              iqamahDhuhr: parseIqamahTime(pt.iqamah.dhuhr),
+              iqamahAsr: parseIqamahTime(pt.iqamah.asr),
+              iqamahMaghrib: parseIqamahTime(pt.iqamah.maghrib),
+              iqamahIsha: parseIqamahTime(pt.iqamah.isha),
+              iqamahJumuahI: parseIqamahTime(pt.iqamah.jumuahI),
+              iqamahJumuahII: parseIqamahTime(pt.iqamah.jumuahII),
+              iqamahJumuahIII: parseIqamahTime(pt.iqamah.jumuahIII),
+            }),
           },
         })
       }),
@@ -316,7 +392,8 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
     return { success: true, data: createdTimes }
   } catch (error) {
     console.error("Error saving monthly prayer times:", error)
-    return { success: false, error: "Failed to save monthly prayer times" }
+    const errorMessage = error instanceof Error ? error.message : "Failed to save monthly prayer times"
+    return { success: false, error: errorMessage }
   }
 }
 
@@ -477,5 +554,82 @@ export async function duplicateIqamahTiming(id: string) {
   } catch (error) {
     console.error("Error duplicating Iqamah timing:", error)
     return { success: false, error: "Failed to duplicate Iqamah timing" }
+  }
+}
+
+// Bulk create iqamah timings for a date range
+export async function bulkCreateIqamahTimings(
+  masjidId: string,
+  startDate: Date,
+  endDate: Date,
+  iqamahData: {
+    fajr: string;
+    dhuhr: string;
+    asr: string;
+    maghrib: string;
+    maghribType: string;
+    maghribOffset: string;
+    isha: string;
+    jumuahI?: string;
+    jumuahII?: string;
+    jumuahIII?: string;
+  },
+  changeDates: Date[] = [] // Array of specific dates when iqamah should change
+) {
+  try {
+    // If no specific change dates provided, create one for the start date
+    const datesToCreate = changeDates.length > 0 ? changeDates : [startDate];
+    
+    // Delete any existing iqamah timings in the date range
+    await prisma.iqamahTiming.deleteMany({
+      where: {
+        masjidId,
+        changeDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+    });
+
+    // Create iqamah timing for each change date
+    const createdTimings = await Promise.all(
+      datesToCreate.map(async (changeDate) => {
+        return await prisma.iqamahTiming.create({
+          data: {
+            masjidId,
+            changeDate,
+            ...iqamahData,
+          },
+        });
+      })
+    );
+
+    revalidatePath("/dashboard/prayer-times");
+    return { success: true, data: createdTimings };
+  } catch (error) {
+    console.error("Error bulk creating iqamah timings:", error);
+    return { success: false, error: "Failed to bulk create iqamah timings" };
+  }
+}
+
+// Get iqamah timing schedule for a date range
+export async function getIqamahTimingSchedule(masjidId: string, startDate: Date, endDate: Date) {
+  try {
+    const timings = await prisma.iqamahTiming.findMany({
+      where: {
+        masjidId,
+        changeDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      orderBy: {
+        changeDate: "asc",
+      },
+    })
+    return { success: true, data: timings }
+  } catch (error) {
+    console.error("Error fetching iqamah timing schedule:", error)
+    return { success: false, error: "Failed to fetch iqamah timing schedule" }
   }
 }

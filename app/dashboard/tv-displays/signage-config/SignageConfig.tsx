@@ -53,6 +53,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import CustomComponentLoader from "./CustomComponentLoader";
 import dynamic from "next/dynamic";
 import OpenAI from "openai";
+import { getAllTVDisplays } from "@/lib/actions/tvdisplays";
 
 const MonacoEditor = dynamic(() => import("react-monaco-editor"), { ssr: false });
 
@@ -285,7 +286,7 @@ function SlidePreview({
             {slideData.customComponentUrl ? (
               <CustomComponentLoader
                 url={slideData.customComponentUrl}
-                componentProps={{ masjid, slides: allSlides, theme: currentTheme }}
+                componentProps={{ masjid, slides: allSlides, theme: currentTheme, slide: slideData }}
                 cacheKey={cacheKey}
               />
             ) : (
@@ -1660,6 +1661,7 @@ export default function SignageDisplay({
   const [showEditModal, setShowEditModal] = useState(false);
   const [addType, setAddType] = useState<SlideConfig["type"]>("prayerTimes");
   const [masjid, setMasjid] = useState<Masjid | null>(null);
+  const [displays, setDisplays] = useState<any[]>([]);
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(
     defaultThemes[0]
   );
@@ -1688,8 +1690,14 @@ export default function SignageDisplay({
       })
   };
 
+  const fetchDisplays = async () => {
+    const displays = await getAllTVDisplays(masjidId);
+    setDisplays(displays);
+  }
+
   useEffect(() => {
     fetchMasjid();
+    fetchDisplays();
   }, [masjidId]);
 
   // Update slides when initialSlides change (when data loads from API)
@@ -1865,8 +1873,98 @@ export default function SignageDisplay({
     <div className="max-w-7xl mx-auto p-8 flex flex-col gap-3 w-full">
       <div className="w-full flex flex-col gap-4">
         <div className="flex items-center justify-between flex-row w-full border-b border-[#550C18]/20 pb-4">
-          <h1 className="text-3xl font-bold text-[#550C18]">Signage Slides</h1>
+          <div className="flex flex-col w-full gap-2">
+            <h1 className="text-3xl font-bold text-[#550C18]">Signage Slides</h1>
+            <p className="text-sm text-gray-500">
+              Add, edit, and manage your signage slides for your TV screens. (Device will automatically refresh every 30 seconds)
+            </p>
+          </div>
           <div className="flex flex-row gap-3 items-center justify-end">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Copy Settings
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-52 p-0">
+                <div className="p-2">
+                  <div className="mb-2 px-2">Copy From</div>
+                  <div className="flex flex-col gap-1">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start"
+                        >
+                          Default Settings
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Are you sure?</DialogTitle>
+                        </DialogHeader>
+                        <p>This will overwrite your current slides configuration with the default settings. This action cannot be undone.</p>
+                        <DialogFooter>
+                          <DialogClose asChild>
+                            <Button variant="outline">Cancel</Button>
+                          </DialogClose>
+                          <Button
+                            variant="default"
+                            onClick={() => {
+                              setSlides([
+                                {
+                                  id: "default",
+                                  type: "prayerTimes", 
+                                  template: "default",
+                                  theme: defaultTheme
+                                }
+                              ]);
+                            }}
+                          >
+                            Apply Default Settings
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    {displays?.filter((display) => display.id !== displayId)?.map((display) => (
+                      <Dialog key={display.id}>
+                        <DialogTrigger asChild>
+                          <Button
+                            key={display.id}
+                            variant="outline"
+                            className="w-full justify-start text-sm"
+                          >
+                            {display.name || display.id}
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Are you sure?</DialogTitle>
+                          </DialogHeader>
+                          <p>This will overwrite your current slides configuration. This action cannot be undone.</p>
+                          <DialogFooter>
+                            <DialogClose asChild>
+                              <Button variant="outline">Cancel</Button>
+                            </DialogClose>
+                            <Button
+                              variant="default"
+                              onClick={() => {
+                                if (display.config?.slides) {
+                                  setSlides(display.config.slides);
+                                }
+                              }}
+                            >
+                              Copy Settings
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    ))}
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
             <Button
               variant="outline"
               onClick={() => setShowThemeModal(true)}

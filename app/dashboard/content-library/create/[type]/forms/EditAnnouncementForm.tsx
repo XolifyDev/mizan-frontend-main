@@ -120,6 +120,7 @@ export default function EditAnnouncementForm({ id }: { id: string }) {
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
+      console.log(values, "AWDINAWDIAOWDJAWOIJD");
       await updateAnnouncement(id, {
         ...values,
         masjidId,

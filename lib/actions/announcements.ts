@@ -21,7 +21,19 @@ export const createAnnouncement = async (data: any) => {
 };
 
 export const updateAnnouncement = async (id: string, data: any) => {
-  return prisma.announcement.update({ where: { id }, data });
+  const masjidId = data.masjidId;
+  const content = data.data.content;
+  delete data.data;
+  delete data.masjidId;
+  return prisma.announcement.update({ where: { id }, data: {
+    ...data,
+    content,    
+    masjid: {
+      connect: {
+        id: masjidId
+      }
+    }
+  } });
 };
 
 export const deleteAnnouncement = async (id: string) => {

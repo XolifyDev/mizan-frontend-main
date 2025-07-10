@@ -152,6 +152,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
                     className="border-[#550C18]/20 focus:ring-[#550C18]"
                     disabled={isSubmitting}
                     {...field}
+                    onChange={(e) => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>
                 <FormDescription>In minutes</FormDescription>

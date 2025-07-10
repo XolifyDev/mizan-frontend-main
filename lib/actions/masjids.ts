@@ -24,6 +24,17 @@ export const getMasjids = async () => {
 export const getMasjidById = async (id: string) => {
   const masjid = await prisma.masjid.findUnique({
     where: { id },
+    select: {
+      id: true,
+      name: true,
+      address: true,
+      city: true,
+      country: true,
+      latitude: true,
+      longitude: true,
+      logo: true,
+      timezone: true,
+    },
   });
   return masjid;
 };

@@ -335,13 +335,20 @@ export function AddIqamahTimingForm({ masjidId, lastIqamah, onSuccess }: AddIqam
             <Button
               variant="outline"
               type="button"
-              onClick={() => onSuccess?.()}
+              onClick={(e) => {
+                e.preventDefault();
+                onSuccess?.();
+              }}
               className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
             >
               Cancel
             </Button>
             <Button 
-              type="submit" 
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                form.handleSubmit(onSubmit)(e);
+              }}
               className="bg-[#550C18] hover:bg-[#78001A] text-white" 
               disabled={isSubmitting}
             >

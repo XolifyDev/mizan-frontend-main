@@ -45,34 +45,34 @@ export function EditPrayerTimeDialog({
   // Parse the time when the dialog opens
   useEffect(() => {
     if (open && prayerTime.time) {
-      // Convert the time to a Date object if it's a string
-      const timeDate = typeof prayerTime.time === 'string' 
-        ? new Date(`2000-01-01T${prayerTime.time}`)
-        : new Date(prayerTime.time);
+      // Handles both "HH:mm" and "HH:mm AM/PM"
+      let hours12 = "12";
+      let mins = "00";
+      let period: "AM" | "PM" = "AM";
 
-      // Format the time in 12-hour format
-      const hours = timeDate.getHours();
-      const minutes = timeDate.getMinutes();
-      
-      // Convert to 12-hour format
-      const period = hours >= 12 ? 'PM' : 'AM';
-      const hours12 = hours % 12 || 12;
-      
-      setHours(hours12.toString().padStart(2, '0'));
-      setMinutes(minutes.toString().padStart(2, '0'));
+      const match = prayerTime.time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+      if (match) {
+        hours12 = match[1].padStart(2, "0");
+        mins = match[2];
+        period = (match[3]?.toUpperCase() as "AM" | "PM") || "AM";
+      }
+
+      setHours(hours12);
+      setMinutes(mins);
       setPeriod(period);
     }
   }, [open, prayerTime.time])
 
   const formatDate = (dateString: string) => {
-    if (!dateString) return ""
-    const date = new Date(dateString)
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return ""; // Invalid date
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
       day: "numeric",
       year: "numeric",
-    })
+    });
   }
 
   const getPrayerName = (prayer: string) => {
@@ -128,9 +128,9 @@ export function EditPrayerTimeDialog({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="flex items-center gap-2">
-            <Input value={hours} onChange={(e) => setHours(e.target.value)} className="w-16 text-center" />
+            <Input type="number" value={hours} onChange={(e) => setHours(e.target.value)} className="w-16 text-center" />
             <span className="text-gray-500">:</span>
-            <Input value={minutes} onChange={(e) => setMinutes(e.target.value)} className="w-16 text-center" />
+            <Input type="number" value={minutes} onChange={(e) => setMinutes(e.target.value)} className="w-16 text-center" />
             <Select value={period} onValueChange={(val) => setPeriod(val as "AM" | "PM")}>
               <SelectTrigger className="w-[80px]">
                 <SelectValue placeholder="AM/PM" />

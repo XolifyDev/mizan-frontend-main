@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { logMasjidAction } from "@/lib/logger"
+import { getUserMasjid } from "@/lib/actions/masjid"
 
 export async function POST(request: Request) {
   try {
@@ -66,3 +67,11 @@ export async function GET(request: Request) {
     )
   }
 } 
+
+
+export async function PUT(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const masjidId = searchParams.get("masjidId") || undefined;
+  const masjid = await getUserMasjid(masjidId);
+  return NextResponse.json(masjid);
+}

@@ -239,9 +239,9 @@ export default function CartPage({ products }: Props) {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {cart.map((item) => (
+                      {cart.map((item,index) => (
                         <TableRow
-                          key={item.productId}
+                          key={index}
                           className="hover:bg-[#550C18]/5"
                         >
                           <TableCell className="p-4">

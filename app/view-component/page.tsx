@@ -1,58 +1,69 @@
-'use client';
+"use client";
 
-import React, { Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
-const ComponentViewer = () => {
-    const searchParams = useSearchParams();
-    const slideParam = searchParams.get('slide');
-    const masjidParam = searchParams.get('masjid');
+declare global {
+  interface Window {
+    MizanDynamicComponent?: any;
+  }
+}
 
-    if (!slideParam) {
-        return <div style={{ padding: '20px', color: 'red' }}>Error: No slide data provided.</div>;
+export default function ViewComponentPage() {
+  const searchParams = useSearchParams();
+  const [Component, setComponent] = useState<React.ComponentType | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Parse and decode params
+  const slideParam = searchParams.get("slide");
+  const masjidParam = searchParams.get("masjid");
+  let slide, masjid;
+  try {
+    slide = slideParam ? JSON.parse(decodeURIComponent(slideParam)) : null;
+    masjid = masjidParam ? JSON.parse(decodeURIComponent(masjidParam)) : null;
+  } catch (e) {
+    return <div>Invalid parameters</div>;
+  }
+
+  useEffect(() => {
+    if (!slide?.customComponentUrl) {
+      setError("No custom component URL provided.");
+      return;
     }
 
-    try {
-        const slide = JSON.parse(slideParam);
-        const masjid = masjidParam ? JSON.parse(masjidParam) : undefined;
+    fetch(`/api/esm/displaytv?url=${encodeURIComponent(slide.customComponentUrl)}`)
+      .then(res => res.text())
+      .then(code => {
+        // Remove all export statements and assign to global
+        const patchedCode = code
+          .replace(/export\s+default/g, "")
+          .replace(/export\s+\{[^}]*\};?/g, "")
+          + '\nwindow.MizanDynamicComponent = typeof MizanDynamicComponent === "function" ? MizanDynamicComponent : (typeof MizanDynamicComponent === "object" && MizanDynamicComponent.default ? MizanDynamicComponent.default : null);';
 
-        if (!slide.customComponentUrl) {
-            return <div style={{ padding: '20px', color: 'red' }}>Error: No component URL in slide data.</div>;
-        }
+        const script = document.createElement("script");
+        script.text = patchedCode;
+        document.body.appendChild(script);
 
-        const DynamicComponent = React.lazy(() => 
-            import(
-                /* webpackIgnore: true */
-                `/api/esm?url=${encodeURIComponent(slide.customComponentUrl)}`
-            )
-        );
+        setTimeout(() => {
+          let Comp = window.MizanDynamicComponent;
+          console.log('window.MizanDynamicComponent:', Comp);
+          if (Comp && typeof Comp !== 'function' && typeof Comp?.default === 'function') {
+            Comp = Comp.default;
+          }
+          if (typeof Comp === 'function') {
+            setComponent(() => Comp as any);
+          } else {
+            setError("Failed to load component.");
+          }
+          document.body.removeChild(script);
+          window.MizanDynamicComponent = undefined;
+        }, 100);
+      })
+      .catch(err => setError("Failed to fetch component: " + err));
+  }, [slide?.customComponentUrl]);
 
-        const props = {
-            slide,
-            masjid,
-            theme: slide.theme,
-            slides: [],
-        };
+  if (error) return <div>Error: {error}</div>;
+  if (!Component) return <div>Loading custom component...</div>;
 
-        return (
-            <Suspense fallback={null}>
-                <DynamicComponent {...props} />
-            </Suspense>
-        );
-    } catch(e) {
-        console.error("Failed to parse props or load component", e);
-        return <div style={{ padding: '20px', color: 'red' }}>Error: Failed to load component. Invalid data provided.</div>;
-    }
-};
-
-const Page = () => {
-    return (
-        <div style={{ width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden' }}>
-            <Suspense fallback={null}>
-                <ComponentViewer />
-            </Suspense>
-        </div>
-    );
-};
-
-export default Page; 
+  return <Component slide={slide} masjid={masjid} />;
+} 

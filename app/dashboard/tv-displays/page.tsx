@@ -43,6 +43,7 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface TVDisplay {
   id: string;
@@ -619,43 +620,70 @@ export default function TVDisplaysPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Link href={`/dashboard/tv-displays/signage-config?masjidId=${masjidId}&displayId=${display.id}`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                        >
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => {
-                          setEditForm({
-                            ...display,
-                            config: {
-                              notes: display.config?.notes || "",
-                              autoPower: display.config?.autoPower || false
-                            }
-                          });
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        onClick={() => {
-                          setDisplayToDelete(display);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                          <TooltipTrigger asChild>
+                          <Link href={`/dashboard/tv-displays/signage-config?masjidId=${masjidId}&displayId=${display.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <Settings className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Display slides settings</p>
+                        </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setEditForm({
+                                  ...display,
+                                  config: {
+                                    notes: display.config?.notes || "",
+                                    autoPower: display.config?.autoPower || false
+                                  }
+                                });
+                                setEditDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Edit display settings</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                      <TooltipProvider>
+                        <Tooltip delayDuration={0}>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setDisplayToDelete(display);
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                            <Trash className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Delete display</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Button
                         variant="outline"
                         size="sm"

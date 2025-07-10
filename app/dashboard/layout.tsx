@@ -42,7 +42,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if(isPending) return;
-    if(!session) return router.push("/signin?message=You need to login to access this page!");
+    if(!isPending && !session) return router.push("/signin?message=You need to login to access this page!");
   }, [isPending, session, router]); 
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function DashboardLayout({
       if(isPending || !session) return;
       const userMasjid = await getUserMasjid(masjidId || "");
 
-      if (!userMasjid) {
+      if (!userMasjid || userMasjid.error) {
         setMasjid(null);
         setShowAddMasjidModal(true);
         setMasjidCreationStep(1);
@@ -89,11 +89,13 @@ export default function DashboardLayout({
           <Dialog open={showAddMasjidModal} onOpenChange={setShowAddMasjidModal}>
             <DialogTrigger>Open</DialogTrigger>
             {masjidCreatedStep === 1 && (
-              <CreateMasjidForm
-                isOpen={true}
-                onClose={() => {}}
-                onSuccess={() => {}}
-              />
+              <DialogContent>
+                <CreateMasjidForm
+                  isOpen={true}
+                  onClose={() => {}}
+                  onSuccess={() => {}}
+                />
+              </DialogContent>
             )}
             {masjidCreatedStep === 0 && (
               <DialogContent>
@@ -135,11 +137,13 @@ export default function DashboardLayout({
           <AlertDialog open={showAddMasjidModal} onOpenChange={setShowAddMasjidModal}>
             <AlertDialogTrigger>Open</AlertDialogTrigger>
             {masjidCreatedStep === 1 && (
-              <CreateMasjidForm
-                isOpen={true}
-                onClose={() => {}}
-                onSuccess={() => {}}
-              />
+              <AlertDialogContent className="p-0 border-none">
+                <CreateMasjidForm
+                  isOpen={true}
+                  onClose={() => {}}
+                  onSuccess={() => {}}
+                />
+              </AlertDialogContent>
             )}
             {masjidCreatedStep === 0 && (
               <AlertDialogContent>

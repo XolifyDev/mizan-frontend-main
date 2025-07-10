@@ -159,8 +159,8 @@ export default function EditEidCountdownForm({ id }: { id: string }) {
         ...values,
         masjidId,
         type: "eid_countdown",
-        startDate: format(values.startDate, "yyyy-MM-dd HH:mm:ss"),
-        endDate: format(values.endDate, "yyyy-MM-dd HH:mm:ss"),
+        startDate: values.startDate.toISOString(),
+        endDate: values.endDate.toISOString(),
         description: "Eid Countdown",
       });
       toast({

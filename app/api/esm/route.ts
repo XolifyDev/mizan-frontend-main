@@ -98,6 +98,8 @@ export async function GET(request: NextRequest) {
     headers.set('Pragma', 'no-cache');
     headers.set('Expires', '0');
 
+    console.log(transpiledCode);
+
     return new NextResponse(transpiledCode, {
       status: 200,
       headers,

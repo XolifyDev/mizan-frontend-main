@@ -100,6 +100,16 @@ model PrayerTime {
   month        String
   year         Int
   masjid       Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
+  
+  // Iqamah timing fields
+  iqamahFajr      DateTime?
+  iqamahDhuhr     DateTime?
+  iqamahAsr       DateTime?
+  iqamahMaghrib   DateTime?
+  iqamahIsha      DateTime?
+  iqamahJumuahI   DateTime?
+  iqamahJumuahII  DateTime?
+  iqamahJumuahIII DateTime?
 
   @@unique([masjidId, date])
   @@index([masjidId])

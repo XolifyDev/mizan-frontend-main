@@ -22,6 +22,7 @@ import {
   Globe,
   BookMarked,
   EyeOff,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { deleteAnnouncement, updateAnnouncement } from "@/lib/actions/announcements";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const CONTENT_TYPES = [
   {
@@ -678,7 +680,17 @@ export default function ContentLibraryPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-                <h2 className="text-xl font-semibold text-[#3A3A3A]" id="announcement-table">Announcements</h2>
+                <div className="flex flex-row items-center w-full">
+                  <h2 className="text-xl font-semibold text-[#3A3A3A]" id="announcement-table">Announcements</h2>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="inline-block ml-2 h-4 w-4 text-[#3A3A3A]/50 hover:text-[#3A3A3A]/70 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      MizanTv: Announcements will be displayed in a animating text on the bottom.<br /> Or can be displayed in a fullscreen mode once you add into the screens settings.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
               </CardTitle>
               <CardDescription className="text-[#3A3A3A]/70">
                 Browse and manage your announcements
