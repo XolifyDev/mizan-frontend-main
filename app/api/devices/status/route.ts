@@ -6,6 +6,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
     // get device id from headers "Authorization"
     const deviceId = request.headers.get("Authorization");
+    console.log(deviceId);
     if (!deviceId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     // get device id from headers "Authorization"
     const deviceId = request.headers.get("Authorization");
+    console.log(deviceId);
     if (!deviceId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
