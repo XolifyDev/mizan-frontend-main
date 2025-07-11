@@ -19,6 +19,10 @@ export async function GET(request: Request, { params }: { params: { id: string }
     where: {
       masjidId: id,
     },
+    orderBy: {
+      createdAt: 'desc'
+    }
   });
+  // console.log(content, announcements);
   return NextResponse.json({ content, announcements });
 }

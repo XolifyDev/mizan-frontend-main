@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: { deviceId: string } }
 ) {
   try {
-    const deviceId = params.deviceId;
+    const { deviceId } = await params;
     const body = await request.json();
     const { status, lastSeen, networkStatus } = body;
 
