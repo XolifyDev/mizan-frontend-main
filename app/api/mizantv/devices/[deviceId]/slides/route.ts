@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { deviceId: string } }
 ) {
   try {
-    const deviceId = params.deviceId;
     const { searchParams } = new URL(request.url);
     const masjidId = searchParams.get("masjidId");
+    const deviceId = searchParams.get("deviceId");
+    console.log(deviceId, masjidId);
 
     if (!deviceId || !masjidId) {
       return NextResponse.json(
