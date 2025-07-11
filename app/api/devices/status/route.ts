@@ -1,12 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { headers as NextHeaders } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-    // get device id from headers "Authorization"
-    const deviceId = request.headers.get("Authorization");
+    // get device id from searchParams
+    const { searchParams } = new URL(request.url);
+    const deviceId = searchParams.get("deviceId");
     console.log(deviceId);
     if (!deviceId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
     // get device status from database
     const device = await prisma.tVDisplay.findFirst({
-        where: { id: deviceId.replace("Device: ", "") }
+        where: { id: deviceId }
     });
 
     if (!device) {
@@ -26,17 +26,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     const body = await request.json();
-    const headers = await NextHeaders();
-    console.log(headers);
-    // get device id from headers "Authorization"
-    const deviceId = headers.get("Authorization");
+    
+    // get device id from searchParams
+    const { searchParams } = new URL(request.url);
+    const deviceId = searchParams.get("deviceId");
     if (!deviceId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // get device status from database
     const device = await prisma.tVDisplay.findFirst({
-        where: { id: deviceId.replace("Device: ", "") }
+        where: { id: deviceId }
     });
 
     if (!device) {
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
     // update device status
     const updatedDevice = await prisma.tVDisplay.update({
-        where: { id: deviceId.replace("Device: ", "") },
+        where: { id: deviceId },
         data: { status: body.status, lastSeen: body.lastSeen }
     });
 
