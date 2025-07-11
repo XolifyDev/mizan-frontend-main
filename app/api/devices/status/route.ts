@@ -1,7 +1,8 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { headers as NextHeaders, NextResponse } from "next/server";
+import { headers as NextHeaders } from "next/headers";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
     // get device id from headers "Authorization"
