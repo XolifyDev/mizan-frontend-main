@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { NextResponse } from "next/server";
+import { headers, NextResponse } from "next/server";
 
 export async function GET(request: Request) {
     // get device id from headers "Authorization"
@@ -25,9 +25,10 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     const body = await request.json();
+    const headers = await headers();
+    console.log(headers);
     // get device id from headers "Authorization"
-    const deviceId = request.headers.get("Authorization");
-    console.log(deviceId);
+    const deviceId = headers.get("Authorization");
     if (!deviceId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
