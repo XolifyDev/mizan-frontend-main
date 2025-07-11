@@ -22,15 +22,15 @@ interface HealthMetrics {
 }
 
 export async function GET(request: Request) {
-  // get device id from headers "Authorization"
-  const deviceId = request.headers.get("Authorization");
+  const { searchParams } = new URL(request.url);
+  const deviceId = searchParams.get("deviceId");
   if (!deviceId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   // get device status from database
   const device = await prisma.tVDisplay.findFirst({
-    where: { id: deviceId.replace("Device: ", "") }
+    where: { id: deviceId }
   });
 
   if (!device) {

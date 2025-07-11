@@ -9,6 +9,7 @@ export async function GET(
     const { id: masjidId } = await params;
     const { searchParams } = new URL(request.url);
     const displayId = searchParams.get('deviceId');
+    
 
     const masjid = await prisma.masjid.findUnique({
         where: { id: masjidId }

@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json(
         { error: "Missing required fields: deviceId, status" },
         { status: 400 }
-      );
+      );  
     }
 
     // Find device by id (deviceId is the id)
