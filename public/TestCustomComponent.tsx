@@ -1,6 +1,6 @@
 import React from 'react';
 
-const CustomComponent = ({ slide, masjid, theme }) => {
+const TestCustomComponent = ({ slide, masjid, theme }) => {
   const defaultTheme = {
     background: '#550C18',
     text: '#FFFFFF',
@@ -27,19 +27,19 @@ const CustomComponent = ({ slide, masjid, theme }) => {
     }}>
       <h1 style={{ 
         color: currentTheme.primary, 
-        fontSize: '2.5rem', 
+        fontSize: '3rem', 
         marginBottom: '1rem',
         textShadow: '2px 2px 4px rgba(0,0,0,0.3)'
       }}>
-        Custom Slide
+        ✅ Custom Component Working!
       </h1>
       
       <div style={{ 
-        fontSize: '1.2rem', 
+        fontSize: '1.5rem', 
         marginBottom: '2rem',
         opacity: 0.9
       }}>
-        This is a custom component loaded from GitHub
+        The custom component system is now functional
       </div>
       
       <div style={{
@@ -48,7 +48,7 @@ const CustomComponent = ({ slide, masjid, theme }) => {
         padding: '1.5rem',
         borderRadius: '12px',
         marginBottom: '2rem',
-        maxWidth: '500px'
+        maxWidth: '600px'
       }}>
         <div style={{ marginBottom: '1rem' }}>
           <strong>Slide ID:</strong> {slide?.id || 'N/A'}<br/>
@@ -61,12 +61,12 @@ const CustomComponent = ({ slide, masjid, theme }) => {
             <strong>Content:</strong><br/>
             <pre style={{ 
               textAlign: 'left', 
-              fontSize: '0.8rem', 
+              fontSize: '0.9rem', 
               overflow: 'auto', 
-              maxHeight: '100px',
+              maxHeight: '150px',
               backgroundColor: 'rgba(0,0,0,0.2)',
-              padding: '8px',
-              borderRadius: '4px'
+              padding: '10px',
+              borderRadius: '6px'
             }}>
               {JSON.stringify(slide.content, null, 2)}
             </pre>
@@ -81,13 +81,23 @@ const CustomComponent = ({ slide, masjid, theme }) => {
         fontSize: '0.9rem',
         opacity: 0.7,
         backgroundColor: 'rgba(0,0,0,0.3)',
-        padding: '6px 10px',
-        borderRadius: '4px'
+        padding: '8px 12px',
+        borderRadius: '6px'
       }}>
         Loaded at: {new Date().toLocaleTimeString()}
+      </div>
+      
+      <div style={{
+        position: 'absolute',
+        bottom: '20px',
+        left: '20px',
+        fontSize: '0.8rem',
+        opacity: 0.6
+      }}>
+        MizanTV Custom Component System v2.0
       </div>
     </div>
   );
 };
 
-export default CustomComponent; 
+export default TestCustomComponent; 

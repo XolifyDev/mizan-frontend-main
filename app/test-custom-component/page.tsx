@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import React, { useEffect, useState } from 'react';
 
@@ -8,46 +8,61 @@ declare global {
   }
 }
 
-/**
- * Loads a custom slide using a simplified approach.
- * Passes slide, masjid, and theme as props for the custom component to access.
- */
-export default function CustomComponentLoader({ url, componentProps, cacheKey }: { url: any; componentProps: any, cacheKey?: string | number }) {
+export default function TestCustomComponentPage() {
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!url) {
-      setError('No custom component URL provided.');
-      setLoading(false);
-      return;
+  // Test data
+  const testSlide = {
+    id: 'test-slide-1',
+    type: 'custom',
+    content: {
+      title: 'Test Slide',
+      subtitle: 'This is a test',
+      data: { message: 'Hello from test slide!' }
     }
+  };
 
-    console.log('Loading custom component from:', url);
+  const testMasjid = {
+    id: 'test-masjid-1',
+    name: 'Test Masjid',
+    logo: 'https://example.com/logo.png'
+  };
+
+  const testTheme = {
+    background: '#550C18',
+    text: '#FFFFFF',
+    primary: '#78001A',
+    accent: '#a32624',
+    font: 'Arial, sans-serif'
+  };
+
+  useEffect(() => {
+    console.log('Loading test component...');
 
     // Clear any existing component
     window.MizanDynamicComponent = undefined;
 
     // Create script element
     const script = document.createElement('script');
-    script.src = `/api/esm/displaytv?url=${encodeURIComponent(url)}${cacheKey ? `&v=${cacheKey}` : ''}`;
+    script.src = '/TestCustomComponent.tsx';
     script.async = true;
 
     // Handle script load success
     script.onload = () => {
-      console.log('Script loaded successfully');
+      console.log('Test script loaded successfully');
       
       // Give a small delay for the script to execute
       setTimeout(() => {
         const Comp = window.MizanDynamicComponent;
-        console.log('Component loaded:', Comp);
+        console.log('Test component loaded:', Comp);
         
         if (Comp && typeof Comp === 'function') {
           setComponent(() => Comp);
           setError(null);
         } else {
-          setError('Component failed to load or is not a valid React component.');
+          setError('Test component failed to load or is not a valid React component.');
         }
         setLoading(false);
         
@@ -58,8 +73,8 @@ export default function CustomComponentLoader({ url, componentProps, cacheKey }:
 
     // Handle script load error
     script.onerror = () => {
-      console.error('Failed to load script');
-      setError('Failed to load component script.');
+      console.error('Failed to load test script');
+      setError('Failed to load test component script.');
       setLoading(false);
     };
 
@@ -73,25 +88,23 @@ export default function CustomComponentLoader({ url, componentProps, cacheKey }:
       }
       window.MizanDynamicComponent = undefined;
     };
-  }, [url, cacheKey]);
+  }, []);
 
   // Show loading state
   if (loading) {
     return (
       <div style={{ 
-        height: '100%', 
+        height: '100vh', 
         width: '100%', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        backgroundColor: '#f5f5f5',
-        color: '#666',
-        border: '2px dashed #ccc',
-        borderRadius: '8px'
+        backgroundColor: '#000',
+        color: '#fff'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '16px', marginBottom: '8px' }}>Loading custom component...</div>
-          <div style={{ fontSize: '12px', opacity: 0.7 }}>{url}</div>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>Loading test component...</div>
+          <div style={{ fontSize: '14px', opacity: 0.7 }}>/TestCustomComponent.tsx</div>
         </div>
       </div>
     );
@@ -101,23 +114,23 @@ export default function CustomComponentLoader({ url, componentProps, cacheKey }:
   if (error) {
     return (
       <div style={{ 
-        height: '100%', 
+        height: '100vh', 
         width: '100%', 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        backgroundColor: '#ffebee',
-        color: '#c62828',
-        border: '2px dashed #ef5350',
-        borderRadius: '8px',
+        backgroundColor: '#f44336',
+        color: '#fff',
         padding: '20px',
         textAlign: 'center'
       }}>
         <div>
-          <div style={{ fontSize: '16px', marginBottom: '8px' }}>Component Error</div>
-          <div style={{ fontSize: '14px', marginBottom: '12px' }}>{error}</div>
-          <div style={{ fontSize: '12px', opacity: 0.8 }}>
-            URL: {url}
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>Test Component Error</div>
+          <div style={{ fontSize: '16px', marginBottom: '20px' }}>{error}</div>
+          <div style={{ fontSize: '14px', opacity: 0.8 }}>
+            URL: /TestCustomComponent.tsx<br/>
+            Slide ID: {testSlide.id}<br/>
+            Masjid: {testMasjid.name}
           </div>
         </div>
       </div>
@@ -127,26 +140,35 @@ export default function CustomComponentLoader({ url, componentProps, cacheKey }:
   // Render the component
   if (Component) {
     return (
-      <div style={{ height: '100%', width: '100%' }}>
-        <Component {...componentProps} />
-      </div>
+      <>
+        <style>{`
+          html, body, #__next {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: hidden;
+          }
+        `}</style>
+        <div style={{ height: '100vh', width: '100%' }}>
+          <Component slide={testSlide} masjid={testMasjid} theme={testTheme} />
+        </div>
+      </>
     );
   }
 
   // Fallback
   return (
     <div style={{ 
-      height: '100%', 
+      height: '100vh', 
       width: '100%', 
       display: 'flex', 
       alignItems: 'center', 
       justifyContent: 'center',
-      backgroundColor: '#f5f5f5',
-      color: '#666',
-      border: '2px dashed #ccc',
-      borderRadius: '8px'
+      backgroundColor: '#666',
+      color: '#fff'
     }}>
-      <div>No component available</div>
+      <div>No test component available</div>
     </div>
   );
 } 

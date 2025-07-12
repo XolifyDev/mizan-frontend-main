@@ -13,12 +13,14 @@ export default function MizanTVViewComponentPage() {
   const searchParams = useSearchParams();
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Parse and decode params
   const slideParam = searchParams.get('slide');
   const masjidParam = searchParams.get('masjid');
   const themeParam = searchParams.get('theme');
   const urlParam = searchParams.get('url');
+  
   let slide, masjid, theme, url;
   try {
     slide = slideParam ? JSON.parse(decodeURIComponent(slideParam)) : null;
@@ -26,82 +28,146 @@ export default function MizanTVViewComponentPage() {
     theme = themeParam ? JSON.parse(decodeURIComponent(themeParam)) : null;
     url = urlParam ? decodeURIComponent(urlParam) : null;
   } catch (e) {
-    return <div>Invalid parameters</div>;
+    console.error('Failed to parse parameters:', e);
+    return <div style={{ padding: '20px', color: 'red' }}>Invalid parameters</div>;
   }
 
   useEffect(() => {
     if (!url) {
       setError('No custom component URL provided.');
+      setLoading(false);
       return;
     }
 
-    fetch(`/api/esm/displaytv?url=${encodeURIComponent(url)}`)
-      .then(res => res.text())
-      .then(code => {
-        const patchedCode = code
-        .replace(/export\s+default/g, '')
-        .replace(/export\s+\{[^}]*\};?/g, '')
-        + '\nwindow.MizanDynamicComponent = typeof MizanDynamicComponent === "function" ? MizanDynamicComponent : (typeof MizanDynamicComponent === "object" && MizanDynamicComponent.default ? MizanDynamicComponent.default : null);';
+    console.log('Loading custom component from:', url);
+
+    // Clear any existing component
+
+    // Create script element
+    const script = document.createElement('script');
+    script.src = `/api/esm/displaytv?url=${encodeURIComponent(url)}`;
+    script.async = true;
+
+    // Handle script load success
+    script.onload = () => {
+      console.log('Script loaded successfully');
+      
+      // Give a small delay for the script to execute
+      setTimeout(() => {
+        const Comp = window.MizanDynamicComponent;
+        console.log('Component loaded:', Comp, window);
         
-        const script = document.createElement('script');
-        script.text = patchedCode;
-        console.log(typeof window.MizanDynamicComponent, new Date().toISOString(), url);
-        
-        // Poll for the global variable
-        let tries = 0;
-        const maxTries = 50; // 5 seconds at 100ms interval
-        const poll = () => {
-          let Comp = window.MizanDynamicComponent;
-          if (Comp && typeof Comp !== 'function' && typeof Comp?.default === 'function') {
-            Comp = Comp.default;
-          }
-          if (typeof Comp === 'function') {
-            setComponent(() => Comp as any);
-            if (document.body.contains(script)) {
-              document.body.removeChild(script);
-            }
-            window.MizanDynamicComponent = undefined;
-          } else if (tries < maxTries) {
-            tries++;
-            setTimeout(poll, 100);
-          } else {
-            setError('Failed to load component.');
-            if (document.body.contains(script)) {
-              document.body.removeChild(script);
-            }
-            window.MizanDynamicComponent = undefined;
-          }
-        };
-        poll();
-      })
-      .catch(err => {
-        if(err instanceof Error) {
-          setError('Failed to fetch component: ' + err.message)
-        } else {
+        if (Comp && typeof Comp === 'function') {
+          setComponent(() => Comp);
           setError(null);
+        } else {
+          setError('Component failed to load or is not a valid React component.');
         }
-      });
+        setLoading(false);
+        
+        // Clean up
+        window.MizanDynamicComponent = undefined;
+      }, 100);
+    };
+
+    // Handle script load error
+    script.onerror = (e) => {
+      console.error('Failed to load script', e);
+      setError('Failed to load component script.');
+      setLoading(false);
+    };
+
+    // Add script to document
+    document.head.appendChild(script);
+
+    // Cleanup function
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+      window.MizanDynamicComponent = undefined;
+    };
   }, [url]);
 
-  if (error) return <div>Error: {error}</div>;
-  if (!Component) return <div>Loading custom component...</div>;
-
-  return (
-    <>
-      <style>{`
-        html, body, #__next {
-          height: 99%;
-          margin: 0;
-          padding: 0;
-          background: transparent;
-        }
-        body {
-          overflow: hidden;
-        }
-      `}</style>
-      <div style={{ height: '100vh', width: '100%' }}>
-        {Component && (React.createElement(Component as any, { slide, masjid, theme }))}
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={{ 
+        height: '100vh', 
+        width: '100%', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: theme?.background || '#000',
+        color: theme?.text || '#fff'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>Loading custom component...</div>
+          <div style={{ fontSize: '14px', opacity: 0.7 }}>{url}</div>
+        </div>
       </div>
-    </>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div style={{ 
+        height: '100vh', 
+        width: '100%', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: '#f44336',
+        color: '#fff',
+        padding: '20px',
+        textAlign: 'center'
+      }}>
+        <div>
+          <div style={{ fontSize: '24px', marginBottom: '10px' }}>Error Loading Component</div>
+          <div style={{ fontSize: '16px', marginBottom: '20px' }}>{error}</div>
+          <div style={{ fontSize: '14px', opacity: 0.8 }}>
+            URL: {url}<br/>
+            Slide ID: {slide?.id}<br/>
+            Masjid: {masjid?.name}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Render the component
+  if (Component) {
+    return (
+      <>
+        <style>{`
+          html, body, #__next {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            overflow: hidden;
+          }
+        `}</style>
+        <div style={{ height: '100vh', width: '100%' }}>
+          <Component slide={slide} masjid={masjid} theme={theme} />
+        </div>
+      </>
+    );
+  }
+
+  // Fallback
+  return (
+    <div style={{ 
+      height: '100vh', 
+      width: '100%', 
+      display: 'flex', 
+      alignItems: 'center', 
+      justifyContent: 'center',
+      backgroundColor: '#666',
+      color: '#fff'
+    }}>
+      <div>No component available</div>
+    </div>
   );
 }
