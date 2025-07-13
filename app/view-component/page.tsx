@@ -24,7 +24,7 @@ export default function ViewComponentPage() {
   try {
     slide = slideParam ? JSON.parse(decodeURIComponent(slideParam)) : null;
     masjid = masjidParam ? JSON.parse(decodeURIComponent(masjidParam)) : null;
-    url = urlParam ? decodeURIComponent(urlParam) : slide?.customComponentUrl : null;
+    url = urlParam ? decodeURIComponent(urlParam) : slide?.customComponentUrl || null;
   } catch (e) {
     console.error('Failed to parse parameters:', e);
     return <div style={{ padding: '20px', color: 'red' }}>Invalid parameters</div>;
