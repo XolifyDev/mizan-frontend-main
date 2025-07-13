@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
     const sourceCode = await codeResponse.text();
 
-    // Transpile TSX/JSX to JS using esbuild
+    // Transpile TSX/JSX to IIFE JS using esbuild
     const result = await esbuild.build({
       stdin: {
         contents: sourceCode,

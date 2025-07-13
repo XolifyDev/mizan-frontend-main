@@ -3,12 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-declare global {
-  interface Window {
-    MizanDynamicComponent?: any;
-  }
-}
-
 export default function MizanTVViewComponentPage() {
   const searchParams = useSearchParams();
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
@@ -39,24 +33,20 @@ export default function MizanTVViewComponentPage() {
       return;
     }
 
-    console.log('Loading custom component from:', url);
+    // Remove any previous global
+    window.MizanDynamicComponent = undefined;
 
-    // Clear any existing component
-
-    // Create script element
+    // Script injection
     const script = document.createElement('script');
     script.src = `/api/esm/displaytv?url=${encodeURIComponent(url)}`;
     script.async = true;
 
-    // Handle script load success
-    script.onload = () => {
-      console.log('Script loaded successfully');
-      
-      // Give a small delay for the script to execute
+    script.onload = (e) => {
+      console.log(window, e);
       setTimeout(() => {
         const Comp = window.MizanDynamicComponent;
-        console.log('Component loaded:', Comp, window);
-        
+
+        console.log(Comp);
         if (Comp && typeof Comp === 'function') {
           setComponent(() => Comp);
           setError(null);
@@ -64,23 +54,15 @@ export default function MizanTVViewComponentPage() {
           setError('Component failed to load or is not a valid React component.');
         }
         setLoading(false);
-        
-        // Clean up
         window.MizanDynamicComponent = undefined;
-      }, 100);
+      }, 50);
     };
-
-    // Handle script load error
-    script.onerror = (e) => {
-      console.error('Failed to load script', e);
+    script.onerror = () => {
       setError('Failed to load component script.');
       setLoading(false);
+      window.MizanDynamicComponent = undefined;
     };
-
-    // Add script to document
     document.head.appendChild(script);
-
-    // Cleanup function
     return () => {
       if (document.head.contains(script)) {
         document.head.removeChild(script);
@@ -110,7 +92,7 @@ export default function MizanTVViewComponentPage() {
   }
 
   // Show error state
-  if (error) {
+  if (!Component && error) {
     return (
       <div style={{ 
         height: '100vh', 
@@ -149,7 +131,7 @@ export default function MizanTVViewComponentPage() {
             overflow: hidden;
           }
         `}</style>
-        <div style={{ height: '100vh', width: '100%' }}>
+        <div style={{ height: '97dvh', width: '100%', marginBottom: '3dvh' }}>
           <Component slide={slide} masjid={masjid} theme={theme} />
         </div>
       </>
