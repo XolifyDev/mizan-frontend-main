@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Monitor,
   Plus,
@@ -13,6 +13,11 @@ import {
   ImageIcon,
   Tv,
   FileText,
+  Wifi,
+  WifiOff,
+  Smartphone,
+  Globe,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,6 +49,9 @@ import { toast } from 'sonner';
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAdminSocketIO } from "@/hooks/useSocketIO";
+import { getSocketIOClient } from "@/lib/socketio/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface TVDisplay {
   id: string;
@@ -59,6 +67,7 @@ interface TVDisplay {
   createdAt: string | Date;
   updatedAt: string | Date;
   content?: string;
+  lastContentUpdate?: Date | string | null;
   
   // MizanTV specific fields
   platform?: string;
@@ -151,7 +160,6 @@ export default function TVDisplaysPage() {
       refreshInterval: 30
     }
   });
-  const [wsConnected, setWsConnected] = useState(false);
   const [isCreatingDisplay, setIsCreatingDisplay] = useState(false);
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false);
   const [newDisplay, setNewDisplay] = useState({ name: '', location: '' });
@@ -164,24 +172,160 @@ export default function TVDisplaysPage() {
   // @ts-ignore
   const isAdmin = session?.user?.admin;
 
-  useEffect(() => {
-    fetchData();
-  }, [masjidId]);
+  // Track if admin subscription has been received
+  const [adminSubscribed, setAdminSubscribed] = useState(false);
 
-  useEffect(() => {
-    fetchData(); // initial fetch
-    const interval = setInterval(() => {
-      fetchData();
-    }, 10000); // 10 seconds
-    return () => clearInterval(interval);
-  }, [masjidId]);
+  // WebSocket integration
+  const onConnect = useCallback(() => {
+    console.log('WebSocket connected for admin dashboard');
+    toast.success('Real-time connection established');
+  }, []);
 
-  const fetchData = async () => {
+  const onDisconnect = useCallback(() => {
+    console.log('WebSocket disconnected');
+    setAdminSubscribed(false); // Reset admin subscription status
+    toast.error('Real-time connection lost');
+  }, []);
+
+  const onError = useCallback((error: any) => {
+    console.error('WebSocket error:', error);
+    toast.error('WebSocket connection error');
+  }, []);
+
+  const onAdminSubscribed = useCallback((data: any) => {
+    console.log('Admin subscribed, received devices:', data.devices);
+    setAdminSubscribed(true); // Mark admin subscription as successful
+    
+    // Update displays with WebSocket data - replace existing devices instead of merging
+    const wsDevices = data.devices || [];
+    setDisplays(prev => {
+      // Create a map of existing devices by ID
+      const existingDevicesMap = new Map(prev.map(d => [d.id, d]));
+      
+      // Update or add WebSocket devices
+      wsDevices.forEach(wsDevice => {
+        existingDevicesMap.set(wsDevice.id, {
+          ...wsDevice,
+          lastSeen: wsDevice.lastSeen ? new Date(wsDevice.lastSeen) : null,
+          createdAt: wsDevice.createdAt ? new Date(wsDevice.createdAt) : new Date(),
+          updatedAt: wsDevice.updatedAt ? new Date(wsDevice.updatedAt) : new Date(),
+        });
+      });
+      
+      const allDisplays = Array.from(existingDevicesMap.values());
+      setActiveDisplays(allDisplays.filter(d => d.status === "online").length);
+      return allDisplays;
+    });
+  }, []);
+
+  const onDeviceConnected = useCallback((data: any) => {
+    console.log('Device connected:', data);
+    toast.success(`Device ${data.deviceInfo?.deviceName || data.deviceId} connected`);
+    
+    setDisplays(prev => {
+      const existing = prev.find(d => d.id === data.deviceId);
+      if (existing) {
+        const updated = prev.map(d => 
+          d.id === data.deviceId 
+            ? { ...d, status: 'online', lastSeen: new Date(), networkStatus: 'connected' }
+            : d
+        );
+        setActiveDisplays(updated.filter(d => d.status === "online").length);
+        return updated;
+      } else {
+        const newDevice = {
+          id: data.deviceId,
+          name: data.deviceInfo?.deviceName || `New Device`,
+          status: 'online',
+          lastSeen: new Date(),
+          platform: data.deviceInfo?.platform,
+          model: data.deviceInfo?.model,
+          networkStatus: 'connected',
+          location: 'Main Hall',
+          isActive: true,
+          masjidId: data.masjidId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          config: {},
+          assignedContentId: null,
+          ipAddress: null,
+        };
+        const updated = [...prev, newDevice];
+        setActiveDisplays(updated.filter(d => d.status === "online").length);
+        return updated;
+      }
+    });
+  }, []);
+
+  const onDeviceDisconnected = useCallback((data: any) => {
+    console.log('Device disconnected:', data);
+    toast.error(`Device ${data.deviceId} disconnected`);
+    
+    setDisplays(prev => {
+      const updated = prev.map(d => 
+        d.id === data.deviceId 
+          ? { ...d, status: 'offline' }
+          : d
+      );
+      setActiveDisplays(updated.filter(d => d.status === "online").length);
+      return updated;
+    });
+  }, []);
+
+  const onDeviceStatusChanged = useCallback((data: any) => {
+    console.log('Device status changed:', data);
+    
+    setDisplays(prev => {
+      const updated = prev.map(d => 
+        d.id === data.deviceId 
+          ? { 
+              ...d, 
+              status: data.status, 
+              lastSeen: data.lastSeen ? new Date(data.lastSeen) : d.lastSeen,
+              networkStatus: data.networkStatus 
+            }
+          : d
+      );
+      setActiveDisplays(updated.filter(d => d.status === "online").length);
+      return updated;
+    });
+  }, []);
+
+  const onDeviceConfigChanged = useCallback((data: any) => {
+    console.log('Device config changed:', data);
+    
+    setDisplays(prev => 
+      prev.map(d => 
+        d.id === data.deviceId 
+          ? { ...d, config: data.config }
+          : d
+      )
+    );
+  }, []);
+
+  const onDeviceContentChanged = useCallback((data: any) => {
+    console.log('Device content changed:', data);
+    
+    setDisplays(prev => 
+      prev.map(d => 
+        d.id === data.deviceId 
+          ? { 
+              ...d, 
+              content: data.contentType || 'prayer',
+              lastContentUpdate: data.lastContentUpdate ? new Date(data.lastContentUpdate) : new Date(),
+              lastSeen: new Date() // Update last seen when content changes
+            }
+          : d
+      )
+    );
+  }, []);
+
+  const fetchData = useCallback(async () => {
     try {
       const displaysData = await getAllTVDisplays(masjidId);
       const templatesData = await getAllContentTemplates(masjidId);
       
-      // Fetch MizanTV devices
+      // Fetch MizanTV devices (fallback for non-WebSocket devices)
       const mizanTvDevicesResponse = await fetch(`/api/admin/masjids/${masjidId}/devices`);
       let mizanTvDevices: TVDisplay[] = [];
       
@@ -189,7 +333,6 @@ export default function TVDisplaysPage() {
         const mizanTvData = await mizanTvDevicesResponse.json();
         mizanTvDevices = mizanTvData.devices.map((device: any) => ({
           ...device,
-          // Convert string dates back to Date objects for consistency
           lastSeen: device.lastSeen ? new Date(device.lastSeen) : null,
           registeredAt: device.registeredAt ? new Date(device.registeredAt) : null,
           createdAt: new Date(device.createdAt),
@@ -197,8 +340,20 @@ export default function TVDisplaysPage() {
         }));
       }
       
-      // Combine regular displays and MizanTV devices
-      const allDisplays = [...mizanTvDevices];
+      // Combine regular displays and MizanTV devices with deduplication
+      const allDevicesMap = new Map();
+      
+      // Add regular displays
+      displaysData.forEach(display => {
+        allDevicesMap.set(display.id, display);
+      });
+      
+      // Add MizanTV devices (will overwrite if same ID exists)
+      mizanTvDevices.forEach(device => {
+        allDevicesMap.set(device.id, device);
+      });
+      
+      const allDisplays = Array.from(allDevicesMap.values());
       
       setDisplays(allDisplays);
       setTemplates(templatesData as any);
@@ -207,7 +362,112 @@ export default function TVDisplaysPage() {
       console.error('Error fetching data:', error);
       setError("Failed to fetch data. Please try again.");
     }
-  };
+  }, [masjidId]);
+
+  const {
+    isConnected: wsConnected,
+    isConnecting: wsConnecting,
+    error: wsError,
+    restartDevice,
+    stopDevice,
+    startDevice,
+    broadcastMessage,
+  } = useAdminSocketIO(masjidId || "", {
+    onConnect,
+    onDisconnect,
+    onError,
+    onAdminSubscribed,
+    onDeviceConnected,
+    onDeviceDisconnected,
+    onDeviceStatusChanged,
+    onDeviceConfigChanged,
+    onDeviceContentChanged,
+  });
+
+  // Add timeout to clear connecting status after 10 seconds
+  useEffect(() => {
+    if (wsConnecting && !wsConnected) {
+      const timeout = setTimeout(() => {
+        console.log('WebSocket connecting timeout - clearing connecting status');
+        // Force clear connecting status after 10 seconds
+      }, 10000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [wsConnecting, wsConnected]);
+
+  useEffect(() => {
+    console.log('TV Displays - masjidId:', masjidId);
+    console.log('TV Displays - wsConnected:', wsConnected);
+    console.log('TV Displays - wsConnecting:', wsConnecting);
+    console.log('TV Displays - wsError:', wsError);
+    
+    if (masjidId) {
+      fetchData();
+    }
+  }, [masjidId, wsConnected, wsConnecting, wsError]);
+
+  // Add global console command to pause WebSocket reconnection
+  useEffect(() => {
+    // @ts-ignore
+    window.pauseSocketIO = () => {
+      const client = getSocketIOClient();
+      if (client) {
+        client.pauseReconnection();
+        console.log('Socket.IO reconnection paused. Run window.resumeSocketIO() to resume.');
+      }
+    };
+    
+    // @ts-ignore
+    window.resumeSocketIO = () => {
+      const client = getSocketIOClient();
+      if (client) {
+        client.resumeReconnection();
+        console.log('Socket.IO reconnection resumed.');
+      }
+    };
+
+    // @ts-ignore
+    window.blockSocketIO = () => {
+      const client = getSocketIOClient();
+      if (client) {
+        client.blockConnection();
+        console.log('Socket.IO connection BLOCKED. Run window.unblockSocketIO() to unblock.');
+      }
+    };
+
+    // @ts-ignore
+    window.unblockSocketIO = () => {
+      const client = getSocketIOClient();
+      if (client) {
+        client.unblockConnection();
+        console.log('Socket.IO connection unblocked.');
+      }
+    };
+
+    // @ts-ignore
+    window.disableSocketIO = () => {
+      console.log('Socket.IO functionality disabled. Refresh the page to re-enable.');
+      // Set a flag in localStorage to disable Socket.IO
+      localStorage.setItem('ws_disabled', 'true');
+      window.location.reload();
+    };
+
+    // @ts-ignore
+    window.enableSocketIO = () => {
+      localStorage.removeItem('ws_disabled');
+      console.log('Socket.IO functionality enabled. Refresh the page to apply.');
+      window.location.reload();
+    };
+    
+    console.log('Socket.IO control commands available:');
+    console.log('- window.pauseSocketIO() - Pause reconnection attempts');
+    console.log('- window.resumeSocketIO() - Resume reconnection attempts');
+    console.log('- window.blockSocketIO() - BLOCK all Socket.IO connections');
+    console.log('- window.unblockSocketIO() - Unblock Socket.IO connections');
+    console.log('- window.disableSocketIO() - Disable Socket.IO completely');
+    console.log('- window.enableSocketIO() - Enable Socket.IO functionality');
+  }, []);
 
   const handleAddDisplay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -376,14 +636,227 @@ export default function TVDisplaysPage() {
     });
   };
 
-  // Add connection status indicator
+  // Handle device control actions
+  const handleRestartDevice = async (deviceId: string) => {
+    try {
+      restartDevice(deviceId);
+      toast.success(`Restart command sent to device ${deviceId}`);
+    } catch (error) {
+      console.error('Failed to restart device:', error);
+      toast.error('Failed to restart device');
+    }
+  };
+
+  const handleStopDevice = async (deviceId: string) => {
+    try {
+      stopDevice(deviceId);
+      toast.success(`Stop command sent to device ${deviceId}`);
+    } catch (error) {
+      console.error('Failed to stop device:', error);
+      toast.error('Failed to stop device');
+    }
+  };
+
+  const handleStartDevice = async (deviceId: string) => {
+    try {
+      startDevice(deviceId);
+      toast.success(`Start command sent to device ${deviceId}`);
+    } catch (error) {
+      console.error('Failed to start device:', error);
+      toast.error('Failed to start device');
+    }
+  };
+
+  const handleBroadcastMessage = async () => {
+    try {
+      broadcastMessage('Test broadcast message from admin dashboard', 'info');
+      toast.success('Broadcast message sent to all devices');
+    } catch (error) {
+      console.error('Failed to broadcast message:', error);
+      toast.error('Failed to broadcast message');
+    }
+  };
+
+  // Get platform icon
+  const getPlatformIcon = (platform?: string) => {
+    switch (platform?.toLowerCase()) {
+      case 'ios':
+        return <Smartphone className="h-4 w-4" />;
+      case 'android':
+        return <Smartphone className="h-4 w-4" />;
+      case 'web':
+        return <Globe className="h-4 w-4" />;
+      default:
+        return <Monitor className="h-4 w-4" />;
+    }
+  };
+
+  // Get status badge
+  const getStatusBadge = (status: string, networkStatus?: string) => {
+    const isOnline = status === 'online';
+    const isRestarting = status === 'restarting';
+    const isStopped = status === 'stopped';
+    // Assume connected if online and no specific network status, or if networkStatus is 'connected'
+    const isConnected = isOnline && (networkStatus === 'connected' || !networkStatus);
+    
+    let badgeVariant: "default" | "secondary" | "destructive" = "secondary";
+    let badgeText = status.charAt(0).toUpperCase() + status.slice(1);
+    
+    if (isOnline) {
+      badgeVariant = "default";
+      badgeText = "Online";
+    } else if (isRestarting) {
+      badgeVariant = "destructive";
+      badgeText = "Restarting";
+    } else if (isStopped) {
+      badgeVariant = "destructive";
+      badgeText = "Stopped";
+    }
+    
+    return (
+      <div className="flex items-center gap-1">
+        <Badge variant={badgeVariant}>
+          {badgeText}
+        </Badge>
+        {isOnline && (
+          <div className="flex items-center">
+            {isConnected ? (
+              <Wifi className="h-3 w-3 text-green-500" />
+            ) : (
+              <WifiOff className="h-3 w-3 text-red-500" />
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Format last seen
+  const formatLastSeen = (lastSeen: Date | string | null) => {
+    if (!lastSeen) return 'Never';
+    
+    // Convert to Date object if it's a string
+    const lastSeenDate = typeof lastSeen === 'string' 
+      ? new Date(lastSeen) 
+      : lastSeen;
+    
+    const now = new Date();
+    const diffMs = now.getTime() - lastSeenDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
+
+  // Format content type
+  const formatContentType = (contentType?: string) => {
+    console.log(contentType);
+    if (!contentType || contentType === 'unknown') return 'Mixed Content';
+    
+    switch (contentType.toLowerCase()) {
+      case 'prayer':
+      case 'prayer_times':
+        return 'Prayer Times';
+      case 'announcement':
+      case 'announcements':
+        return 'Announcements';
+      case 'daily_verse':
+        return 'Daily Verse';
+      case 'daily_hadith':
+        return 'Daily Hadith';
+      case 'daily_dua':
+        return 'Daily Dua';
+      case 'eid_countdown':
+        return 'Eid Countdown';
+      case 'ramadan_countdown':
+        return 'Ramadan Countdown';
+      case 'taraweeh_timings':
+        return 'Taraweeh Timings';
+      case 'google_calendar':
+        return 'Calendar Events';
+      case 'donation':
+        return 'Donation Progress';
+      case 'image':
+        return 'Image Display';
+      case 'video':
+        return 'Video Display';
+      case 'countdown':
+        return 'Countdown';
+      case 'website':
+        return 'Website';
+      case 'custom':
+        return 'Custom Content';
+      case 'content':
+        return 'Content Slide';
+      default:
+        return contentType.charAt(0).toUpperCase() + contentType.slice(1).replace(/_/g, ' ');
+    }
+  };
+
+  // Check if content was updated recently (within last 5 minutes)
+  const isContentRecentlyUpdated = (lastContentUpdate?: Date | string | null) => {
+    if (!lastContentUpdate) return false;
+    
+    // Convert to Date object if it's a string
+    const lastUpdateDate = typeof lastContentUpdate === 'string' 
+      ? new Date(lastContentUpdate) 
+      : lastContentUpdate;
+    
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdateDate.getTime();
+    return diffMs < 5 * 60 * 1000; // 5 minutes
+  };
+
+  // WebSocket connection status indicator
+  const WebSocketStatus = () => {
+    // Don't show "Connecting..." if we have devices loaded, if we're connected, or if admin subscription is successful
+    const shouldShowConnecting = wsConnecting && !wsConnected && displays.length === 0 && !adminSubscribed;
+    
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        {/* <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : shouldShowConnecting ? 'bg-yellow-500' : 'bg-red-500'}`} /> */}
+        {/* <span className={wsConnected ? 'text-green-600' : shouldShowConnecting ? 'text-yellow-600' : 'text-red-600'}>
+          {wsConnected ? 'WebSocket Connected' : shouldShowConnecting ? 'Connecting...' : 'WebSocket Disconnected'}
+        </span> */}
+        {wsError && (
+          <span className="text-red-500 text-xs ml-2" title={wsError}>
+            Error: {wsError}
+          </span>
+        )}
+        {!masjidId && (
+          <span className="text-orange-500 text-xs ml-2">
+            No masjidId
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  // Device connection status indicator
   const ConnectionStatus = () => {
-    const hasActive = displays.some((d) => d.status === "online");
+    const onlineDevices = displays.filter((d) => d.status === "online").length;
+    const restartingDevices = displays.filter((d) => d.status === "restarting").length;
+    const stoppedDevices = displays.filter((d) => d.status === "stopped").length;
+    const hasActive = onlineDevices > 0;
+    
     return (
       <div className="flex items-center gap-2 text-sm">
         <div className={`w-2 h-2 rounded-full ${hasActive ? 'bg-green-500' : 'bg-red-500'}`} />
-        <span className={hasActive ? 'text-green-600' : 'text-red-600'}>
-          {hasActive ? 'Connected' : 'Disconnected'}
+        <span className={[hasActive ? 'text-green-600' : 'text-red-600', "w-auto"]}>
+          {hasActive 
+            ? `${onlineDevices} ${onlineDevices < 2 ? "Device" : "Devices"} Online`
+            : restartingDevices > 0 
+              ? `${restartingDevices} ${restartingDevices < 2 ? "Device" : "Devices"} Restarting`
+              : stoppedDevices > 0
+                ? `${stoppedDevices} ${stoppedDevices < 2 ? "Device" : "Devices"} Stopped`
+                : 'No Devices Online'
+          }
         </span>
       </div>
     );
@@ -403,7 +876,32 @@ export default function TVDisplaysPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <WebSocketStatus />
           <ConnectionStatus />
+          {wsConnected && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleBroadcastMessage}
+              className="border-green-500 text-green-600 hover:bg-green-50"
+            >
+              Send Test Broadcast
+            </Button>
+          )}
+          {/* <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              console.log('Current displays data:', displays);
+              console.log('Active displays count:', activeDisplays);
+              console.log('WebSocket connected:', wsConnected);
+              console.log('WebSocket connecting:', wsConnecting);
+              console.log('WebSocket error:', wsError);
+            }}
+            className="border-blue-500 text-blue-600 hover:bg-blue-50"
+          >
+            Debug Data
+          </Button> */}
           {isAdmin && (
             <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
               <DialogTrigger asChild>
@@ -559,7 +1057,18 @@ export default function TVDisplaysPage() {
               <TabsTrigger value="content">Content Templates</TabsTrigger>
             </TabsList>
             <TabsContent value="displays" className="space-y-4">
-              {displays.map((display) => (
+              {displays
+                .filter((display, index, self) => 
+                  // Remove duplicates based on ID
+                  index === self.findIndex(d => d.id === display.id)
+                )
+                .sort((a, b) => {
+                  // Sort by status (online first), then by name
+                  if (a.status === 'online' && b.status !== 'online') return -1;
+                  if (a.status !== 'online' && b.status === 'online') return 1;
+                  return a.name.localeCompare(b.name);
+                })
+                .map((display) => (
                 <div
                   key={display.id}
                   className="border border-[#550C18]/10 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -574,16 +1083,7 @@ export default function TVDisplaysPage() {
                           <h3 className="font-medium text-[#3A3A3A] text-lg">
                             {display.name}
                           </h3>
-                          <Badge
-                            className={
-                              display.status === "online"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
-                            }
-                          >
-                            {display.status.charAt(0).toUpperCase() +
-                              display.status.slice(1)}
-                          </Badge>
+                          {getStatusBadge(display.status, display.networkStatus)}
                           {display.platform && (
                             <Badge className="bg-blue-100 text-blue-800">
                               MizanTV
@@ -593,28 +1093,32 @@ export default function TVDisplaysPage() {
                         <p className="text-sm text-[#3A3A3A]/70">
                           Location: {display.location || 'Not specified'}
                         </p>
-                        {display.platform ? (
+                        {display.platform || display.id?.includes('mizantv') ? (
                           <div className="space-y-1">
                             <p className="text-sm text-[#3A3A3A]/70">
                               Device ID: <code className="bg-gray-100 px-1 rounded text-xs">{display.id}</code>
                             </p>
                             <p className="text-sm text-[#3A3A3A]/70">
-                              Platform: {display.platform} • Model: {display.model}
+                              Platform: {display.platform || 'android'} • Model: {display.model || 'Unknown'}
                             </p>
                             <p className="text-sm text-[#3A3A3A]/70">
-                              App: v{display.appVersion} • Network: {display.networkStatus || 'unknown'}
+                              App: v{display.appVersion || '1.0.0'} • Network: {display.networkStatus || 'connected'}
                             </p>
                             <p className="text-sm text-[#3A3A3A]/70">
-                              Last seen: {display.lastSeen ? display.lastSeen.toLocaleString() : 'Never'}
+                              Last seen: {formatLastSeen(display.lastSeen)}
                               {display.registeredAt && (
                                 <span> • Registered: {new Date(display.registeredAt).toLocaleDateString()}</span>
                               )}
                             </p>
+                            <p className={`text-sm ${isContentRecentlyUpdated(display.lastContentUpdate) ? 'text-green-600 font-medium' : 'text-[#3A3A3A]/70'}`}>
+                              Content: {formatContentType(display.content)} • Updated {formatLastSeen(display.lastContentUpdate || display.lastSeen)}
+                              {isContentRecentlyUpdated(display.lastContentUpdate) && ' • Live'}
+                            </p>
                           </div>
                         ) : (
-                          <p className="text-sm text-[#3A3A3A]/70">
-                            Content: {display.content} • Updated{" "}
-                            {display.lastSeen ? display.lastSeen.toLocaleString() : 'N/A'}
+                          <p className={`text-sm ${isContentRecentlyUpdated(display.lastContentUpdate) ? 'text-green-600 font-medium' : 'text-[#3A3A3A]/70'}`}>
+                            Content: {formatContentType(display.content)} • Updated {formatLastSeen(display.lastContentUpdate || display.lastSeen)}
+                            {isContentRecentlyUpdated(display.lastContentUpdate) && ' • Live'}
                           </p>
                         )}
                       </div>
@@ -684,7 +1188,7 @@ export default function TVDisplaysPage() {
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                      <Button
+                      {/* <Button
                         variant="outline"
                         size="sm"
                         className="h-8 w-8 p-0"
@@ -696,7 +1200,69 @@ export default function TVDisplaysPage() {
                         ) : (
                           <Play className="h-4 w-4" />
                         )}
-                      </Button>
+                      </Button> */}
+                      
+                      {/* WebSocket Device Controls - Only show for MizanTV devices */}
+                      {display.platform && (
+                        <>
+                          <TooltipProvider>
+                            <Tooltip delayDuration={0}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 border-orange-500 text-orange-600 hover:bg-orange-50"
+                                  onClick={() => handleRestartDevice(display.id)}
+                                  disabled={display.status !== "online"}
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Restart device</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip delayDuration={0}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 border-red-500 text-red-600 hover:bg-red-50"
+                                  onClick={() => handleStopDevice(display.id)}
+                                  disabled={display.status !== "online"}
+                                >
+                                  <Square className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Stop device</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          
+                          <TooltipProvider>
+                            <Tooltip delayDuration={0}>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 border-green-500 text-green-600 hover:bg-green-50"
+                                  onClick={() => handleStartDevice(display.id)}
+                                  disabled={display.status === "online"}
+                                >
+                                  <Play className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Start device</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

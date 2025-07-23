@@ -90,8 +90,11 @@ export default function CustomComponentLoader({ url, componentProps, cacheKey }:
         borderRadius: '8px'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '16px', marginBottom: '8px' }}>Loading custom component...</div>
-          <div style={{ fontSize: '12px', opacity: 0.7 }}>{url}</div>
+          <div style={{ fontSize: '16px', marginBottom: '8px' }}>
+            <div className="animate-spin inline-block w-6 h-6 border-[3px] border-current border-t-transparent text-gray-400 rounded-full" role="status" aria-label="loading">
+              <span className="sr-only">Loading...</span>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -127,7 +130,7 @@ export default function CustomComponentLoader({ url, componentProps, cacheKey }:
   // Render the component
   if (Component) {
     return (
-      <div style={{ height: '100%', width: '100%' }}>
+      <div className="w-full h-full flex flex-col flex-1">
         <Component {...componentProps} />
       </div>
     );

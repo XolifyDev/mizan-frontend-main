@@ -133,7 +133,7 @@ export default function MizanTVViewComponentPage() {
             overflow: hidden;
           }
         `}</style>
-        <div style={{ height: '97dvh', width: '100%', marginBottom: '3dvh' }}>
+        <div style={{ height: '100dvh', width: '100%' }}>
           <Component slide={slide} masjid={masjid} theme={theme} />
         </div>
       </>

@@ -284,11 +284,13 @@ function SlidePreview({
         {slideData.type === "custom" && (
           <>
             {slideData.customComponentUrl ? (
-              <CustomComponentLoader
-                url={slideData.customComponentUrl}
-                componentProps={{ masjid, slides: allSlides, theme: currentTheme, slide: slideData }}
-                cacheKey={cacheKey}
-              />
+              <div className="min-h-[400px] min-w-[400px] h-full flex flex-col flex-1">
+                <CustomComponentLoader
+                  url={slideData.customComponentUrl}
+                  componentProps={{ masjid, slides: allSlides, theme: currentTheme, slide: slideData }}
+                  cacheKey={cacheKey}
+                />
+              </div>
             ) : (
               <div className="text-center p-4">
                 <div className="text-lg font-bold mb-2" style={{fontFamily: (slideTheme as any).fontHeading || slideTheme.font }}>
@@ -2105,20 +2107,20 @@ export default function SignageDisplay({
                 </SortableContext>
             </DndContext>
             {/* Slide Preview */}
-            <div className="w-full pl-2">
+            <div className="w-full pl-2 h-full flex flex-col flex-1">
                 {slides[selectedIndex] && (
-                <div>
-                    <span className="font-semibold text-[#550C18] mb-2 block">
-                    Live Preview
-                    </span>
-                    <SlidePreview
-                        slide={slides[selectedIndex]}
-                        masjid={masjid}
-                        currentTheme={currentTheme}
-                        allSlides={slides}
-                        cacheKey={cacheBuster[slides[selectedIndex]?.id || '']}
-                    />
-                </div>
+                    <div className="w-full h-full flex flex-col flex-1">
+                        <span className="font-semibold text-[#550C18] mb-2 block">
+                            Live Preview
+                        </span>
+                        <SlidePreview
+                            slide={slides[selectedIndex]}
+                            masjid={masjid}
+                            currentTheme={currentTheme}
+                            allSlides={slides}
+                            cacheKey={cacheBuster[slides[selectedIndex]?.id || '']}
+                        />
+                    </div>
                 )}
             </div>
         </div>

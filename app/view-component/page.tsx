@@ -63,9 +63,6 @@ export default function ViewComponentPage() {
           setError('Component failed to load or is not a valid React component.');
         }
         setLoading(false);
-        
-        // Clean up
-        window.MizanDynamicComponent = undefined;
       }, 100);
     };
 
@@ -109,7 +106,7 @@ export default function ViewComponentPage() {
   }
 
   // Show error state
-  if (error) {
+  if (!Component && error) {
     return (
       <div style={{ 
         height: '100vh', 
@@ -148,8 +145,10 @@ export default function ViewComponentPage() {
             overflow: hidden;
           }
         `}</style>
-        <div style={{ height: '100vh', width: '100%' }}>
-          <Component slide={slide} masjid={masjid} />
+        <div className="w-full h-full min-h-screen flex flex-col">
+          <div className="flex-1 h-full">
+            <Component slide={slide} masjid={masjid} />
+          </div>
         </div>
       </>
     );

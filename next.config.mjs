@@ -27,6 +27,7 @@ const nextConfig = {
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
   },
+  allowedDevOrigins: ['local-origin.dev', '*.local-origin.dev'],
 }
 
 mergeConfig(nextConfig, userConfig)
