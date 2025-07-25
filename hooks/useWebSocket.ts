@@ -1,214 +1,143 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { createWebSocketClient, getWebSocketClient, disconnectWebSocket, WebSocketCallbacks } from '@/lib/websocket/client';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
-interface UseWebSocketOptions extends WebSocketCallbacks {
-  url?: string;
-  autoConnect?: boolean;
-  deviceId?: string;
-  masjidId?: string;
-  isAdmin?: boolean;
+interface WebSocketMessage {
+  type: string;
+  [key: string]: any;
 }
 
-interface WebSocketState {
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: string | null;
-  readyState: number | undefined;
+interface UseWebSocketOptions {
+  onMessage?: (message: WebSocketMessage) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
+  onError?: (error: Event) => void;
+  reconnectInterval?: number;
+  maxReconnectAttempts?: number;
 }
 
-export function useWebSocket(options: UseWebSocketOptions = {}) {
+export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   const {
-    url = process.env.NEXT_PUBLIC_WS_URL ? `${process.env.NEXT_PUBLIC_WS_URL}/ws` : 'ws://localhost:3000/ws',
-    autoConnect = true,
-    deviceId,
-    masjidId,
-    isAdmin = false,
-    ...callbacks
+    onMessage,
+    onOpen,
+    onClose,
+    onError,
+    reconnectInterval = 5000,
+    maxReconnectAttempts = 5
   } = options;
 
-  // Emergency disable flag - set to true to completely disable WebSocket
-  const wsDisabled = false; // Set to true to disable WebSocket completely
+  const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const shouldReconnectRef = useRef(true);
 
-  const [state, setState] = useState<WebSocketState>({
-    isConnected: false,
-    isConnecting: false,
-    error: null,
-    readyState: undefined,
-  });
-
-  const wsClientRef = useRef<ReturnType<typeof createWebSocketClient> | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
-  const callbacksRef = useRef(callbacks);
-
-  // Update callbacks ref when callbacks change
-  useEffect(() => {
-    callbacksRef.current = callbacks;
-  }, [callbacks]);
-
-  // Enhanced callbacks with state updates
-  const enhancedCallbacks: WebSocketCallbacks = useMemo(() => ({
-    onConnect: () => {
-      setState(prev => ({
-        ...prev,
-        isConnected: true,
-        isConnecting: false,
-        error: null,
-        readyState: wsClientRef.current?.getReadyState(),
-      }));
-      callbacksRef.current.onConnect?.();
-    },
-    onDisconnect: () => {
-      setState(prev => ({
-        ...prev,
-        isConnected: false,
-        isConnecting: false,
-        readyState: wsClientRef.current?.getReadyState(),
-      }));
-      callbacksRef.current.onDisconnect?.();
-    },
-    onError: (error) => {
-      setState(prev => ({
-        ...prev,
-        error: error?.message || 'WebSocket error occurred',
-        isConnecting: false,
-      }));
-      callbacksRef.current.onError?.(error);
-    },
-    ...callbacksRef.current,
-  }), []); // Empty dependency array to prevent recreation
-
-  // Initialize WebSocket client
-  const initializeWebSocket = useCallback(() => {
-    if (!wsClientRef.current) {
-      wsClientRef.current = createWebSocketClient(url, enhancedCallbacks);
-    }
-    return wsClientRef.current;
-  }, [url, enhancedCallbacks]);
-
-  // Connect to WebSocket
-  const connect = useCallback(async () => {
-    if (wsDisabled) {
-      console.log('WebSocket disabled - not attempting to connect');
+  const connect = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
-    try {
-      setState(prev => ({ ...prev, isConnecting: true, error: null }));
-      const client = initializeWebSocket();
-      await client.connect();
-      
-      // Auto-register device or subscribe as admin
-      if (deviceId && masjidId && !isAdmin) {
-        // Device registration will be handled by the device itself
-        console.log('Device ready for registration');
-      } else if (masjidId && isAdmin) {
-        client.subscribeAsAdmin(masjidId);
-      }
-    } catch (error) {
-      setState(prev => ({
-        ...prev,
-        error: error instanceof Error ? error.message : 'Connection failed',
-        isConnecting: false,
-      }));
-    }
-  }, [initializeWebSocket, deviceId, masjidId, isAdmin, wsDisabled]);
+    setIsConnecting(true);
+    setError(null);
 
-  // Disconnect from WebSocket
+    try {
+      // Use secure WebSocket for production
+      const wsUrl = process.env.NODE_ENV === 'production' 
+        ? `wss://${window.location.host}/api/ws`
+        : `ws://${window.location.host}/api/ws`;
+
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+        setIsConnected(true);
+        setIsConnecting(false);
+        reconnectAttemptsRef.current = 0;
+        onOpen?.();
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data);
+          onMessage?.(message);
+        } catch (error) {
+          console.error('Failed to parse WebSocket message:', error);
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        setIsConnected(false);
+        setIsConnecting(false);
+        onClose?.();
+
+        // Attempt to reconnect if not manually closed
+        if (shouldReconnectRef.current && reconnectAttemptsRef.current < maxReconnectAttempts) {
+          reconnectAttemptsRef.current++;
+          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${maxReconnectAttempts})...`);
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            connect();
+          }, reconnectInterval);
+        }
+      };
+
+      ws.onerror = (event) => {
+        console.error('WebSocket error:', event);
+        setError('WebSocket connection error');
+        setIsConnecting(false);
+        onError?.(event);
+      };
+
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      setError('Failed to create WebSocket connection');
+      setIsConnecting(false);
+    }
+  }, [url, onMessage, onOpen, onClose, onError, reconnectInterval, maxReconnectAttempts]);
+
   const disconnect = useCallback(() => {
+    shouldReconnectRef.current = false;
+    
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
-    wsClientRef.current?.disconnect();
-    setState(prev => ({
-      ...prev,
-      isConnected: false,
-      isConnecting: false,
-    }));
+
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+
+    setIsConnected(false);
+    setIsConnecting(false);
+    setError(null);
   }, []);
 
-  // Send message
-  const send = useCallback((message: any) => {
-    if (wsClientRef.current?.isConnected()) {
-      wsClientRef.current.send(message);
+  const sendMessage = useCallback((message: WebSocketMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
     } else {
-      console.error('WebSocket is not connected');
+      console.warn('WebSocket is not connected');
+      setError('WebSocket is not connected');
     }
   }, []);
-
-  // Device methods
-  const registerDevice = useCallback((deviceInfo: any) => {
-    if (deviceId && masjidId) {
-      wsClientRef.current?.registerDevice(deviceId, masjidId, deviceInfo);
-    }
-  }, [deviceId, masjidId]);
-
-  const updateDeviceStatus = useCallback((status: string, lastSeen?: string, networkStatus?: string) => {
-    if (deviceId) {
-      wsClientRef.current?.updateDeviceStatus(deviceId, status, lastSeen, networkStatus);
-    }
-  }, [deviceId]);
-
-  const updateDeviceConfig = useCallback((config: any) => {
-    if (deviceId) {
-      wsClientRef.current?.updateDeviceConfig(deviceId, config);
-    }
-  }, [deviceId]);
-
-  const sendHeartbeat = useCallback(() => {
-    if (deviceId) {
-      wsClientRef.current?.sendHeartbeat(deviceId);
-    }
-  }, [deviceId]);
-
-  // Admin methods
-  const controlDevice = useCallback((targetDeviceId: string, action: string, data?: any) => {
-    wsClientRef.current?.controlDevice(targetDeviceId, action, data);
-  }, []);
-
-  const updateSlide = useCallback((slideId: string, action: string) => {
-    if (masjidId) {
-      wsClientRef.current?.updateSlide(masjidId, slideId, action);
-    }
-  }, [masjidId]);
-
-  const updateContent = useCallback((content: any) => {
-    if (masjidId) {
-      wsClientRef.current?.updateContent(masjidId, content);
-    }
-  }, [masjidId]);
-
-  const restartDevice = useCallback((targetDeviceId: string) => {
-    wsClientRef.current?.restartDevice(targetDeviceId);
-  }, []);
-
-  const stopDevice = useCallback((targetDeviceId: string) => {
-    wsClientRef.current?.stopDevice(targetDeviceId);
-  }, []);
-
-  const startDevice = useCallback((targetDeviceId: string) => {
-    wsClientRef.current?.startDevice(targetDeviceId);
-  }, []);
-
-  const broadcastMessage = useCallback((message: string, type?: string) => {
-    if (masjidId) {
-      wsClientRef.current?.broadcastMessage(masjidId, message, type);
-    }
-  }, [masjidId]);
 
   // Auto-connect on mount
   useEffect(() => {
-    if (autoConnect) {
-      connect();
-    }
+    connect();
 
     return () => {
       disconnect();
     };
-  }, [autoConnect]); // Remove connect and disconnect from dependencies
+  }, [connect, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      shouldReconnectRef.current = false;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -216,48 +145,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   }, []);
 
   return {
-    // State
-    ...state,
-    
-    // Connection methods
+    isConnected,
+    isConnecting,
+    error,
+    sendMessage,
     connect,
-    disconnect,
-    send,
-    
-    // Device methods
-    registerDevice,
-    updateDeviceStatus,
-    updateDeviceConfig,
-    sendHeartbeat,
-    
-    // Admin methods
-    controlDevice,
-    updateSlide,
-    updateContent,
-    restartDevice,
-    stopDevice,
-    startDevice,
-    broadcastMessage,
-    
-    // Client reference
-    client: wsClientRef.current,
+    disconnect
   };
-}
-
-// Specialized hooks for different use cases
-export function useDeviceWebSocket(deviceId: string, masjidId: string, options: Omit<UseWebSocketOptions, 'deviceId' | 'masjidId' | 'isAdmin'> = {}) {
-  return useWebSocket({
-    ...options,
-    deviceId,
-    masjidId,
-    isAdmin: false,
-  });
-}
-
-export function useAdminWebSocket(masjidId: string, options: Omit<UseWebSocketOptions, 'masjidId' | 'isAdmin'> = {}) {
-  return useWebSocket({
-    ...options,
-    masjidId,
-    isAdmin: true,
-  });
 } 

@@ -3,9 +3,9 @@
   "version": "0.3",
   "private": true,
   "scripts": {
-    "dev": "prisma generate && tsx server.ts",
+    "dev": "prisma generate && next dev",
     "build": "next build",
-    "start": "NODE_ENV=production tsx server.ts",
+    "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {

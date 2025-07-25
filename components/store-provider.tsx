@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import useCartStore from '../lib/useCartStore'
+import { WebSocketProvider } from './WebSocketProvider';
 
 
 const StoreProvider = ({ children }: { children: React.ReactNode }) => {
@@ -29,9 +30,9 @@ const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   return (
-    <>
+    <WebSocketProvider>
       {children}
-    </>
+    </WebSocketProvider>
   );
 }
 
