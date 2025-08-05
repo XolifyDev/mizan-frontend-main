@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-interface WebSocketMessage {
+interface EventSourceMessage {
   type: string;
   [key: string]: any;
 }
 
-interface UseWebSocketOptions {
-  onMessage?: (message: WebSocketMessage) => void;
+interface UseEventSourceOptions {
+  onMessage?: (message: EventSourceMessage) => void;
   onOpen?: () => void;
   onClose?: () => void;
   onError?: (error: Event) => void;
@@ -14,7 +14,11 @@ interface UseWebSocketOptions {
   maxReconnectAttempts?: number;
 }
 
-export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
+export function useEventSource(
+  url: string, 
+  params: Record<string, string> = {},
+  options: UseEventSourceOptions = {}
+) {
   const {
     onMessage,
     onOpen,
@@ -28,13 +32,13 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const wsRef = useRef<WebSocket | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const shouldReconnectRef = useRef(true);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (eventSourceRef.current?.readyState === EventSource.OPEN) {
       return;
     }
 
@@ -42,36 +46,38 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
     setError(null);
 
     try {
-      // Use secure WebSocket for production
-      const wsUrl = process.env.NODE_ENV === 'production' 
-        ? `wss://${window.location.host}/api/ws`
-        : `ws://${window.location.host}/api/ws`;
+      // Build URL with parameters
+      const urlWithParams = new URL(url, window.location.origin);
+      Object.entries(params).forEach(([key, value]) => {
+        urlWithParams.searchParams.set(key, value);
+      });
 
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      const eventSource = new EventSource(urlWithParams.toString());
+      eventSourceRef.current = eventSource;
 
-      ws.onopen = () => {
-        console.log('WebSocket connected');
+      eventSource.onopen = () => {
+        console.log('EventSource connected');
         setIsConnected(true);
         setIsConnecting(false);
         reconnectAttemptsRef.current = 0;
         onOpen?.();
       };
 
-      ws.onmessage = (event) => {
+      eventSource.onmessage = (event) => {
         try {
-          const message: WebSocketMessage = JSON.parse(event.data);
+          const message: EventSourceMessage = JSON.parse(event.data);
           onMessage?.(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('Failed to parse EventSource message:', error);
         }
       };
 
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
-        setIsConnected(false);
+      eventSource.onerror = (event) => {
+        console.error('EventSource error:', event);
+        setError('EventSource connection error');
         setIsConnecting(false);
-        onClose?.();
+        setIsConnected(false);
+        onError?.(event);
 
         // Attempt to reconnect if not manually closed
         if (shouldReconnectRef.current && reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -84,19 +90,12 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
         }
       };
 
-      ws.onerror = (event) => {
-        console.error('WebSocket error:', event);
-        setError('WebSocket connection error');
-        setIsConnecting(false);
-        onError?.(event);
-      };
-
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      setError('Failed to create WebSocket connection');
+      console.error('Failed to create EventSource connection:', error);
+      setError('Failed to create EventSource connection');
       setIsConnecting(false);
     }
-  }, []); // Remove all dependencies to prevent infinite loops
+  }, []); // Remove dependencies to prevent infinite loops
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
@@ -106,9 +105,9 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
       reconnectTimeoutRef.current = null;
     }
 
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
     }
 
     setIsConnected(false);
@@ -116,12 +115,25 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
     setError(null);
   }, []); // Remove dependencies to prevent infinite loops
 
-  const sendMessage = useCallback((message: WebSocketMessage) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
-    } else {
-      console.warn('WebSocket is not connected');
-      setError('WebSocket is not connected');
+  const sendMessage = useCallback(async (message: any) => {
+    try {
+      const response = await fetch('/api/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(message),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send message');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setError('Failed to send message');
+      throw error;
     }
   }, []); // Remove dependencies to prevent infinite loops
 

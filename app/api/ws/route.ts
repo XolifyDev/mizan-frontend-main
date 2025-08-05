@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { socket, response } = Deno.upgradeWebSocket(request);
+    // Use the WebSocket API that's available in Edge Runtime
+    const { socket, response } = (request as any).webSocket;
     
     console.log('WebSocket connection established');
     

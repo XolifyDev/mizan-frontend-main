@@ -1,7 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import { useEventSource } from '@/hooks/useEventSource';
 
 interface WebSocketContextType {
   isConnected: boolean;
@@ -25,10 +25,22 @@ export function WebSocketProvider({
 }) {
   const [devices, setDevices] = useState<any[]>([]);
   const [deviceStatus, setDeviceStatus] = useState<Record<string, any>>({});
+  
+  const masjidIdRef = useRef(masjidId);
+  const isAdminRef = useRef(isAdmin);
+  
+  // Update refs when props change
+  useEffect(() => {
+    masjidIdRef.current = masjidId;
+    isAdminRef.current = isAdmin;
+  }, [masjidId, isAdmin]);
 
-  const { isConnected, isConnecting, error, sendMessage } = useWebSocket('/api/ws', {
-    onMessage: (message) => {
-      console.log('WebSocket message received:', message);
+  const { isConnected, isConnecting, error, sendMessage } = useEventSource('/api/events', {
+    masjidId: masjidIdRef.current || '',
+    isAdmin: isAdminRef.current ? 'true' : 'false'
+  }, {
+    onMessage: useCallback((message: any) => {
+      console.log('EventSource message received:', message);
       
       switch (message.type) {
         case 'device_connected':
@@ -54,17 +66,17 @@ export function WebSocketProvider({
           setDevices(message.devices || []);
           break;
       }
-    },
-    onOpen: () => {
-      console.log('WebSocket connected');
+    }, []),
+    onOpen: useCallback(() => {
+      console.log('EventSource connected');
       // Subscribe as admin if needed
-      if (isAdmin && masjidId) {
+      if (isAdminRef.current && masjidIdRef.current) {
         sendMessage({
           type: 'admin_subscribe',
-          masjidId
+          masjidId: masjidIdRef.current
         });
       }
-    }
+    }, [])
   });
 
   return (
