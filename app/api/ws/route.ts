@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Use the WebSocket API that's available in Edge Runtime
-    const { socket, response } = (request as any).webSocket;
+    // Use the correct WebSocket upgrade method for Edge Runtime
+    const { socket, response } = Deno.upgradeWebSocket(request);
     
     console.log('WebSocket connection established');
     
@@ -72,6 +72,10 @@ async function handleWebSocketMessage(socket: WebSocket, data: any) {
       
     case 'device_status_update':
       await handleDeviceStatusUpdate(socket, data, connection);
+      break;
+      
+    case 'device_content_update':
+      await handleDeviceContentUpdate(socket, data, connection);
       break;
       
     case 'device_heartbeat':
@@ -175,6 +179,43 @@ async function handleDeviceStatusUpdate(socket: WebSocket, data: any, connection
   }
 }
 
+async function handleDeviceContentUpdate(socket: WebSocket, data: any, connection: any) {
+  try {
+    const { deviceId, content, contentType } = data;
+    
+    if (!deviceId || !content) {
+      socket.send(JSON.stringify({
+        type: 'error',
+        message: 'Missing required fields: deviceId, content'
+      }));
+      return;
+    }
+
+    // Send success response
+    socket.send(JSON.stringify({
+      type: 'content_updated',
+      deviceId,
+      contentType,
+      success: true
+    }));
+
+    // Notify admins of content update
+    broadcastToAdmins({
+      type: 'content_updated',
+      deviceId,
+      contentType,
+      content
+    });
+
+  } catch (error) {
+    console.error('Content update error:', error);
+    socket.send(JSON.stringify({
+      type: 'error',
+      message: 'Content update failed'
+    }));
+  }
+}
+
 async function handleDeviceHeartbeat(socket: WebSocket, data: any, connection: any) {
   try {
     const { deviceId } = data;
@@ -238,10 +279,30 @@ async function handleAdminDeviceControl(socket: WebSocket, data: any) {
       return;
     }
 
+    // Map action to the correct command type
+    let commandType = 'admin_control';
+    let commandAction = action;
+    
+    // Handle specific device control actions
+    switch (action) {
+      case 'restart':
+        commandType = 'restart_device';
+        break;
+      case 'stop':
+        commandType = 'stop_device';
+        break;
+      case 'start':
+        commandType = 'start_device';
+        break;
+      default:
+        commandType = 'admin_control';
+        commandAction = action;
+    }
+
     // Send control command to device
     deviceConnection.ws.send(JSON.stringify({
-      type: 'admin_control',
-      action,
+      type: commandType,
+      action: commandAction,
       data: actionData
     }));
 
