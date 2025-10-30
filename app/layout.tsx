@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import StoreProvider from "../components/store-provider";
+import { PerformanceMonitor } from "../components/performance-monitor";
 import 'nprogress/nprogress.css';
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default function RootLayout({
         <StoreProvider>
           {children}
         </StoreProvider>
+        <PerformanceMonitor />
       </body>
     </html>
   );

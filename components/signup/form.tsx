@@ -248,13 +248,13 @@ export default function SignUpForm() {
           control={form.control}
           name="termsAndConditions"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+            <FormItem className="flex flex-row items-center space-x-3 space-y-0 justify-center">
               <FormControl>
                 <Checkbox
                   checked={field.value}
                   onCheckedChange={field.onChange}
                   disabled={isLoading}
-                  className="data-[state=checked]:bg-[#550C18] data-[state=checked]:border-[#550C18] mt-1"
+                  className="data-[state=checked]:bg-[#550C18] data-[state=checked]:border-[#550C18]"
                 />
               </FormControl>
               <div className="space-y-1 leading-none">

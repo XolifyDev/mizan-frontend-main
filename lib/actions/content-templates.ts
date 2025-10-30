@@ -7,7 +7,23 @@ export async function getAllContentTemplates(masjidId: string) {
   try {
     const templates = await prisma.content.findMany({
       where: {
-        masjidId: masjidId
+        masjidId: masjidId,
+        active: true, // Only get active templates by default
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        url: true,
+        data: true,
+        startDate: true,
+        endDate: true,
+        zones: true,
+        active: true,
+        masjidId: true,
+        createdAt: true,
+        updatedAt: true,
+        description: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -17,6 +33,38 @@ export async function getAllContentTemplates(masjidId: string) {
   } catch (error) {
     console.error("Error fetching content templates:", error);
     throw new Error("Failed to fetch content templates");
+  }
+}
+
+export async function getAllContentTemplatesIncludingInactive(masjidId: string) {
+  try {
+    const templates = await prisma.content.findMany({
+      where: {
+        masjidId: masjidId
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        url: true,
+        data: true,
+        startDate: true,
+        endDate: true,
+        zones: true,
+        active: true,
+        masjidId: true,
+        createdAt: true,
+        updatedAt: true,
+        description: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    return templates;
+  } catch (error) {
+    console.error("Error fetching all content templates:", error);
+    throw new Error("Failed to fetch all content templates");
   }
 }
 
@@ -35,12 +83,13 @@ export async function createContentTemplate(data: {
   try {
     const template = await prisma.content.create({
       data: {
-        name: data.name,
-        type: data.type,
+        title: data.name, // Map name to title
+        type: data.type as any,
         description: data.description,
         active: data.active,
-        config: data.config,
         masjidId: data.masjidId,
+        zones: "[]", // Default empty zones as string
+        data: data.config || {}, // Store config in data field
       },
     });
     revalidatePath("/dashboard/tv-displays");
@@ -63,9 +112,14 @@ export async function updateContentTemplate(id: string, data: {
   };
 }) {
   try {
+    const updateData: any = { ...data };
+    if (data.name) {
+      updateData.title = data.name; // Also update title when name changes
+    }
+    
     const template = await prisma.content.update({
       where: { id },
-      data,
+      data: updateData,
     });
     revalidatePath("/dashboard/tv-displays");
     return template;
@@ -99,4 +153,75 @@ export async function toggleContentTemplate(id: string, active: boolean) {
     console.error("Error toggling content template:", error);
     throw new Error("Failed to toggle content template");
   }
-} 
+}
+
+// New optimized function to get templates by type
+export async function getContentTemplatesByType(masjidId: string, type: string) {
+  try {
+    const templates = await prisma.content.findMany({
+      where: {
+        masjidId: masjidId,
+        type: type as any,
+        active: true,
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        data: true,
+        active: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    return templates;
+  } catch (error) {
+    console.error("Error fetching content templates by type:", error);
+    throw new Error("Failed to fetch content templates by type");
+  }
+}
+
+// New function to get templates with pagination
+export async function getContentTemplatesPaginated(masjidId: string, page: number = 1, limit: number = 10) {
+  try {
+    const skip = (page - 1) * limit;
+    
+    const [templates, total] = await Promise.all([
+      prisma.content.findMany({
+        where: {
+          masjidId: masjidId
+        },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          active: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.content.count({
+        where: {
+          masjidId: masjidId
+        }
+      })
+    ]);
+    
+    return {
+      templates,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    console.error("Error fetching paginated content templates:", error);
+    throw new Error("Failed to fetch paginated content templates");
+  }
+}

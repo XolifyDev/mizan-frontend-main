@@ -29,6 +29,22 @@ export async function GET(request: NextRequest) {
         deviceConnections.set(deviceId, { controller, deviceId, masjidId, isAdmin });
       } else if (isAdmin && masjidId) {
         adminConnections.add(controller);
+        
+        // Send current devices for this masjid to the admin
+        const devices = Array.from(deviceConnections.values()).filter(d => d.masjidId === masjidId);
+        console.log('Sending devices to admin:', devices);
+        
+        // For now, send empty devices list since SSE doesn't have access to database
+        // The devices will be fetched by the frontend from the database
+        try {
+          controller.enqueue(`data: ${JSON.stringify({
+            type: 'admin_subscribed',
+            masjidId,
+            devices: [] // Empty for now, frontend will fetch from database
+          })}\n\n`);
+        } catch (error) {
+          console.error('Failed to send devices to admin:', error);
+        }
       }
 
       // Handle client disconnect
@@ -120,6 +136,16 @@ export async function POST(request: NextRequest) {
           lastSeen: data.lastSeen,
           networkStatus: data.networkStatus
         });
+        break;
+
+      case 'admin_subscribe':
+        // Handle admin subscription
+        console.log('Admin subscribing to masjid:', masjidId);
+        // Send current devices for the masjid
+        const devices = Array.from(deviceConnections.values()).filter(d => d.masjidId === masjidId);
+        console.log('Current devices for masjid:', devices);
+        // Note: We can't send a response here since this is a POST request
+        // The devices will be sent via the SSE stream when the connection is established
         break;
 
       case 'admin_broadcast':

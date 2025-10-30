@@ -30,7 +30,7 @@ const StoreProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   return (
-    <WebSocketProvider>
+    <WebSocketProvider isAdmin={true}>
       {children}
     </WebSocketProvider>
   );

@@ -18,6 +18,7 @@ import {
   Smartphone,
   Globe,
   Square,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,92 +43,18 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { getAllTVDisplays, createTVDisplay, updateTVDisplay, deleteTVDisplay, assignContentToDisplay, updateDisplayStatus } from "@/lib/actions/tvdisplays";
-import { getAllContentTemplates, createContentTemplate, updateContentTemplate, deleteContentTemplate, toggleContentTemplate } from "@/lib/actions/content-templates";
+import { getAllTVDisplays, createTVDisplay, updateTVDisplay, deleteTVDisplay, assignContentToDisplay, updateDisplayStatus, getTVDisplaysByStatus } from "@/lib/actions/tvdisplays";
+import { getAllContentTemplatesIncludingInactive, createContentTemplate, updateContentTemplate, deleteContentTemplate, toggleContentTemplate } from "@/lib/actions/content-templates";
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAdminSocketIO } from "@/hooks/useSocketIO";
-import { getSocketIOClient } from "@/lib/socketio/client";
+import { useWebSocketContext } from "@/components/WebSocketProvider";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-
-interface TVDisplay {
-  id: string;
-  name: string;
-  location: string | null;
-  isActive: boolean;
-  lastSeen: Date | null;
-  ipAddress: string | null;
-  status: string;
-  config: any;
-  assignedContentId: string | null;
-  masjidId: string;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  content?: string;
-  lastContentUpdate?: Date | string | null;
-  
-  // MizanTV specific fields
-  platform?: string;
-  model?: string;
-  osVersion?: string;
-  appVersion?: string;
-  buildNumber?: string;
-  installationId?: string;
-  networkStatus?: string;
-  registeredAt?: string | Date;
-}
-
-interface Content {
-  id: string;
-  title: string;
-  type: string;
-  url: string | null;
-  data: any;
-  startDate: string | Date | null;
-  endDate: string | Date | null;
-  zones: string[];
-  active: boolean;
-  masjidId: string;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-  description?: string;
-  config?: any;
-  name?: string;
-}
-
-interface TVDisplayForm {
-  name: string;
-  location: string;
-  content: string;
-  notes: string;
-  autoPower: boolean;
-}
-
-interface TVDisplayUpdate {
-  name: string;
-  location: string;
-  status: string;
-  config?: {
-    notes: string;
-    autoPower: boolean;
-  };
-}
-
-interface ContentTemplate {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-  active: boolean;
-  config: {
-    layout: string;
-    refreshInterval: number;
-    customSettings?: Record<string, any>;
-  };
-}
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { TVDisplay, Content, TVDisplayForm, TVDisplayUpdate, ContentTemplate, DisplayStatus, ContentType, Platform } from "@/lib/types/display";
 
 export default function TVDisplaysPage() {
   const masjidId = useSearchParams().get("masjidId") as string;
@@ -175,7 +102,7 @@ export default function TVDisplaysPage() {
   // Track if admin subscription has been received
   const [adminSubscribed, setAdminSubscribed] = useState(false);
 
-  // WebSocket integration
+  // WebSocket integration - simplified
   const onConnect = useCallback(() => {
     console.log('WebSocket connected for admin dashboard');
     toast.success('Real-time connection established');
@@ -183,7 +110,7 @@ export default function TVDisplaysPage() {
 
   const onDisconnect = useCallback(() => {
     console.log('WebSocket disconnected');
-    setAdminSubscribed(false); // Reset admin subscription status
+    setAdminSubscribed(false);
     toast.error('Real-time connection lost');
   }, []);
 
@@ -192,138 +119,14 @@ export default function TVDisplaysPage() {
     toast.error('WebSocket connection error');
   }, []);
 
-  const onAdminSubscribed = useCallback((data: any) => {
-    console.log('Admin subscribed, received devices:', data.devices);
-    setAdminSubscribed(true); // Mark admin subscription as successful
-    
-    // Update displays with WebSocket data - replace existing devices instead of merging
-    const wsDevices = data.devices || [];
-    setDisplays(prev => {
-      // Create a map of existing devices by ID
-      const existingDevicesMap = new Map(prev.map(d => [d.id, d]));
-      
-      // Update or add WebSocket devices
-      wsDevices.forEach(wsDevice => {
-        existingDevicesMap.set(wsDevice.id, {
-          ...wsDevice,
-          lastSeen: wsDevice.lastSeen ? new Date(wsDevice.lastSeen) : null,
-          createdAt: wsDevice.createdAt ? new Date(wsDevice.createdAt) : new Date(),
-          updatedAt: wsDevice.updatedAt ? new Date(wsDevice.updatedAt) : new Date(),
-        });
-      });
-      
-      const allDisplays = Array.from(existingDevicesMap.values());
-      setActiveDisplays(allDisplays.filter(d => d.status === "online").length);
-      return allDisplays;
-    });
-  }, []);
-
-  const onDeviceConnected = useCallback((data: any) => {
-    console.log('Device connected:', data);
-    toast.success(`Device ${data.deviceInfo?.deviceName || data.deviceId} connected`);
-    
-    setDisplays(prev => {
-      const existing = prev.find(d => d.id === data.deviceId);
-      if (existing) {
-        const updated = prev.map(d => 
-          d.id === data.deviceId 
-            ? { ...d, status: 'online', lastSeen: new Date(), networkStatus: 'connected' }
-            : d
-        );
-        setActiveDisplays(updated.filter(d => d.status === "online").length);
-        return updated;
-      } else {
-        const newDevice = {
-          id: data.deviceId,
-          name: data.deviceInfo?.deviceName || `New Device`,
-          status: 'online',
-          lastSeen: new Date(),
-          platform: data.deviceInfo?.platform,
-          model: data.deviceInfo?.model,
-          networkStatus: 'connected',
-          location: 'Main Hall',
-          isActive: true,
-          masjidId: data.masjidId,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          config: {},
-          assignedContentId: null,
-          ipAddress: null,
-        };
-        const updated = [...prev, newDevice];
-        setActiveDisplays(updated.filter(d => d.status === "online").length);
-        return updated;
-      }
-    });
-  }, []);
-
-  const onDeviceDisconnected = useCallback((data: any) => {
-    console.log('Device disconnected:', data);
-    toast.error(`Device ${data.deviceId} disconnected`);
-    
-    setDisplays(prev => {
-      const updated = prev.map(d => 
-        d.id === data.deviceId 
-          ? { ...d, status: 'offline' }
-          : d
-      );
-      setActiveDisplays(updated.filter(d => d.status === "online").length);
-      return updated;
-    });
-  }, []);
-
-  const onDeviceStatusChanged = useCallback((data: any) => {
-    console.log('Device status changed:', data);
-    
-    setDisplays(prev => {
-      const updated = prev.map(d => 
-        d.id === data.deviceId 
-          ? { 
-              ...d, 
-              status: data.status, 
-              lastSeen: data.lastSeen ? new Date(data.lastSeen) : d.lastSeen,
-              networkStatus: data.networkStatus 
-            }
-          : d
-      );
-      setActiveDisplays(updated.filter(d => d.status === "online").length);
-      return updated;
-    });
-  }, []);
-
-  const onDeviceConfigChanged = useCallback((data: any) => {
-    console.log('Device config changed:', data);
-    
-    setDisplays(prev => 
-      prev.map(d => 
-        d.id === data.deviceId 
-          ? { ...d, config: data.config }
-          : d
-      )
-    );
-  }, []);
-
-  const onDeviceContentChanged = useCallback((data: any) => {
-    console.log('Device content changed:', data);
-    
-    setDisplays(prev => 
-      prev.map(d => 
-        d.id === data.deviceId 
-          ? { 
-              ...d, 
-              content: data.contentType || 'prayer',
-              lastContentUpdate: data.lastContentUpdate ? new Date(data.lastContentUpdate) : new Date(),
-              lastSeen: new Date() // Update last seen when content changes
-            }
-          : d
-      )
-    );
-  }, []);
-
   const fetchData = useCallback(async () => {
     try {
+      console.log('Fetching displays for masjid:', masjidId);
       const displaysData = await getAllTVDisplays(masjidId);
-      const templatesData = await getAllContentTemplates(masjidId);
+      console.log('Displays data:', displaysData);
+      
+      const templatesData = await getAllContentTemplatesIncludingInactive(masjidId);
+      console.log('Templates data:', templatesData);
       
       // Fetch MizanTV devices (fallback for non-WebSocket devices)
       const mizanTvDevicesResponse = await fetch(`/api/admin/masjids/${masjidId}/devices`);
@@ -331,6 +134,7 @@ export default function TVDisplaysPage() {
       
       if (mizanTvDevicesResponse.ok) {
         const mizanTvData = await mizanTvDevicesResponse.json();
+        console.log('MizanTV devices data:', mizanTvData);
         mizanTvDevices = mizanTvData.devices.map((device: any) => ({
           ...device,
           lastSeen: device.lastSeen ? new Date(device.lastSeen) : null,
@@ -350,13 +154,32 @@ export default function TVDisplaysPage() {
       
       // Add MizanTV devices (will overwrite if same ID exists)
       mizanTvDevices.forEach(device => {
-        allDevicesMap.set(device.id, device);
+        // Convert device to proper TVDisplay format
+        const convertedDevice: TVDisplay = {
+          ...device,
+          platform: device.platform || null,
+          model: device.model || null,
+          osVersion: device.osVersion || null,
+          appVersion: device.appVersion || null,
+          buildNumber: device.buildNumber || null,
+          installationId: device.installationId || null,
+          networkStatus: device.networkStatus || null,
+          registeredAt: device.registeredAt || null,
+          status: device.status as DisplayStatus,
+        };
+        allDevicesMap.set(device.id, convertedDevice);
       });
       
       const allDisplays = Array.from(allDevicesMap.values());
+      console.log('All displays after combining:', allDisplays);
       
       setDisplays(allDisplays);
-      setTemplates(templatesData as any);
+      // Convert templates to proper format
+      const convertedTemplates = templatesData.map(template => ({
+        ...template,
+        zones: Array.isArray(template.zones) ? template.zones : [template.zones].filter(Boolean),
+      }));
+      setTemplates(convertedTemplates);
       setActiveDisplays(allDisplays.filter((d: TVDisplay) => d.status === "online").length);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -368,21 +191,9 @@ export default function TVDisplaysPage() {
     isConnected: wsConnected,
     isConnecting: wsConnecting,
     error: wsError,
-    restartDevice,
-    stopDevice,
-    startDevice,
-    broadcastMessage,
-  } = useAdminSocketIO(masjidId || "", {
-    onConnect,
-    onDisconnect,
-    onError,
-    onAdminSubscribed,
-    onDeviceConnected,
-    onDeviceDisconnected,
-    onDeviceStatusChanged,
-    onDeviceConfigChanged,
-    onDeviceContentChanged,
-  });
+    sendMessage,
+    devices: wsDevices
+  } = useWebSocketContext();
 
   // Add timeout to clear connecting status after 10 seconds
   useEffect(() => {
@@ -396,78 +207,33 @@ export default function TVDisplaysPage() {
     }
   }, [wsConnecting, wsConnected]);
 
+  // Update displays when WebSocket devices change
+  useEffect(() => {
+    if (wsDevices && wsDevices.length > 0) {
+      console.log('Updating displays with WebSocket devices:', wsDevices);
+      setDisplays(wsDevices);
+      setActiveDisplays(wsDevices.filter(d => d.status === "online").length);
+      setAdminSubscribed(true);
+    }
+  }, [wsDevices]);
+
   useEffect(() => {
     console.log('TV Displays - masjidId:', masjidId);
     console.log('TV Displays - wsConnected:', wsConnected);
     console.log('TV Displays - wsConnecting:', wsConnecting);
     console.log('TV Displays - wsError:', wsError);
+    console.log('TV Displays - displays count:', displays.length);
     
-    if (masjidId) {
+    if (masjidId && !wsConnected) {
+      console.log('Fetching data for masjid (no WebSocket):', masjidId);
       fetchData();
     }
   }, [masjidId, wsConnected, wsConnecting, wsError]);
 
-  // Add global console command to pause WebSocket reconnection
+  // Log SSE connection status
   useEffect(() => {
-    // @ts-ignore
-    window.pauseSocketIO = () => {
-      const client = getSocketIOClient();
-      if (client) {
-        client.pauseReconnection();
-        console.log('Socket.IO reconnection paused. Run window.resumeSocketIO() to resume.');
-      }
-    };
-    
-    // @ts-ignore
-    window.resumeSocketIO = () => {
-      const client = getSocketIOClient();
-      if (client) {
-        client.resumeReconnection();
-        console.log('Socket.IO reconnection resumed.');
-      }
-    };
-
-    // @ts-ignore
-    window.blockSocketIO = () => {
-      const client = getSocketIOClient();
-      if (client) {
-        client.blockConnection();
-        console.log('Socket.IO connection BLOCKED. Run window.unblockSocketIO() to unblock.');
-      }
-    };
-
-    // @ts-ignore
-    window.unblockSocketIO = () => {
-      const client = getSocketIOClient();
-      if (client) {
-        client.unblockConnection();
-        console.log('Socket.IO connection unblocked.');
-      }
-    };
-
-    // @ts-ignore
-    window.disableSocketIO = () => {
-      console.log('Socket.IO functionality disabled. Refresh the page to re-enable.');
-      // Set a flag in localStorage to disable Socket.IO
-      localStorage.setItem('ws_disabled', 'true');
-      window.location.reload();
-    };
-
-    // @ts-ignore
-    window.enableSocketIO = () => {
-      localStorage.removeItem('ws_disabled');
-      console.log('Socket.IO functionality enabled. Refresh the page to apply.');
-      window.location.reload();
-    };
-    
-    console.log('Socket.IO control commands available:');
-    console.log('- window.pauseSocketIO() - Pause reconnection attempts');
-    console.log('- window.resumeSocketIO() - Resume reconnection attempts');
-    console.log('- window.blockSocketIO() - BLOCK all Socket.IO connections');
-    console.log('- window.unblockSocketIO() - Unblock Socket.IO connections');
-    console.log('- window.disableSocketIO() - Disable Socket.IO completely');
-    console.log('- window.enableSocketIO() - Enable Socket.IO functionality');
-  }, []);
+    console.log('SSE connection status:', { wsConnected, wsConnecting, wsError });
+  }, [wsConnected, wsConnecting, wsError]);
 
   const handleAddDisplay = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -539,7 +305,7 @@ export default function TVDisplaysPage() {
   const handleRefreshStatus = async (displayId: string) => {
     setRefreshing(true);
     try {
-      const updatedDisplay = await updateDisplayStatus(displayId, 'online');
+      const updatedDisplay = await updateDisplayStatus(displayId, 'online' as DisplayStatus);
       setDisplays(displays.map(d => d.id === displayId ? updatedDisplay : d));
       setActiveDisplays(displays.filter((d: TVDisplay) => d.status === "online").length);
       toast.success('Display status updated');
@@ -639,7 +405,12 @@ export default function TVDisplaysPage() {
   // Handle device control actions
   const handleRestartDevice = async (deviceId: string) => {
     try {
-      restartDevice(deviceId);
+      await sendMessage({
+        type: 'admin_device_control',
+        deviceId,
+        action: 'restart',
+        data: {}
+      });
       toast.success(`Restart command sent to device ${deviceId}`);
     } catch (error) {
       console.error('Failed to restart device:', error);
@@ -649,7 +420,12 @@ export default function TVDisplaysPage() {
 
   const handleStopDevice = async (deviceId: string) => {
     try {
-      stopDevice(deviceId);
+      await sendMessage({
+        type: 'admin_device_control',
+        deviceId,
+        action: 'stop',
+        data: {}
+      });
       toast.success(`Stop command sent to device ${deviceId}`);
     } catch (error) {
       console.error('Failed to stop device:', error);
@@ -659,7 +435,12 @@ export default function TVDisplaysPage() {
 
   const handleStartDevice = async (deviceId: string) => {
     try {
-      startDevice(deviceId);
+      await sendMessage({
+        type: 'admin_device_control',
+        deviceId,
+        action: 'start',
+        data: {}
+      });
       toast.success(`Start command sent to device ${deviceId}`);
     } catch (error) {
       console.error('Failed to start device:', error);
@@ -669,7 +450,12 @@ export default function TVDisplaysPage() {
 
   const handleBroadcastMessage = async () => {
     try {
-      broadcastMessage('Test broadcast message from admin dashboard', 'info');
+      await sendMessage({
+        type: 'admin_broadcast',
+        masjidId: masjidId || "",
+        message: 'Test broadcast message from admin dashboard',
+        data: { type: "info" }
+      });
       toast.success('Broadcast message sent to all devices');
     } catch (error) {
       console.error('Failed to broadcast message:', error);
@@ -678,7 +464,7 @@ export default function TVDisplaysPage() {
   };
 
   // Get platform icon
-  const getPlatformIcon = (platform?: string) => {
+  const getPlatformIcon = (platform?: Platform) => {
     switch (platform?.toLowerCase()) {
       case 'ios':
         return <Smartphone className="h-4 w-4" />;
@@ -686,16 +472,21 @@ export default function TVDisplaysPage() {
         return <Smartphone className="h-4 w-4" />;
       case 'web':
         return <Globe className="h-4 w-4" />;
+      case 'windows':
+      case 'macos':
+      case 'linux':
+        return <Monitor className="h-4 w-4" />;
       default:
         return <Monitor className="h-4 w-4" />;
     }
   };
 
   // Get status badge
-  const getStatusBadge = (status: string, networkStatus?: string) => {
+  const getStatusBadge = (status: DisplayStatus, networkStatus?: string) => {
     const isOnline = status === 'online';
     const isRestarting = status === 'restarting';
     const isStopped = status === 'stopped';
+    const isError = status === 'error';
     // Assume connected if online and no specific network status, or if networkStatus is 'connected'
     const isConnected = isOnline && (networkStatus === 'connected' || !networkStatus);
     
@@ -711,6 +502,9 @@ export default function TVDisplaysPage() {
     } else if (isStopped) {
       badgeVariant = "destructive";
       badgeText = "Stopped";
+    } else if (isError) {
+      badgeVariant = "destructive";
+      badgeText = "Error";
     }
     
     return (
@@ -755,8 +549,7 @@ export default function TVDisplaysPage() {
   };
 
   // Format content type
-  const formatContentType = (contentType?: string) => {
-    console.log(contentType);
+  const formatContentType = (contentType?: ContentType | string) => {
     if (!contentType || contentType === 'unknown') return 'Mixed Content';
     
     switch (contentType.toLowerCase()) {
@@ -795,7 +588,9 @@ export default function TVDisplaysPage() {
       case 'content':
         return 'Content Slide';
       default:
-        return contentType.charAt(0).toUpperCase() + contentType.slice(1).replace(/_/g, ' ');
+        return typeof contentType === 'string' 
+          ? contentType.charAt(0).toUpperCase() + contentType.slice(1).replace(/_/g, ' ')
+          : 'Unknown Content';
     }
   };
 
@@ -815,15 +610,14 @@ export default function TVDisplaysPage() {
 
   // WebSocket connection status indicator
   const WebSocketStatus = () => {
-    // Don't show "Connecting..." if we have devices loaded, if we're connected, or if admin subscription is successful
     const shouldShowConnecting = wsConnecting && !wsConnected && displays.length === 0 && !adminSubscribed;
     
     return (
       <div className="flex items-center gap-2 text-sm">
-        {/* <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : shouldShowConnecting ? 'bg-yellow-500' : 'bg-red-500'}`} /> */}
-        {/* <span className={wsConnected ? 'text-green-600' : shouldShowConnecting ? 'text-yellow-600' : 'text-red-600'}>
-          {wsConnected ? 'WebSocket Connected' : shouldShowConnecting ? 'Connecting...' : 'WebSocket Disconnected'}
-        </span> */}
+        <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : shouldShowConnecting ? 'bg-yellow-500' : 'bg-red-500'}`} />
+        <span className={wsConnected ? 'text-green-600' : shouldShowConnecting ? 'text-yellow-600' : 'text-red-600'}>
+          {wsConnected ? 'Connected' : shouldShowConnecting ? 'Connecting...' : 'Disconnected'}
+        </span>
         {wsError && (
           <span className="text-red-500 text-xs ml-2" title={wsError}>
             Error: {wsError}
@@ -843,19 +637,22 @@ export default function TVDisplaysPage() {
     const onlineDevices = displays.filter((d) => d.status === "online").length;
     const restartingDevices = displays.filter((d) => d.status === "restarting").length;
     const stoppedDevices = displays.filter((d) => d.status === "stopped").length;
+    const errorDevices = displays.filter((d) => d.status === "error").length;
     const hasActive = onlineDevices > 0;
     
     return (
       <div className="flex items-center gap-2 text-sm">
         <div className={`w-2 h-2 rounded-full ${hasActive ? 'bg-green-500' : 'bg-red-500'}`} />
-        <span className={[hasActive ? 'text-green-600' : 'text-red-600', "w-auto"]}>
+        <span className={[hasActive ? 'text-green-600' : 'text-red-600', "w-auto"].join(' ')}>
           {hasActive 
             ? `${onlineDevices} ${onlineDevices < 2 ? "Device" : "Devices"} Online`
             : restartingDevices > 0 
               ? `${restartingDevices} ${restartingDevices < 2 ? "Device" : "Devices"} Restarting`
               : stoppedDevices > 0
                 ? `${stoppedDevices} ${stoppedDevices < 2 ? "Device" : "Devices"} Stopped`
-                : 'No Devices Online'
+                : errorDevices > 0
+                  ? `${errorDevices} ${errorDevices < 2 ? "Device" : "Devices"} Error`
+                  : 'No Devices Online'
           }
         </span>
       </div>
@@ -863,11 +660,19 @@ export default function TVDisplaysPage() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center space-y-4">
+          <LoadingSpinner size="lg" />
+          <p className="text-muted-foreground">Loading displays...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
+    <ErrorBoundary>
+      <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-[#550C18]">TV Displays</h2>
@@ -878,6 +683,14 @@ export default function TVDisplaysPage() {
         <div className="flex items-center gap-3">
           <WebSocketStatus />
           <ConnectionStatus />
+          {error && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-800">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
           {wsConnected && (
             <Button
               variant="outline"
@@ -1083,7 +896,7 @@ export default function TVDisplaysPage() {
                           <h3 className="font-medium text-[#3A3A3A] text-lg">
                             {display.name}
                           </h3>
-                          {getStatusBadge(display.status, display.networkStatus)}
+                          {getStatusBadge(display.status as DisplayStatus, display.networkStatus || undefined)}
                           {display.platform && (
                             <Badge className="bg-blue-100 text-blue-800">
                               MizanTV
@@ -1268,7 +1081,32 @@ export default function TVDisplaysPage() {
                 </div>
               ))}
               {displays.length === 0 && (
-                <div className="text-center text-gray-500 mt-3 mb-3">No displays found, you can buy MizanTv from our store. Click <Link href="/products/mizantv" className="text-[#550C18] hover:text-[#78001A] underline" target="_blank">here</Link> to buy.</div>
+                <div className="text-center py-12">
+                  <div className="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                    <Tv className="h-12 w-12 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No displays found</h3>
+                  <p className="text-gray-500 mb-6 max-w-sm mx-auto">
+                    Get started by adding a display or purchasing MizanTV from our store.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    {isAdmin && (
+                      <Button
+                        onClick={() => setAddDialogOpen(true)}
+                        className="bg-[#550C18] hover:bg-[#78001A] text-white"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Display
+                      </Button>
+                    )}
+                    <Button variant="outline" asChild>
+                      <Link href="/products/mizantv" target="_blank">
+                        <Tv className="h-4 w-4 mr-2" />
+                        Buy MizanTV
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               )}
             </TabsContent>
             <TabsContent value="content" className="space-y-4">
@@ -1480,6 +1318,7 @@ export default function TVDisplaysPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 }

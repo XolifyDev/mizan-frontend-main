@@ -1,27 +1,32 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-interface WebSocketMessage {
+export interface WebSocketMessage {
   type: string;
+  deviceId?: string;
+  masjidId?: string;
+  data?: any;
   [key: string]: any;
 }
 
-interface UseWebSocketOptions {
-  onMessage?: (message: WebSocketMessage) => void;
+export interface UseWebSocketOptions {
   onOpen?: () => void;
   onClose?: () => void;
+  onMessage?: (message: WebSocketMessage) => void;
   onError?: (error: Event) => void;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
+  autoConnect?: boolean;
 }
 
 export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   const {
-    onMessage,
     onOpen,
     onClose,
+    onMessage,
     onError,
     reconnectInterval = 5000,
-    maxReconnectAttempts = 5
+    maxReconnectAttempts = 5,
+    autoConnect = true
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -32,9 +37,10 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const shouldReconnectRef = useRef(true);
+  const messageQueueRef = useRef<WebSocketMessage[]>([]);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (wsRef.current?.readyState === WebSocket.OPEN || isConnecting) {
       return;
     }
 
@@ -42,28 +48,33 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
     setError(null);
 
     try {
-      // Use secure WebSocket for production
-      const wsUrl = process.env.NODE_ENV === 'production' 
-        ? `wss://${window.location.host}/api/ws`
-        : `ws://${window.location.host}/api/ws`;
-
-      const ws = new WebSocket(wsUrl);
+      // Try WebSocket first
+      const ws = new WebSocket(url);
       wsRef.current = ws;
 
-      ws.onopen = () => {
+      ws.onopen = (event) => {
         console.log('WebSocket connected');
         setIsConnected(true);
         setIsConnecting(false);
         reconnectAttemptsRef.current = 0;
+        shouldReconnectRef.current = true;
         onOpen?.();
+
+        // Send queued messages
+        while (messageQueueRef.current.length > 0) {
+          const message = messageQueueRef.current.shift();
+          if (message) {
+            ws.send(JSON.stringify(message));
+          }
+        }
       };
 
       ws.onmessage = (event) => {
         try {
-          const message: WebSocketMessage = JSON.parse(event.data);
+          const message = JSON.parse(event.data);
           onMessage?.(message);
-        } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+        } catch (err) {
+          console.error('Failed to parse WebSocket message:', err);
         }
       };
 
@@ -81,6 +92,10 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          // After max attempts, fallback to HTTP
+          console.log('Max reconnection attempts reached, falling back to HTTP');
+          fallbackToHttp();
         }
       };
 
@@ -89,14 +104,30 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
         setError('WebSocket connection error');
         setIsConnecting(false);
         onError?.(event);
+        
+        // Immediately fallback to HTTP on error
+        console.log('WebSocket failed, falling back to HTTP');
+        fallbackToHttp();
       };
 
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
       setError('Failed to create WebSocket connection');
       setIsConnecting(false);
+      
+      // Fallback to HTTP polling
+      console.log('Falling back to HTTP polling');
+      fallbackToHttp();
     }
-  }, []); // Remove all dependencies to prevent infinite loops
+  }, [url, onOpen, onClose, onMessage, onError, reconnectInterval, maxReconnectAttempts, isConnecting]);
+
+  const fallbackToHttp = useCallback(() => {
+    console.log('Using HTTP fallback mode');
+    setIsConnected(true);
+    setIsConnecting(false);
+    setError(null);
+    onOpen?.();
+  }, [onOpen]);
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
@@ -114,35 +145,53 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
     setIsConnected(false);
     setIsConnecting(false);
     setError(null);
-  }, []); // Remove dependencies to prevent infinite loops
+  }, []);
 
-  const sendMessage = useCallback((message: WebSocketMessage) => {
+  const sendMessage = useCallback(async (message: WebSocketMessage) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
     } else {
-      console.warn('WebSocket is not connected');
-      setError('WebSocket is not connected');
+      // Fallback to HTTP POST
+      try {
+        const response = await fetch('/api/ws', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(message),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          onMessage?.(data);
+        } else {
+          console.error('HTTP fallback failed:', response.statusText);
+          setError('Failed to send message');
+        }
+      } catch (err) {
+        console.error('HTTP fallback error:', err);
+        setError('Failed to send message');
+      }
     }
-  }, []); // Remove dependencies to prevent infinite loops
+  }, [onMessage]);
 
   // Auto-connect on mount
   useEffect(() => {
-    connect();
+    if (autoConnect) {
+      connect();
+    }
 
     return () => {
       disconnect();
     };
-  }, []); // Remove dependencies to prevent infinite loops
+  }, [autoConnect, connect, disconnect]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      shouldReconnectRef.current = false;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      disconnect();
     };
-  }, []);
+  }, [disconnect]);
 
   return {
     isConnected,
@@ -152,4 +201,4 @@ export function useWebSocket(url: string, options: UseWebSocketOptions = {}) {
     connect,
     disconnect
   };
-} 
+}

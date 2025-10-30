@@ -4,9 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "prisma generate && next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next out node_modules/.cache",
+    "analyze": "ANALYZE=true next build"
   },
   "dependencies": {
     "@better-auth/stripe": "^1.2.7",
