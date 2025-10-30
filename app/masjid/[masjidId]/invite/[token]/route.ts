@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db"
 import { headers } from "next/headers"
 import { NextResponse } from "next/server"
 
-export async function GET(request: Request, { params }: any) {
+export async function GET(request: Request, { params }: { params: Promise<{ masjidId: string; token: string }> }) {
   const { masjidId, token } = await params
   const session = await auth.api.getSession({
     headers: await headers()

@@ -3,10 +3,10 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  { params }: { params: { deviceId: string } }
+  { params }: { params: Promise<{ deviceId: string }> }
 ) {
   try {
-    const deviceId = params.deviceId;
+    const { deviceId } = await params;
 
     if (!deviceId) {
       return NextResponse.json(
@@ -63,10 +63,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { deviceId: string } }
+  { params }: { params: Promise<{ deviceId: string }> }
 ) {
   try {
-    const deviceId = params.deviceId;
+    const { deviceId } = await params;
     const body = await request.json();
 
     if (!deviceId) {

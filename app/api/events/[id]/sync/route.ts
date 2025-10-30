@@ -3,10 +3,10 @@ import { syncEventToGoogleCalendar } from "@/lib/actions/google-calendar";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await syncEventToGoogleCalendar(id);
     return NextResponse.json({ success: true });
   } catch (error) {
