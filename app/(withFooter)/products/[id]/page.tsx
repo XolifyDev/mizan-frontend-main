@@ -4,7 +4,7 @@ import ProductDetailClient from "./product-detail-client"
 import { getProductByURL, getRelatedProducts } from "@/lib/actions/products"
 
 type Props = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
@@ -33,7 +33,18 @@ export default async function ProductPage({ params }: Props) {
     return notFound()
   }
 
-  return <ProductDetailClient product={product} relatedProducts={relatedProducts} />
+  // Cast meta_data to ensure type compatibility
+  const extendedProduct = {
+    ...product,
+    meta_data: (product.meta_data || {}) as { sizes?: Array<{ size: string; price: number }> }
+  };
+
+  const extendedRelatedProducts = relatedProducts.map(p => ({
+    ...p,
+    meta_data: (p.meta_data || {}) as { sizes?: Array<{ size: string; price: number }> }
+  }));
+
+  return <ProductDetailClient product={extendedProduct} relatedProducts={extendedRelatedProducts} />
 }
 
 
