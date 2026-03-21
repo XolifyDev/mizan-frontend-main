@@ -2,6 +2,7 @@
   "name": "mizan-management-frontend",
   "version": "0.3",
   "private": true,
+  "packageManager": "pnpm@10.6.5",
   "scripts": {
     "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
