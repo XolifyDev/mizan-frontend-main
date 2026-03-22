@@ -146,7 +146,7 @@ export default function CreateDonationCategoryPage() {
     setIsSubmitting(true);
     try {
       // Upload logo and featured image if any
-      let uploadedImages: { url: string; alt: string; order: number }[] = []
+      const uploadedImages: { url: string; alt: string; order: number }[] = []
       if (logoFile) {
         const formData = new FormData()
         formData.append("files", logoFile)

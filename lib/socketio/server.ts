@@ -52,7 +52,7 @@ export function createSocketIOServer(server: HTTPServer) {
 
   io.on('connection', (socket) => {
     console.log('Socket.IO client connected:', socket.id);
-    let connection: DeviceConnection = { socket };
+    const connection: DeviceConnection = { socket };
 
     // Handle device registration
     socket.on('device_register', async (data: SocketMessage) => {

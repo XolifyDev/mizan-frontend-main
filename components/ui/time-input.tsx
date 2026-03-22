@@ -60,7 +60,7 @@ export function TimeInput({ value, onChange, className }: TimeInputProps) {
   };
 
   const handleMinuteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let newMinute = e.target.value.replace(/\D/g, "");
+    const newMinute = e.target.value.replace(/\D/g, "");
 
     const isFullySelected =
       e.target.selectionStart === 0 &&

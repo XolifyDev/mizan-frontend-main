@@ -64,7 +64,7 @@ export function createWebSocketServer(server: Server) {
     }
     
     console.log(`WebSocket client connected from: ${clientIP} (attempt ${connectionAttempts.get(clientIP)?.count})`);
-    let connection: DeviceConnection = { ws };
+    const connection: DeviceConnection = { ws };
 
     // Set up ping/pong for connection health
     ws.isAlive = true;

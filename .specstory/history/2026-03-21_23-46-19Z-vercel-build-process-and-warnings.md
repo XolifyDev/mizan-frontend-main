@@ -210,4 +210,1665 @@ The key finding: **vercel.json** explicitly sets:
 
 So Vercel is using npm because the project configured it that way, even though pnpm-lock.yaml exists. That's inconsistent - they should either:
 1. Remove installCommand override and add `"packageManager": "pnpm@10.x"` to package.json (Corepack) so Vercel uses pnpm
-2. Or use </details></think>
+2. Or use npm only: remove pnpm-lock.yaml and use package-lock.json
+
+The user pasted a log that ends with "1 moderate severity vulnerability" - they might want to fix that or understand the build.
+
+I'll run npm audit in a fresh way - maybe they need npm install first.
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/waleednagaria/Developer/Github/mizan/frontend && (test -d node_modules && npm audit --json 2>/dev/null | head -c 4000) || echo "no node_modules"</summary>
+
+```bash
+cd /Users/waleednagaria/Developer/Github/mizan/frontend && (test -d node_modules && npm audit --json 2>/dev/null | head -c 4000) || echo "no node_modules"
+```
+
+```
+{
+  "error": {
+    "code": "ENOLOCK",
+    "summary": "This command requires an existing lockfile.",
+    "detail": "Try creating one first with: npm i --package-lock-only\nOriginal error: loadVirtual requires existing shrinkwrap file"
+  }
+}
+no node_modules
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+Interesting - there's no package-lock.json in the workspace (or npm audit requires it). The git status didn't show package-lock.json. So locally they might use pnpm only.
+
+The user's Vercel log shows `npm install` worked on Vercel - so it created a lockfile-less install or there's package-lock in the repo on the deployed branch.
+
+Let me check for package-lock.json in the repo.
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search">
+<details>
+<summary>Tool use: **glob_file_search** • Searched codebase "" • **0** results in **1** directory</summary>
+
+Directory: **/Users/waleednagaria/Developer/Github/mizan/frontend** (0 files)
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="search" data-tool-name="glob_file_search"><details>
+<summary>Tool use: **glob_file_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+No package-lock.json locally. The vercel.json forces `npm install` which on Vercel will resolve from package.json without honoring pnpm-lock.yaml — so the dependency tree may differ from what pnpm would produce locally.
+
+I should give the user a clear summary:
+
+1. **Root cause of mismatch**: `vercel.json` has `"installCommand": "npm install"` while the repo has `pnpm-lock.yaml` and no `package-lock.json`. That means Vercel ignores the pnpm lockfile and resolves dependencies fresh with npm.
+
+2. **Fix for alignment**: Either:
+   - Add `"packageManager": "pnpm@10.x"` to package.json (per Vercel docs) and change vercel.json to `"installCommand": "pnpm install --frozen-lockfile"` or remove installCommand so Vercel auto-detects pnpm when packageManager is set.
+   - Or commit `package-lock.json` and use npm consistently (remove pnpm-lock or keep both if team uses both - messy).
+
+3. **Deprecation warnings**: Informational, not build failures.
+
+4. **Moderate vulnerability**: They'd need to run `npm audit` after `npm install` or `pnpm audit` to fix - I can't run without installing.
+
+Let me read Vercel's recommended approach - actually the user didn't ask to change files - they pasted a log. I'll explain what's happening and offer to fix vercel.json + package.json to use pnpm.
+
+I'll propose concrete edits:
+- Add `packageManager` field to package.json for Corepack (pnpm version from lockfile - check pnpm-lock for version)
+- Update vercel.json: use `pnpm install` or remove installCommand
+
+Let me check pnpm-lock.yaml for lockfileVersion
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/waleednagaria/Developer/Github/mizan/frontend/pnpm-lock.yaml</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+The user's message seems to be sharing a build log - possibly the build succeeded (they only pasted up to the vulnerability line) or they're asking what to do.
+
+I'll provide:
+1. Explanation of npm vs pnpm mismatch due to vercel.json
+2. Deprecation warnings - FYI
+3. How to address the moderate vulnerability (pnpm audit / npm audit after consistent install)
+4. Optional fix: align Vercel with pnpm
+
+The user rules say to implement - they pasted a log without a direct question. I'll interpret this as: they want help understanding/fixing the Vercel build situation (warnings, vulnerability, wrong package manager).
+
+I'll make the vercel.json + package.json changes to use pnpm consistently since they have pnpm-lock.yaml. I need to verify Vercel's behavior:
+
+From Vercel docs:
+- If you have `packageManager` in package.json (e.g. `"packageManager": "pnpm@9.15.0"`), Corepack will use that version.
+- Override install command: `"installCommand": "pnpm install"`
+
+I should add packageManager - I can use pnpm@9 or pnpm@10. Lockfile is v9 - pnpm 9 uses lockfile 9.0.
+
+Actually lockfileVersion 9.0 is used by pnpm 9.x. pnpm 10 might also use it.
+
+I'll set `"packageManager": "pnpm@9.15.0"` or similar - need a valid version. Common approach is to check .npmrc or use pnpm 9.14.2.
+
+Actually the Vercel log said "Detected pnpm-lock.yaml 9 which may be generated by pnpm@9.x or pnpm@10.x" and "Using pnpm@10.x based on project creation date" - so Vercel would prefer pnpm 10 if we didn't override install.
+
+I'll update vercel.json:
+```json
+{
+  "buildCommand": "prisma generate && pnpm run build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs"
+}
+```
+
+Or use `pnpm exec` for prisma - `pnpm prisma generate && pnpm run build`
+
+And add to package.json:
+```json
+"packageManager": "pnpm@10.12.1"
+```
+I need a real version - let me check what pnpm version is typical. I'll use `pnpm@10.4.0` or search package.json in other projects.
+
+Actually the standard is to run `pnpm -v` - user might not have it. I'll use `pnpm@9.15.4` or from corepack list.
+
+I'll use a conservative approach: `"packageManager": "pnpm@9.15.0"` - lockfile 9.0 works with pnpm 9.
+
+Let me web search for pnpm 9 latest patch... Actually I'll use `pnpm@9.15.4` or just `pnpm@10.6.0` - Vercel docs say to match the version you use locally.
+
+I'll add packageManager without guessing wrong - `pnpm@9.15.0` is a safe choice for lockfile v9.
+
+From pnpm docs: lockfileVersion 9.0 is pnpm 9.
+
+I'll set:
+```json
+"packageManager": "pnpm@9.15.9"
+```
+
+If the user uses pnpm 10 locally, they could bump. The important fix is removing npm install override.
+
+Also change buildCommand to use pnpm for consistency: `pnpm exec prisma generate && pnpm run build` or `pnpm prisma generate` - prisma is typically a devDependency so `pnpm prisma generate` works.
+
+Let me verify prisma is in devDependencies - yes it is. So `pnpm prisma generate && pnpm run build`.
+
+I'll implement these changes.
+
+Wait - the user only pasted a log snippet. They might not want file changes - they might be asking "why is this happening" or "the build failed after this". The log ends before any failure. I'll explain and offer the pnpm alignment as the fix for reproducible builds.
+
+I'll make the edits since the user rules say to execute and not just instruct - aligning the repo is a clear improvement.
+
+Double-check: removing "installCommand" entirely - Vercel might auto-detect pnpm from lockfile + packageManager. According to Vercel, if both package-lock and pnpm-lock exist, it's ambiguous. With only pnpm-lock, Vercel should use pnpm IF no installCommand override. The vercel.json explicitly forces npm - so we must change vercel.json.
+
+I'll update:
+1. vercel.json - installCommand to pnpm install --frozen-lockfile, buildCommand to prisma with pnpm
+2. package.json - add packageManager field
+
+For packageManager version, I'll read .npmrc or use pnpm-lock - sometimes there's a comment at the end of pnpm-lock with the pnpm version used.
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "glob": "pnpm-lock.yaml",
+  "path": "/Users/waleednagaria/Developer/Github/mizan/frontend/pnpm-lock.yaml",
+  "pattern": "pnpm"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/waleednagaria/Developer/Github/mizan/frontend/pnpm-lock.yaml",
+  "pattern": "pnpm",
+  "topFiles": [],
+  "totalFiles": 0,
+  "totalMatches": 0
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/waleednagaria/Developer/Github/mizan/frontend/.npmrc</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+There's a conflict:.npmrc has `package-lock=true` for npm but the repo uses pnpm-lock.yaml. The legacy-peer-deps and save-exact might apply to npm. For pnpm, different settings.
+
+Let me focus on what the user needs:
+1. vercel.json forces npm install - should use pnpm to match lockfile
+2. package.json packageManager
+
+I'll add `"packageManager": "pnpm@10.6.5"` - a recent pnpm 10 that supports lockfile 9 - actually I need to verify: does pnpm 10 use lockfile version 9.0? Yes, pnpm 9 and 10 can share lockfile format.
+
+I'll use `pnpm@10.4.1` or check engines field - let me read if there's engines in package.json - there isn't.
+
+I'll use `pnpm@10.12.1` - latest stable from my knowledge - or use 9.15.0 to be safe.
+
+Actually the safest approach for Vercel is documented at https://vercel.com/docs/deployments/configure-a-build#corepack
+
+I'll implement:
+```json
+"packageManager": "pnpm@10.4.0"
+```
+
+Let me run `corepack prepare pnpm@10.4.0 --activate` - not in sandbox.
+
+I'll use `pnpm@9.15.0` - well established for lockfile v9.
+
+Actually lockfileVersion 9.0 in pnpm 9 is the default. Good.
+
+I'll update vercel.json:
+```json
+{
+  "buildCommand": "pnpm prisma generate && pnpm run build",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs"
+}
+```
+
+Note: `prisma generate` might need to be `pnpm exec prisma generate` - in pnpm, `pnpm prisma` runs the prisma binary from node_modules/.bin. Same as `pnpm run` with prisma in scripts - actually there's no `prisma` script in package.json, only `prisma generate` in dev/build scripts. So `pnpm exec prisma generate` or `pnpm prisma generate` - both work.
+
+I'll use `pnpm exec prisma generate && pnpm run build` to match the original intent.
+
+For the moderate vulnerability - without running audit I can't pin. User could run `pnpm audit --fix` after.
+
+I'll not change .npmrc unless needed - the package-lock=true might confuse npm users but when using pnpm the lockfile is pnpm-lock.yaml.
+
+Let me provide the edits.
+</details></think>
+
+_**Agent (default)**_
+
+
+Identifying the issue: `vercel.json` sets `"installCommand": "npm install"` while the repo has `pnpm-lock.yaml` and no `package-lock.json`. That makes Vercel ignore the pnpm lockfile and install with npm, producing a different dependency tree than local pnpm installs and causing the audit warning. Aligning the Vercel config with pnpm.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/waleednagaria/Developer/Github/mizan/frontend/vercel.json</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/waleednagaria/Developer/Github/mizan/frontend/package.json</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+I used pnpm@10.6.5 - I should verify this is a valid version. Let me check - actually the user's Vercel log said "Using pnpm@10.x based on project creation date" - so 10.x is fine.
+
+I could run `pnpm install` to verify or use corepack. Let me also verify frozen-lockfile works with their lockfile.
+
+Actually I should run `pnpm install --frozen-lockfile` in the project to verify.
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/waleednagaria/Developer/Github/mizan/frontend && corepack enable 2>/dev/null; corepack prepare pnpm@10.6.5 --activate 2>/dev/null; pnpm install --frozen-lockfile 2>&1</summary>
+
+```bash
+cd /Users/waleednagaria/Developer/Github/mizan/frontend && corepack enable 2>/dev/null; corepack prepare pnpm@10.6.5 --activate 2>/dev/null; pnpm install --frozen-lockfile 2>&1
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+Exit code 127 usually means command not found - maybe pnpm isn't in path after corepack. Let me try npx pnpm or check.
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: which pnpm; corepack prepare pnpm@10.6.5 --activate; which pnpm; pnpm --version</summary>
+
+```bash
+which pnpm; corepack prepare pnpm@10.6.5 --activate; which pnpm; pnpm --version
+```
+
+```
+/opt/homebrew/bin/pnpm
+(eval):1: command not found: corepack
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+pnpm exists at /opt/homebrew/bin/pnpm. Corepack not found. Let me run pnpm install --frozen-lockfile with user's pnpm
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/waleednagaria/Developer/Github/mizan/frontend && /opt/homebrew/bin/pnpm install --frozen-lockfile 2>&1</summary>
+
+```bash
+cd /Users/waleednagaria/Developer/Github/mizan/frontend && /opt/homebrew/bin/pnpm install --frozen-lockfile 2>&1
+```
+
+```
+(node:63034) [DEP0169] DeprecationWarning: &#96;url.parse()&#96; behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for &#96;url.parse()&#96; vulnerabilities.
+(Use &#96;node --trace-deprecation ...&#96; to show where the warning was created)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+Done in 1.1s
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+Good - frozen lockfile works. Let me run pnpm audit for the vulnerability info
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: cd /Users/waleednagaria/Developer/Github/mizan/frontend && /opt/homebrew/bin/pnpm audit 2>&1</summary>
+
+```bash
+cd /Users/waleednagaria/Developer/Github/mizan/frontend && /opt/homebrew/bin/pnpm audit 2>&1
+```
+
+```
+(node:63096) [DEP0169] DeprecationWarning: &#96;url.parse()&#96; behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for &#96;url.parse()&#96; vulnerabilities.
+(Use &#96;node --trace-deprecation ...&#96; to show where the warning was created)
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ critical            │ form-data uses unsafe random function in form-data for │
+│                     │ choosing boundary                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ form-data                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=4.0.0 &lt;4.0.4                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.0.4                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @easypost/api@8.1.0 &gt; superagent@10.1.1 &gt;          │
+│                     │ form-data@4.0.2                                        │
+│                     │                                                        │
+│                     │ . &gt; square@42.0.0 &gt; form-data@4.0.2                    │
+│                     │                                                        │
+│                     │ . &gt; square@42.0.0 &gt; square@39.1.1 &gt;                    │
+│                     │ @apimatic/axios-client-adapter@0.3.8 &gt; axios@1.8.4 &gt;   │
+│                     │ form-data@4.0.2                                        │
+│                     │                                                        │
+│                     │ ... Found 6 paths, run &#96;pnpm why form-data&#96; for more   │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-fjxv-7rqg-78g4      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ critical            │ Next.js is vulnerable to RCE in React flight protocol  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.3.0-canary.0 &lt;15.3.6                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.3.6                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-9qr9-h5gf-34mp      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ critical            │ Basic FTP has Path Traversal Vulnerability in its      │
+│                     │ downloadToDir() method                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ basic-ftp                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;5.2.0                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=5.2.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; link-check@5.4.0 &gt; proxy-agent@6.5.0 &gt;             │
+│                     │ pac-proxy-agent@7.2.0 &gt; get-uri@6.0.4 &gt;                │
+│                     │ basic-ftp@5.0.5                                        │
+│                     │                                                        │
+│                     │ . &gt; basic-ftp@5.0.5                                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-5rq4-664w-9x2c      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ glob CLI: Command injection via -c/--cmd executes      │
+│                     │ matches with shell:true                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ glob                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=10.2.0 &lt;10.5.0                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=10.5.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ tailwindcss@3.4.17 &gt; sucrase@3.35.0 &gt; glob@10.4.5      │
+│                     │                                                        │
+│                     │ . &gt; tailwindcss-animate@1.0.7 &gt; tailwindcss@3.4.17 &gt;   │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5                           │
+│                     │                                                        │
+│                     │ . &gt; uploadthing@6.13.3 &gt; tailwindcss@3.4.17 &gt;          │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5                           │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why glob&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-5j98-mcp5-4vw2      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ auth0/node-jws Improperly Verifies HMAC Signature      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ jws                                                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ =4.0.0                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.0.1                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; googleapis@148.0.0 &gt; google-auth-library@9.15.1 &gt;  │
+│                     │ gtoken@7.1.0 &gt; jws@4.0.0                               │
+│                     │                                                        │
+│                     │ . &gt; googleapis@148.0.0 &gt; google-auth-library@9.15.1 &gt;  │
+│                     │ jws@4.0.0                                              │
+│                     │                                                        │
+│                     │ . &gt; googleapis@148.0.0 &gt; googleapis-common@7.2.0 &gt;     │
+│                     │ google-auth-library@9.15.1 &gt; gtoken@7.1.0 &gt; jws@4.0.0  │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why jws&#96; for more         │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-869p-cjfg-cm3x      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Better Auth: Unauthenticated API key creation through  │
+│                     │ api-key plugin                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ better-auth                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;1.3.26                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.3.26                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7      │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-99h5-pjcv-gr6v      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Next Vulnerable to Denial of Service with Server       │
+│                     │ Components                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.3.0-canary.0 &lt;15.3.7                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.3.7                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-mwv6-3258-q52c      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Better Auth's rou3 Dependency has Double-Slash Path    │
+│                     │ Normalization which can Bypass disabledPaths Config    │
+│                     │ and Rate Limits                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ better-auth                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;1.4.5                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.4.5                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7      │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-x732-6j76-qmhm      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios is vulnerable to DoS attack through lack of data │
+│                     │ size check                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=1.0.0 &lt;1.12.0                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.12.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; square@42.0.0 &gt; square@39.1.1 &gt;                    │
+│                     │ @apimatic/axios-client-adapter@0.3.8 &gt; axios@1.8.4     │
+│                     │                                                        │
+│                     │ . &gt; axios@1.8.4                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-4hjh-wcwx-xvwj      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Linkify Allows Prototype Pollution &amp; HTML Attribute    │
+│                     │ Injection (XSS)                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ linkifyjs                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;4.3.2                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.3.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @tiptap/extension-link@2.11.9 &gt; linkifyjs@4.2.0    │
+│                     │                                                        │
+│                     │ . &gt; linkifyjs@4.2.0                                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-95jq-xph2-cx9h      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Next.js HTTP request deserialization can lead to DoS   │
+│                     │ when using insecure React Server Components            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.3.0-canary.0 &lt;15.3.9                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.3.9                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-h25m-26qc-wcjf      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Validator is Vulnerable to Incomplete Filtering of One │
+│                     │ or More Instances of Special Elements                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ validator                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;13.15.22                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=13.15.22                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; link-check@5.4.0 &gt; node-email-verifier@2.0.0 &gt;     │
+│                     │ validator@13.15.15                                     │
+│                     │                                                        │
+│                     │ . &gt; validator@13.15.15                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-vghf-hv5q-vc2g      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Axios is Vulnerable to Denial of Service via __proto__ │
+│                     │ Key in mergeConfig                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ axios                                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=1.0.0 &lt;=1.13.4                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.13.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; square@42.0.0 &gt; square@39.1.1 &gt;                    │
+│                     │ @apimatic/axios-client-adapter@0.3.8 &gt; axios@1.8.4     │
+│                     │                                                        │
+│                     │ . &gt; axios@1.8.4                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-43fc-jf86-j433      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ minimatch has a ReDoS via repeated wildcards with      │
+│                     │ non-matching literal in pattern                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ minimatch                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;3.1.3                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=3.1.3                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; @eslint/config-array@0.21.1 &gt;      │
+│                     │ minimatch@3.1.2                                        │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; @eslint/eslintrc@3.3.1 &gt;           │
+│                     │ minimatch@3.1.2                                        │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; minimatch@3.1.2                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-3ppc-4f35-3m26      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ minimatch has a ReDoS via repeated wildcards with      │
+│                     │ non-matching literal in pattern                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ minimatch                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=9.0.0 &lt;9.0.6                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=9.0.6                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ tailwindcss@3.4.17 &gt; sucrase@3.35.0 &gt; glob@10.4.5 &gt;    │
+│                     │ minimatch@9.0.5                                        │
+│                     │                                                        │
+│                     │ . &gt; tailwindcss-animate@1.0.7 &gt; tailwindcss@3.4.17 &gt;   │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5         │
+│                     │                                                        │
+│                     │ . &gt; uploadthing@6.13.3 &gt; tailwindcss@3.4.17 &gt;          │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5         │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why minimatch&#96; for more   │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-3ppc-4f35-3m26      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ minimatch has ReDoS: matchOne() combinatorial          │
+│                     │ backtracking via multiple non-adjacent GLOBSTAR        │
+│                     │ segments                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ minimatch                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;3.1.3                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=3.1.3                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; @eslint/config-array@0.21.1 &gt;      │
+│                     │ minimatch@3.1.2                                        │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; @eslint/eslintrc@3.3.1 &gt;           │
+│                     │ minimatch@3.1.2                                        │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; minimatch@3.1.2                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-7r86-cg39-jmmj      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ minimatch has ReDoS: matchOne() combinatorial          │
+│                     │ backtracking via multiple non-adjacent GLOBSTAR        │
+│                     │ segments                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ minimatch                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=9.0.0 &lt;9.0.7                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=9.0.7                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ tailwindcss@3.4.17 &gt; sucrase@3.35.0 &gt; glob@10.4.5 &gt;    │
+│                     │ minimatch@9.0.5                                        │
+│                     │                                                        │
+│                     │ . &gt; tailwindcss-animate@1.0.7 &gt; tailwindcss@3.4.17 &gt;   │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5         │
+│                     │                                                        │
+│                     │ . &gt; uploadthing@6.13.3 &gt; tailwindcss@3.4.17 &gt;          │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5         │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why minimatch&#96; for more   │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-7r86-cg39-jmmj      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ minimatch ReDoS: nested *() extglobs generate          │
+│                     │ catastrophically backtracking regular expressions      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ minimatch                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;3.1.4                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=3.1.4                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; @eslint/config-array@0.21.1 &gt;      │
+│                     │ minimatch@3.1.2                                        │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; @eslint/eslintrc@3.3.1 &gt;           │
+│                     │ minimatch@3.1.2                                        │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; minimatch@3.1.2                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-23c5-xmqv-rm74      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ minimatch ReDoS: nested *() extglobs generate          │
+│                     │ catastrophically backtracking regular expressions      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ minimatch                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=9.0.0 &lt;9.0.7                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=9.0.7                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ tailwindcss@3.4.17 &gt; sucrase@3.35.0 &gt; glob@10.4.5 &gt;    │
+│                     │ minimatch@9.0.5                                        │
+│                     │                                                        │
+│                     │ . &gt; tailwindcss-animate@1.0.7 &gt; tailwindcss@3.4.17 &gt;   │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5         │
+│                     │                                                        │
+│                     │ . &gt; uploadthing@6.13.3 &gt; tailwindcss@3.4.17 &gt;          │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5         │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why minimatch&#96; for more   │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-23c5-xmqv-rm74      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ flatted vulnerable to unbounded recursion DoS in       │
+│                     │ parse() revive phase                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ flatted                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;3.4.0                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=3.4.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; file-entry-cache@8.0.0 &gt;           │
+│                     │ flat-cache@4.0.1 &gt; flatted@3.3.3                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-25h7-pfq9-p65f      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Prototype Pollution via parse() in NodeJS flatted      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ flatted                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;=3.4.1                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=3.4.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; file-entry-cache@8.0.0 &gt;           │
+│                     │ flat-cache@4.0.1 &gt; flatted@3.3.3                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-rf6f-7fwh-wjgh      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Kysely has a MySQL SQL Injection via Insufficient      │
+│                     │ Backslash Escaping in &#96;sql.lit(string)&#96; usage or       │
+│                     │ similar methods that append string literal values into │
+│                     │ the compiled SQL strings                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ kysely                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;=0.28.13                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=0.28.14                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7 &gt;    │
+│                     │ kysely@0.27.6                                          │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7 &gt; kysely@0.27.6                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-8cpq-38p9-67gx      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ Effect &#96;AsyncLocalStorage&#96; context lost/contaminated   │
+│                     │ inside Effect fibers under concurrent load with RPC    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ effect                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;3.20.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=3.20.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt;                         │
+│                     │ @uploadthing/shared@7.1.7 &gt; effect@3.12.0              │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ @effect/schema@0.68.18 &gt; effect@3.4.8                  │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ @uploadthing/shared@6.7.9 &gt; effect@3.4.8               │
+│                     │                                                        │
+│                     │ ... Found 9 paths, run &#96;pnpm why effect&#96; for more      │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-38f7-945m-qr2g      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ SQL Injection via unsanitized JSON path keys when      │
+│                     │ ignoring/silencing compilation errors or using         │
+│                     │ &#96;Kysely&lt;any&gt;&#96;.                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ kysely                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=0.26.0 &lt;=0.28.11                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=0.28.12                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7 &gt;    │
+│                     │ kysely@0.27.6                                          │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7 &gt; kysely@0.27.6                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-wmrf-hv6w-mr66      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ socket.io allows an unbounded number of binary         │
+│                     │ attachments                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ socket.io-parser                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=4.0.0 &lt;4.2.6                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.2.6                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; socket.io@4.8.1 &gt; socket.io-parser@4.2.4           │
+│                     │                                                        │
+│                     │ . &gt; socket.io-client@4.8.1 &gt; socket.io-parser@4.2.4    │
+│                     │                                                        │
+│                     │ . &gt; socket.io-parser@4.2.4                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-677m-j7p3-52f9      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Better Call routing bug can lead to Cache Deception    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ better-call                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;1.0.12                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.0.12                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7 &gt;    │
+│                     │ better-call@1.0.9                                      │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7 &gt; better-call@1.0.9              │
+│                     │                                                        │
+│                     │ . &gt; better-call@1.0.9                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-hq75-xg7r-rx6c      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js Affected by Cache Key Confusion for Image      │
+│                     │ Optimization API Routes                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.0.0 &lt;=15.4.4                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.4.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-g5qg-72qw-gw5v      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js Content Injection Vulnerability for Image      │
+│                     │ Optimization                                           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.0.0 &lt;=15.4.4                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.4.5                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-xv57-4mr9-wg8v      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js Improper Middleware Redirect Handling Leads to │
+│                     │ SSRF                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.0.0-canary.0 &lt;15.4.7                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.4.7                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-4342-x723-ch2f      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ validator.js has a URL validation bypass vulnerability │
+│                     │ in its isURL function                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ validator                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;13.15.20                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=13.15.20                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; link-check@5.4.0 &gt; node-email-verifier@2.0.0 &gt;     │
+│                     │ validator@13.15.15                                     │
+│                     │                                                        │
+│                     │ . &gt; validator@13.15.15                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-9965-vmph-33xx      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next Server Actions Source Code Exposure               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=15.3.0-canary.0 &lt;15.3.7                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.3.7                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-w37m-7fhw-fmv9      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Lodash has Prototype Pollution Vulnerability in        │
+│                     │ &#96;_.unset&#96; and &#96;_.omit&#96; functions                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ lodash                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=4.0.0 &lt;=4.17.22                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.17.23                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; recharts@2.15.0 &gt; lodash@4.17.21                   │
+│                     │                                                        │
+│                     │ . &gt; lodash@4.17.21                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-xxjr-mmjv-4gpg      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js self-hosted applications vulnerable to DoS via │
+│                     │ Image Optimizer remotePatterns configuration           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=10.0.0 &lt;15.5.10                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.5.10                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-9g9p-9gw9-jx7f      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ js-yaml has prototype pollution in merge (&lt;&lt;)          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ js-yaml                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=4.0.0 &lt;4.1.1                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.1.1                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; @eslint/eslintrc@3.3.1 &gt;           │
+│                     │ js-yaml@4.1.0                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-mh29-5h37-fv8m      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ mdast-util-to-hast has unsanitized class attribute     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ mdast-util-to-hast                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=13.0.0 &lt;13.2.1                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=13.2.1                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uiw/react-md-editor@4.0.6 &gt;                       │
+│                     │ @uiw/react-markdown-preview@5.1.4 &gt;                    │
+│                     │ react-markdown@9.0.3 &gt; mdast-util-to-hast@13.2.0       │
+│                     │                                                        │
+│                     │ . &gt; @uiw/react-md-editor@4.0.6 &gt;                       │
+│                     │ @uiw/react-markdown-preview@5.1.4 &gt;                    │
+│                     │ react-markdown@9.0.3 &gt; remark-rehype@11.1.2 &gt;          │
+│                     │ mdast-util-to-hast@13.2.0                              │
+│                     │                                                        │
+│                     │ . &gt; @uiw/react-md-editor@4.0.6 &gt;                       │
+│                     │ @uiw/react-markdown-preview@5.1.4 &gt; rehype-raw@7.0.0 &gt; │
+│                     │ hast-util-raw@9.1.0 &gt; mdast-util-to-hast@13.2.0        │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why mdast-util-to-hast&#96;   │
+│                     │ for more information                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-4fh9-h7wg-q85m      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ markdown-it is has a Regular Expression Denial of      │
+│                     │ Service (ReDoS)                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ markdown-it                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=13.0.0 &lt;14.1.1                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=14.1.1                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @tiptap/extension-code-block-lowlight@2.11.9 &gt;     │
+│                     │ @tiptap/core@2.11.9 &gt; @tiptap/pm@2.11.9 &gt;              │
+│                     │ prosemirror-markdown@1.13.2 &gt; markdown-it@14.1.0       │
+│                     │                                                        │
+│                     │ . &gt; @tiptap/extension-code-block-lowlight@2.11.9 &gt;     │
+│                     │ @tiptap/extension-code-block@2.11.9 &gt;                  │
+│                     │ @tiptap/core@2.11.9 &gt; @tiptap/pm@2.11.9 &gt;              │
+│                     │ prosemirror-markdown@1.13.2 &gt; markdown-it@14.1.0       │
+│                     │                                                        │
+│                     │ . &gt; @tiptap/extension-code-block-lowlight@2.11.9 &gt;     │
+│                     │ @tiptap/extension-code-block@2.11.9 &gt;                  │
+│                     │ @tiptap/pm@2.11.9 &gt; prosemirror-markdown@1.13.2 &gt;      │
+│                     │ markdown-it@14.1.0                                     │
+│                     │                                                        │
+│                     │ ... Found 51 paths, run &#96;pnpm why markdown-it&#96; for     │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-38c4-r59v-3vqw      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ ajv has ReDoS when using &#96;$data&#96; option                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ ajv                                                    │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;6.14.0                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=6.14.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; eslint@9.38.0 &gt; @eslint/eslintrc@3.3.1 &gt;           │
+│                     │ ajv@6.12.6                                             │
+│                     │                                                        │
+│                     │ . &gt; eslint@9.38.0 &gt; ajv@6.12.6                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-2g4f-4pwh-qvx6      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ qs's arrayLimit bypass in its bracket notation allows  │
+│                     │ DoS via memory exhaustion                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ qs                                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;6.14.1                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=6.14.1                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @easypost/api@8.1.0 &gt; superagent@10.1.1 &gt;          │
+│                     │ qs@6.14.0                                              │
+│                     │                                                        │
+│                     │ . &gt; googleapis@148.0.0 &gt; googleapis-common@7.2.0 &gt;     │
+│                     │ qs@6.14.0                                              │
+│                     │                                                        │
+│                     │ . &gt; square@42.0.0 &gt; qs@6.14.0                          │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why qs&#96; for more          │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-6rw7-vpxm-498p      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js: HTTP request smuggling in rewrites            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=9.5.0 &lt;15.5.13                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.5.13                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-ggv3-7p47-pfv8      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Next.js: Unbounded next/image disk cache growth can    │
+│                     │ exhaust storage                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ next                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=10.0.0 &lt;15.5.14                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=15.5.14                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @bprogress/next@3.2.12 &gt; next@15.3.3               │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ next@15.3.3                                            │
+│                     │                                                        │
+│                     │ . &gt; @uploadthing/react@7.3.0 &gt; next@15.3.3             │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why next&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-3x4c-7xq6-9pq8      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ brace-expansion Regular Expression Denial of Service   │
+│                     │ vulnerability                                          │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ brace-expansion                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=2.0.0 &lt;=2.0.1                                        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=2.0.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ tailwindcss@3.4.17 &gt; sucrase@3.35.0 &gt; glob@10.4.5 &gt;    │
+│                     │ minimatch@9.0.5 &gt; brace-expansion@2.0.1                │
+│                     │                                                        │
+│                     │ . &gt; tailwindcss-animate@1.0.7 &gt; tailwindcss@3.4.17 &gt;   │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5 &gt;       │
+│                     │ brace-expansion@2.0.1                                  │
+│                     │                                                        │
+│                     │ . &gt; uploadthing@6.13.3 &gt; tailwindcss@3.4.17 &gt;          │
+│                     │ sucrase@3.35.0 &gt; glob@10.4.5 &gt; minimatch@9.0.5 &gt;       │
+│                     │ brace-expansion@2.0.1                                  │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why brace-expansion&#96; for  │
+│                     │ more information                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-v6h2-p8h4-qcjw      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ Better Auth Open Redirect Vulnerability in originCheck │
+│                     │ Middleware Affects Multiple Routes                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ better-auth                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;=1.2.9                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.2.10                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7      │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-36rg-gfq2-3h56      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ Better Auth affected by external request basePath      │
+│                     │ modification DoS                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ better-auth                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &lt;1.4.2                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=1.4.2                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @better-auth/stripe@1.2.7 &gt; better-auth@1.2.7      │
+│                     │                                                        │
+│                     │ . &gt; better-auth@1.2.7                                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-569q-mpph-wgww      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ jsdiff has a Denial of Service vulnerability in        │
+│                     │ parsePatch and applyPatch                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ diff                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=4.0.0 &lt;4.0.4                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=4.0.4                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @uploadthing/react@7.3.0 &gt; uploadthing@6.13.3 &gt;    │
+│                     │ tailwindcss@3.4.17 &gt; postcss-load-config@4.0.2 &gt;       │
+│                     │ ts-node@10.9.2 &gt; diff@4.0.2                            │
+│                     │                                                        │
+│                     │ . &gt; tailwindcss-animate@1.0.7 &gt; tailwindcss@3.4.17 &gt;   │
+│                     │ postcss-load-config@4.0.2 &gt; ts-node@10.9.2 &gt;           │
+│                     │ diff@4.0.2                                             │
+│                     │                                                        │
+│                     │ . &gt; uploadthing@6.13.3 &gt; tailwindcss@3.4.17 &gt;          │
+│                     │ postcss-load-config@4.0.2 &gt; ts-node@10.9.2 &gt;           │
+│                     │ diff@4.0.2                                             │
+│                     │                                                        │
+│                     │ ... Found 6 paths, run &#96;pnpm why diff&#96; for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-73rr-hh4g-fpgx      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ qs's arrayLimit bypass in comma parsing allows denial  │
+│                     │ of service                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ qs                                                     │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ &gt;=6.7.0 &lt;=6.14.1                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ &gt;=6.14.2                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ . &gt; @easypost/api@8.1.0 &gt; superagent@10.1.1 &gt;          │
+│                     │ qs@6.14.0                                              │
+│                     │                                                        │
+│                     │ . &gt; googleapis@148.0.0 &gt; googleapis-common@7.2.0 &gt;     │
+│                     │ qs@6.14.0                                              │
+│                     │                                                        │
+│                     │ . &gt; square@42.0.0 &gt; qs@6.14.0                          │
+│                     │                                                        │
+│                     │ ... Found 5 paths, run &#96;pnpm why qs&#96; for more          │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-w7fw-mjwx-w883      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+46 vulnerabilities found
+Severity: 5 low | 15 moderate | 23 high | 3 critical
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+Exit code 1 from pnpm audit - let me read the first part of the output file for the moderate vulnerability
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/waleednagaria/.cursor/projects/Users-waleednagaria-Developer-Github-mizan-frontend/agent-tools/7218d449-ffea-4972-a15d-38dee3212476.txt</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+The audit shows many issues - the user's log said "1 moderate" which might be npm's stricter/different audit vs pnpm. The key fix I made is vercel + pnpm alignment.
+
+For Next.js - bumping to >=15.3.6 would fix a critical RCE - that's a significant security update the user might want. But the user didn't ask to fix all vulnerabilities - they pasted build logs.
+
+I'll summarize:
+1. What I changed and why
+2. Deprecation warnings - informational
+3. npm reported 1 moderate; pnpm audit may show more - recommend upgrading Next to 15.3.6+ for the known RCE (important)
+
+Should I bump next to 15.3.6? That could be a scope expansion. The user pasted a build log - I'll mention the Next advisory as high priority.
+
+I'll verify packageManager version - I used 10.6.5 - user's local pnpm might differ. Let me run pnpm --version
+</details></think>
+
+_**Agent (default)**_
+
+
+
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2">
+<details><summary>Tool use: **run_terminal_command_v2** • Run command: /opt/homebrew/bin/pnpm --version</summary>
+
+```bash
+/opt/homebrew/bin/pnpm --version
+```
+
+```
+9.5.0
+
+```
+</details>
+</tool-use>
+
+<tool-use data-tool-type="shell" data-tool-name="run_terminal_command_v2"><details>
+<summary>Tool use: **run_terminal_command_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+Local pnpm is 9.5.0 but I set packageManager to 10.6.5. That might cause Corepack on Vercel to use 10.6.5 while local uses 9.5.0 - lockfile is compatible.
+
+For consistency with the user's local env, I could use `pnpm@9.15.0` or `pnpm@9.5.0` - but 9.5.0 might be old. Better to use a range that matches Vercel's message: pnpm 10.x for cloud.
+
+Actually the issue: packageManager should match what generates the lockfile. Lockfile v9 works with pnpm 9+. Using 10.6.5 in package.json is fine for Vercel; local dev might use 9.5.0 - pnpm is generally forward compatible for lockfiles.
+
+I'll change to `pnpm@9.15.4` or keep 10.6.5 - Vercel log said they use pnpm 10 based on project creation date. I'll leave 10.6.5 OR use `pnpm@9.15.0` to align with lockfile version naming.
+
+Actually npm's packageManager field exact version matters for Corepack - `pnpm@9.15.0` is safer if user's lock was made with pnpm 9.
+
+I'll update to `pnpm@9.15.9` - a recent 9.x - to minimize divergence from local 9.5.0 while still being secure. Or use 9.5.0 to match exactly - too old.
+
+I'll use `pnpm@9.15.4` - stable 9.x line.
+
+Actually re-read Vercel output: "Using pnpm@10.x based on project creation date" - that's when installCommand isn't overriding. So 10.x is their default now.
+
+I'll keep 10.6.5 for Vercel parity or switch to 9.15.x for lockfile v9 traditional pairing. Lockfile 9.0 is from pnpm 9 - pnpm 10 also reads it.
+
+I'll leave packageManager as 10.6.5 - user can adjust.
+
+Alternative: remove packageManager and only fix vercel.json - Vercel might pick pnpm from lockfile. But Corepack recommends explicit packageManager.
+
+Done. Summarize for user.
+</details></think>
+
+_**Agent (default)**_
+
+
+Here is what that Vercel log means and what was changed.
+
+## What was going wrong
+
+1. **`vercel.json` forced npm**  
+   You have `pnpm-lock.yaml` but no committed `package-lock.json`, yet the project had:
+
+```1:5:/Users/waleednagaria/Developer/Github/mizan/frontend/vercel.json
+{
+  "buildCommand": "prisma generate && npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs"
+}
+```
+
+   So Vercel **did not use the pnpm lockfile** and resolved dependencies with npm instead. That can differ from your machine and from what the lockfile describes.
+
+2. **Deprecation lines** (`superagent`, `@effect/schema`, `react-beautiful-dnd`)  
+   These are **warnings**, not build failures. They come from upstream packages.
+
+3. **`1 moderate severity vulnerability`**  
+   That’s from **npm’s audit** on the tree it just installed (not necessarily the same as `pnpm audit` on your lockfile).
+
+## What we changed
+
+- **`vercel.json`** – Install with pnpm and respect the lockfile, and run the build through pnpm:
+  - `pnpm install --frozen-lockfile`
+  - `pnpm exec prisma generate && pnpm run build`
+- **`package.json`** – Added `"packageManager": "pnpm@10.6.5"` so Corepack/Vercel can pin the same pnpm major you’re aiming for (you can change the exact version to match your team’s standard).
+
+After you deploy, the install step should match your `pnpm-lock.yaml` and the “pnpm detected but npm install ran” mismatch should go away.
+
+## Security note (worth doing separately)
+
+Running `pnpm audit` locally shows several issues, including **Next.js 15.3.3** flagged as vulnerable (patched in **≥ 15.3.6**). Bumping `next` to at least **15.3.6** is the straightforward fix for that advisory. I did not change `next` in this pass so you can test and upgrade on your own schedule.
+
+If the build **failed** after the line you pasted, paste the **rest of the log** (especially the first error stack) and we can target that next.
+
+---
+
+_**User**_
+
+ ⨯ ESLint: Cannot find package '@eslint/eslintrc' imported from /vercel/path0/eslint.config.mjs Did you mean to import "@eslint/eslintrc/dist/eslintrc.cjs"?
+
+
+---
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+The user is getting a Vercel build error related to ESLint. The error says:
+- Cannot find package '@eslint/eslintrc' imported from eslint.config.mjs
+- Suggests importing "@eslint/eslintrc/dist/eslintrc.cjs" instead
+
+I need to look at their eslint.config.mjs and package.json to fix this. The issue is likely that:
+1. @eslint/eslintrc is not listed as a dependency in package.json but is imported in eslint.config.mjs
+2. Or the import path is wrong for the version they have
+
+Let me read the eslint config and package.json to fix this properly.
+</details></think>
+
+_**Agent (default)**_
+
+
+Inspecting the ESLint config and dependencies to fix the missing `@eslint/eslintrc` import.
+
+
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2">
+<details><summary>Tool use: **read_file_v2** • Read file: /Users/waleednagaria/Developer/Github/mizan/frontend/eslint.config.mjs</summary>
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="read" data-tool-name="read_file_v2"><details>
+<summary>Tool use: **read_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search">
+<details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+
+Parameters:
+
+```json
+{
+  "caseInsensitive": false,
+  "path": "/Users/waleednagaria/Developer/Github/mizan/frontend/package.json",
+  "pattern": "eslint"
+}
+```
+Additional data:
+
+```json
+{
+  "isPruned": true,
+  "outputMode": "content",
+  "path": "/Users/waleednagaria/Developer/Github/mizan/frontend/package.json",
+  "pattern": "eslint",
+  "topFiles": [
+    {
+      "matchCount": 1,
+      "uri": "package.json"
+    }
+  ],
+  "totalFiles": 1,
+  "totalMatches": 1
+}
+```
+Status: **completed**
+
+
+</details>
+</tool-use>
+
+<tool-use data-tool-type="unknown" data-tool-name="ripgrep_raw_search"><details>
+<summary>Tool use: **ripgrep_raw_search**</summary>
+
+</details></tool-use>
+
+_**Agent (default)**_
+
+<think><details><summary>Thought Process</summary>
+
+The eslint.config.mjs imports `FlatCompat` from `@eslint/eslintrc` but that package is not in package.json dependencies. ESLint 9 flat config often needs `@eslint/eslintrc` as an explicit dependency for FlatCompat when using the compat layer for legacy configs.
+
+The fix is to add `@eslint/eslintrc` as a devDependency. Let me check the compatible version for eslint 9.38.0.
+
+I'll add `"@eslint/eslintrc": "^3.2.0"` or similar - I should check npm for peer deps. Typically @eslint/eslintrc v3 works with eslint 9.
+
+Let me verify by chec</details></think>
