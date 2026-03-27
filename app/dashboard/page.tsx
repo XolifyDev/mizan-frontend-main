@@ -1,613 +1,634 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
 import {
-  BarChart3,
+  ArrowUpRight,
   Calendar,
-  Clock,
-  CreditCard,
-  DollarSign,
-  MessageSquare,
+  Clock3,
+  Download,
+  Megaphone,
   Monitor,
-  PlusCircle,
-  RefreshCw,
-  Settings,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { prisma } from "@/lib/db";
+import { getUserMasjid } from "@/lib/actions/masjid";
 
-export default function Dashboard() {
+type DashboardPageProps = {
+  searchParams: Promise<{
+    masjidId?: string;
+  }>;
+};
+
+type PrayerName = "Fajr" | "Dhuhr" | "Asr" | "Maghrib" | "Isha";
+
+const prayerOrder: PrayerName[] = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
+
+const prayerTimeFieldMap = {
+  Fajr: "fajr",
+  Dhuhr: "dhuhr",
+  Asr: "asr",
+  Maghrib: "maghrib",
+  Isha: "isha",
+} as const;
+
+const prayerIqamahFieldMap = {
+  Fajr: "iqamahFajr",
+  Dhuhr: "iqamahDhuhr",
+  Asr: "iqamahAsr",
+  Maghrib: "iqamahMaghrib",
+  Isha: "iqamahIsha",
+} as const;
+
+const iqamahScheduleFieldMap = {
+  Fajr: "fajr",
+  Dhuhr: "dhuhr",
+  Asr: "asr",
+  Maghrib: "maghrib",
+  Isha: "isha",
+} as const;
+
+function formatIqamahLabel(value?: string | null) {
+  if (!value) return "--";
+  if (value === "0") return "At Adhan";
+
+  const normalized = value.trim().toUpperCase();
+  const compact = normalized.replace(/\s+/g, "");
+  const match = compact.match(/^(\d{1,2}):(\d{2})(AM|PM)?$/);
+
+  if (!match) return value;
+
+  const [, hour, minute, suffix] = match;
+  if (!suffix) return `${hour.padStart(2, "0")}:${minute}`;
+  return `${hour.padStart(2, "0")}:${minute} ${suffix}`;
+}
+
+function parseIqamahStringToDate(value: string, baseDate: Date) {
+  const compact = value.trim().toUpperCase().replace(/\s+/g, "");
+  const match = compact.match(/^(\d{1,2}):(\d{2})(AM|PM)?$/);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const suffix = match[3];
+
+  if (suffix === "AM" && hour === 12) hour = 0;
+  if (suffix === "PM" && hour !== 12) hour += 12;
+
+  const result = new Date(baseDate);
+  result.setHours(hour, minute, 0, 0);
+  return result;
+}
+
+function formatTime(value: Date | null | undefined, timezone?: string) {
+  if (!value) return "--";
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: timezone || "America/New_York",
+  }).format(value);
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(amount / 100);
+}
+
+function getEventImage(event: { flyerUrl: string | null; tvFlyerUrl: string | null }) {
   return (
-    <>
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+    event.tvFlyerUrl ||
+    event.flyerUrl ||
+    "https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=900&q=80"
+  );
+}
+
+function withMasjid(path: string, masjidId?: string) {
+  return masjidId ? `${path}?masjidId=${masjidId}` : path;
+}
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const { masjidId } = await searchParams;
+
+  if (!masjidId) {
+    return (
+      <div className="rounded-[28px] border border-[#550C18]/10 bg-white p-8 shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+        <h1 className="text-3xl font-semibold text-[#2e0c12]">Dashboard Overview</h1>
+        <p className="mt-2 text-[#6d5560]">
+          Select a masjid to load live operations and community metrics.
+        </p>
+      </div>
+    );
+  }
+
+  const masjid = await getUserMasjid(masjidId);
+
+  if (!masjid || ("error" in masjid && masjid.error)) {
+    return (
+      <div className="rounded-[28px] border border-[#550C18]/10 bg-white p-8 shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+        <h1 className="text-3xl font-semibold text-[#2e0c12]">Dashboard Overview</h1>
+        <p className="mt-2 text-[#6d5560]">
+          We couldn&apos;t load this masjid dashboard with your current access.
+        </p>
+      </div>
+    );
+  }
+
+  const timezone = masjid.timezone || "America/New_York";
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 6);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const [
+    todayPrayerTime,
+    latestIqamah,
+    donations,
+    displays,
+    events,
+    contentCount,
+    donationCategoryCount,
+  ] = await Promise.all([
+    prisma.prayerTime.findFirst({
+      where: {
+        masjidId,
+        date: {
+          gte: todayStart,
+          lte: todayEnd,
+        },
+      },
+    }),
+    prisma.iqamahTiming.findFirst({
+      where: {
+        masjidId,
+        changeDate: {
+          lte: now,
+        },
+      },
+      orderBy: {
+        changeDate: "desc",
+      },
+    }),
+    prisma.donation.findMany({
+      where: {
+        masjidId,
+        createdAt: {
+          gte: weekStart,
+        },
+        status: {
+          not: "failed",
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    }),
+    prisma.tVDisplay.findMany({
+      where: { masjidId },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        status: true,
+        lastSeen: true,
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    }),
+    prisma.event.findMany({
+      where: {
+        masjidId,
+        date: {
+          gte: now,
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        date: true,
+        flyerUrl: true,
+        tvFlyerUrl: true,
+      },
+      orderBy: {
+        date: "asc",
+      },
+      take: 3,
+    }),
+    prisma.content.count({
+      where: {
+        masjidId,
+        active: true,
+      },
+    }),
+    prisma.donationCategory.count({
+      where: {
+        masjidId,
+        active: true,
+      },
+    }),
+  ]);
+
+  const prayerItems = prayerOrder.map((name, index) => {
+    const adhanTime =
+      todayPrayerTime?.[prayerTimeFieldMap[name]] ?? null;
+
+    const prayerTimeIqamah =
+      todayPrayerTime?.[prayerIqamahFieldMap[name]] ?? null;
+
+    const scheduleIqamahRaw =
+      latestIqamah?.[iqamahScheduleFieldMap[name]] ?? null;
+
+    const iqamahDisplay = prayerTimeIqamah
+      ? formatTime(prayerTimeIqamah, timezone)
+      : formatIqamahLabel(scheduleIqamahRaw);
+
+    const comparableIqamahTime =
+      prayerTimeIqamah ||
+      (scheduleIqamahRaw && scheduleIqamahRaw !== "0"
+        ? parseIqamahStringToDate(scheduleIqamahRaw, now)
+        : null);
+
+    const activeTime = comparableIqamahTime || adhanTime;
+    const nextPrayerTime =
+      index < prayerOrder.length - 1
+        ? todayPrayerTime?.[prayerTimeFieldMap[prayerOrder[index + 1]]]
+        : null;
+
+    return {
+      name,
+      adhan: formatTime(adhanTime, timezone),
+      iqamah: iqamahDisplay,
+      current:
+        !!activeTime &&
+        now.getTime() >= new Date(activeTime).getTime() &&
+        (!nextPrayerTime || now.getTime() < new Date(nextPrayerTime).getTime()),
+    };
+  });
+
+  const donationMap = new Map<string, number>();
+  for (let i = 0; i < 7; i += 1) {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + i);
+    donationMap.set(day.toDateString(), 0);
+  }
+  for (const donation of donations) {
+    const key = new Date(donation.createdAt).toDateString();
+    donationMap.set(key, (donationMap.get(key) || 0) + donation.amount);
+  }
+
+  const donationBars = Array.from(donationMap.entries()).map(([dateKey, amount]) => {
+    const date = new Date(dateKey);
+    return {
+      day: new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(date),
+      amount,
+    };
+  });
+
+  const maxDonation = Math.max(...donationBars.map((item) => item.amount), 1);
+  const weeklyTotal = donations.reduce((sum, donation) => sum + donation.amount, 0);
+
+  const onlineDisplays = displays.filter((display) => display.status === "online");
+  const offlineDisplays = displays.filter((display) => display.status !== "online");
+
+  const actionCards = [
+    {
+      eyebrow: latestIqamah
+        ? `Current schedule from ${new Intl.DateTimeFormat("en-US").format(new Date(latestIqamah.changeDate))}`
+        : "No iqamah schedule yet",
+      title: "Update Iqamah Times",
+      href: withMasjid("/dashboard/prayer-times", masjidId),
+      icon: Clock3,
+      tone:
+        "bg-gradient-to-br from-[#550C18] via-[#6d1021] to-[#8a1830] text-white shadow-[0_24px_50px_-24px_rgba(85,12,24,0.8)]",
+      iconTone: "bg-white/10 text-white",
+    },
+    {
+      eyebrow: `${contentCount} active content items`,
+      title: "New Announcement",
+      href: withMasjid("/dashboard/signage", masjidId),
+      icon: Megaphone,
+      tone:
+        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-[0_20px_45px_-30px_rgba(85,12,24,0.35)]",
+      iconTone: "bg-[#550C18]/8 text-[#550C18]",
+    },
+    {
+      eyebrow: `${donationCategoryCount} active giving categories`,
+      title: "Add Donation Category",
+      href: withMasjid("/dashboard/donations/categories", masjidId),
+      icon: Wallet,
+      tone:
+        "bg-gradient-to-br from-[#7b1528] via-[#8f1930] to-[#a2203a] text-white shadow-[0_24px_50px_-24px_rgba(122,21,40,0.8)]",
+      iconTone: "bg-white/10 text-white",
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <section className="rounded-[28px] border border-[#550C18]/10 bg-[linear-gradient(135deg,rgba(255,246,247,1)_0%,rgba(255,255,255,1)_42%,rgba(249,241,243,1)_100%)] p-6 shadow-[0_30px_80px_-55px_rgba(85,12,24,0.45)] md:p-8">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-[#550C18]">Welcome back!</h2>
-            <p className="text-[#3A3A3A]/70">
-              What would you like to do today?
+            <h1 className="text-1xl font-semibold tracking-tight text-[#2e0c12]">
+              Dashboard Overview
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-[#6d5560] md:text-base">
+              Live masjid operations and community metrics for {masjid.name}.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Content
-            </Button>
-            <Button
-              variant="outline"
-              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="border-[#550C18]/15 bg-white/90 text-[#550C18] hover:bg-[#550C18]/5"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export Report
+          </Button>
         </div>
+      </section>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-                Today's Prayer Times
-              </CardTitle>
-              <CardDescription className="text-[#3A3A3A]/70">
-                Wednesday, Mar 26 | Ramadan 26, 1446
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[#550C18]/10 flex items-center justify-center text-[#550C18]">
-                      <span className="text-xs">☀️</span>
-                    </div>
-                    <span className="font-medium text-[#3A3A3A]">Fajr</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-[#3A3A3A]">06:07 AM</span>
-                    <span className="text-sm font-medium text-[#550C18]">
-                      06:27 AM
-                    </span>
-                  </div>
+      <section className="grid gap-4 lg:grid-cols-3">
+        {actionCards.map((action) => (
+          <Link key={action.title} href={action.href}>
+            <Card
+              className={`overflow-hidden border-none rounded-[26px] ${action.tone} transition duration-200 hover:-translate-y-0.5`}
+            >
+              <CardContent className="p-5">
+                <div
+                  className={`flex h-14 w-14 items-center justify-center rounded-2xl ${action.iconTone}`}
+                >
+                  <action.icon className="h-6 w-6" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[#550C18]/10 flex items-center justify-center text-[#550C18]">
-                      <span className="text-xs">☀️</span>
-                    </div>
-                    <span className="font-medium text-[#3A3A3A]">Dhuhr</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-[#3A3A3A]">01:42 PM</span>
-                    <span className="text-sm font-medium text-[#550C18]">
-                      02:00 PM
-                    </span>
-                  </div>
+                <p className="mt-6 text-sm font-medium opacity-75">
+                  {action.eyebrow}
+                </p>
+                <div className="mt-1 flex items-end justify-between gap-4">
+                  <h2 className="text-lg font-semibold leading-tight">
+                    {action.title}
+                  </h2>
+                  <ArrowUpRight className="h-5 w-5 shrink-0 opacity-70" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[#550C18]/10 flex items-center justify-center text-[#550C18]">
-                      <span className="text-xs">☀️</span>
-                    </div>
-                    <span className="font-medium text-[#3A3A3A]">Asr</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-[#3A3A3A]">05:12 PM</span>
-                    <span className="text-sm font-medium text-[#550C18]">
-                      06:45 PM
-                    </span>
-                  </div>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="rounded-xl bg-[#550C18]/8 p-2 text-[#550C18]">
+                  <Clock3 className="h-5 w-5" />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[#550C18]/10 flex items-center justify-center text-[#550C18]">
-                      <span className="text-xs">☀️</span>
-                    </div>
-                    <span className="font-medium text-[#3A3A3A]">Maghrib</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-[#3A3A3A]">07:58 PM</span>
-                    <span className="text-sm font-medium text-[#550C18]">
-                      08:03 PM
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-[#550C18]/10 flex items-center justify-center text-[#550C18]">
-                      <span className="text-xs">☀️</span>
-                    </div>
-                    <span className="font-medium text-[#3A3A3A]">Isha</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-[#3A3A3A]">09:17 PM</span>
-                    <span className="text-sm font-medium text-[#550C18]">
-                      09:50 PM
-                    </span>
-                  </div>
+                <div>
+                  <p className="text-lg font-semibold text-[#2e0c12]">
+                    Prayer Times
+                  </p>
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#8a6b74]">
+                    Today
+                  </p>
                 </div>
               </div>
-              <div className="mt-4 pt-3 border-t border-[#550C18]/10 text-center">
-                <p className="text-xs text-[#3A3A3A]/70">
-                  JUMU'AH-1: 02:10 PM / JUMU'AH-2: 03:00 PM
+              <Badge className="bg-[#550C18]/8 text-[#550C18] hover:bg-[#550C18]/8">
+                {todayPrayerTime ? "Live" : "Pending"}
+              </Badge>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {prayerItems.map((prayer) => (
+                <div
+                  key={prayer.name}
+                  className={`rounded-2xl border px-4 py-3 transition ${
+                    prayer.current
+                      ? "border-[#550C18] bg-[#550C18] text-white shadow-[0_18px_40px_-25px_rgba(85,12,24,0.85)]"
+                      : "border-[#550C18]/8 bg-[#faf7f8] text-[#2e0c12]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-semibold">{prayer.name}</span>
+                      {prayer.current ? (
+                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                          Current
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold">{prayer.adhan}</p>
+                      <p
+                        className={`text-xs ${
+                          prayer.current ? "text-white/75" : "text-[#8a6b74]"
+                        }`}
+                      >
+                        Iqamah: {prayer.iqamah}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-2xl font-semibold text-[#2e0c12]">
+                  Weekly Donations Trend
+                </p>
+                <p className="mt-1 text-sm text-[#8a6b74]">
+                  Total this week:{" "}
+                  <span className="font-semibold text-[#550C18]">
+                    {formatCurrency(weeklyTotal)}
+                  </span>
                 </p>
               </div>
-            </CardContent>
-          </Card>
+              <Button
+                variant="outline"
+                className="border-[#550C18]/10 bg-[#faf7f8] text-[#6d5560] hover:bg-[#550C18]/5"
+              >
+                Last 7 Days
+              </Button>
+            </div>
 
-          <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-                Quick Actions
-              </CardTitle>
-              <CardDescription className="text-[#3A3A3A]/70">
-                Manage your masjid
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col items-center justify-center gap-2 border-[#550C18]/20 hover:bg-[#550C18]/5 hover:text-[#550C18]"
-                  asChild
+            <div className="mt-10 flex h-[320px] items-end justify-between gap-3 rounded-[24px] border border-dashed border-[#550C18]/10 bg-[linear-gradient(180deg,rgba(255,248,249,0.45)_0%,rgba(255,255,255,1)_100%)] px-3 pb-6 pt-10">
+              {donationBars.map((item, index) => (
+                <div
+                  key={item.day}
+                  className="flex h-full flex-1 flex-col items-center justify-end gap-3"
                 >
-                  <Link href="/dashboard/prayer-times">
-                    <Clock className="h-6 w-6 text-[#550C18]" />
-                    <span className="text-sm">Manage Iqamah Times</span>
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col items-center justify-center gap-2 border-[#550C18]/20 hover:bg-[#550C18]/5 hover:text-[#550C18]"
-                  asChild
-                >
-                  <Link href="/dashboard/tv-displays">
-                    <Monitor className="h-6 w-6 text-[#550C18]" />
-                    <span className="text-sm">Display New Content</span>
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col items-center justify-center gap-2 border-[#550C18]/20 hover:bg-[#550C18]/5 hover:text-[#550C18]"
-                  asChild
-                >
-                  <Link href="/dashboard/announcements">
-                    <MessageSquare className="h-6 w-6 text-[#550C18]" />
-                    <span className="text-sm">Add Announcement</span>
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-auto py-4 flex flex-col items-center justify-center gap-2 border-[#550C18]/20 hover:bg-[#550C18]/5 hover:text-[#550C18]"
-                  asChild
-                >
-                  <Link href="/dashboard/events">
-                    <Calendar className="h-6 w-6 text-[#550C18]" />
-                    <span className="text-sm">View Monthly Schedule</span>
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium text-[#3A3A3A]">
-              Total Donations
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              This month
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#550C18]">$9,904.00</div>
-            <p className="text-xs text-[#3A3A3A]/70 mt-1">
-              57 donations received
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium text-[#3A3A3A]">
-              Active Users
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              This week
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#550C18]">1,245</div>
-            <p className="text-xs text-[#3A3A3A]/70 mt-1">+5% from last week</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium text-[#3A3A3A]">
-              Events
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              Upcoming
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#550C18]">8</div>
-            <p className="text-xs text-[#3A3A3A]/70 mt-1">
-              Next: Friday Prayer
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium text-[#3A3A3A]">
-              Prayer Times
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              Today
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-[#550C18]">5</div>
-            <p className="text-xs text-[#3A3A3A]/70 mt-1">Next: Asr 4:30 PM</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 mt-6 grid-cols-1 lg:grid-cols-3">
-        <Card className="bg-white border-[#550C18]/10 col-span-2 hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-              Donation Overview
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              Monthly breakdown
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] flex items-center justify-center">
-              <div className="w-full max-w-md">
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        General Fund
-                      </span>
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        65%
-                      </span>
-                    </div>
-                    <Progress value={65} className="h-2" />
+                  <div className="w-full rounded-full bg-[#f3eaed]">
+                    <div
+                      className={`mx-auto w-full rounded-full ${
+                        index === donationBars.length - 2
+                          ? "bg-gradient-to-t from-[#550C18] to-[#8f1930]"
+                          : "bg-gradient-to-t from-[#7f2233] to-[#cfa1ad]"
+                      }`}
+                      style={{
+                        height: `${Math.max(
+                          20,
+                          (item.amount / maxDonation) * 220
+                        )}px`,
+                      }}
+                    />
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        Zakat
-                      </span>
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        45%
-                      </span>
-                    </div>
-                    <Progress value={45} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        Building Fund
-                      </span>
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        80%
-                      </span>
-                    </div>
-                    <Progress value={80} className="h-2" />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        Education
-                      </span>
-                      <span className="text-sm font-medium text-[#3A3A3A]">
-                        30%
-                      </span>
-                    </div>
-                    <Progress value={30} className="h-2" />
+                  <div className="text-center">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a6b74]">
+                      {item.day}
+                    </p>
+                    <p className="mt-1 text-xs text-[#6d5560]">
+                      {item.amount > 0 ? formatCurrency(item.amount) : "$0.00"}
+                    </p>
                   </div>
                 </div>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>
+      </section>
 
-        <Card className="bg-white border-[#550C18]/10 md:row-span-2 md:col-span-1 col-span-2 hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-              Upcoming Events
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              Next 7 days
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 pb-3 border-b border-[#550C18]/10">
-                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                  <span className="text-xs font-medium">FRI</span>
-                  <span className="text-lg font-bold">15</span>
-                </div>
-                <div>
-                  <p className="font-medium text-[#3A3A3A]">Friday Prayer</p>
-                  <p className="text-sm text-[#3A3A3A]/70">1:30 PM - 2:30 PM</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 pb-3 border-b border-[#550C18]/10">
-                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                  <span className="text-xs font-medium">SAT</span>
-                  <span className="text-lg font-bold">16</span>
-                </div>
-                <div>
-                  <p className="font-medium text-[#3A3A3A]">Quran Study</p>
-                  <p className="text-sm text-[#3A3A3A]/70">
-                    10:00 AM - 12:00 PM
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 pb-3 border-b border-[#550C18]/10">
-                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                  <span className="text-xs font-medium">SUN</span>
-                  <span className="text-lg font-bold">17</span>
-                </div>
-                <div>
-                  <p className="font-medium text-[#3A3A3A]">Community Iftar</p>
-                  <p className="text-sm text-[#3A3A3A]/70">7:30 PM - 9:00 PM</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="flex flex-col items-center justify-center w-12 h-12 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                  <span className="text-xs font-medium">MON</span>
-                  <span className="text-lg font-bold">18</span>
-                </div>
-                <div>
-                  <p className="font-medium text-[#3A3A3A]">Youth Program</p>
-                  <p className="text-sm text-[#3A3A3A]/70">6:00 PM - 8:00 PM</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#550C18]/10 col-span-2 hover:shadow-md transition-shadow">
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-              Recent Donations
-            </CardTitle>
-            <CardDescription className="text-[#3A3A3A]/70">
-              Last 5 transactions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[#550C18]/10">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-[#550C18]/10 text-[#550C18] text-xs">
-                      AH
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium text-[#3A3A3A]">
-                      Ahmed Hassan
-                    </p>
-                    <p className="text-xs text-[#3A3A3A]/70">General Fund</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-[#550C18]">$100.00</p>
-                  <p className="text-xs text-[#3A3A3A]/70">Today, 10:30 AM</p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pb-2 border-b border-[#550C18]/10">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-[#550C18]/10 text-[#550C18] text-xs">
-                      SA
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium text-[#3A3A3A]">
-                      Sarah Ali
-                    </p>
-                    <p className="text-xs text-[#3A3A3A]/70">Zakat</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-[#550C18]">$250.00</p>
-                  <p className="text-xs text-[#3A3A3A]/70">
-                    Yesterday, 3:45 PM
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pb-2 border-b border-[#550C18]/10">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-[#550C18]/10 text-[#550C18] text-xs">
-                      MK
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium text-[#3A3A3A]">
-                      Mohammed Khan
-                    </p>
-                    <p className="text-xs text-[#3A3A3A]/70">Building Fund</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-[#550C18]">$500.00</p>
-                  <p className="text-xs text-[#3A3A3A]/70">
-                    Yesterday, 1:20 PM
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between pb-2 border-b border-[#550C18]/10">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-[#550C18]/10 text-[#550C18] text-xs">
-                      FQ
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium text-[#3A3A3A]">
-                      Fatima Qureshi
-                    </p>
-                    <p className="text-xs text-[#3A3A3A]/70">Education</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-[#550C18]">$150.00</p>
-                  <p className="text-xs text-[#3A3A3A]/70">
-                    2 days ago, 9:15 AM
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-[#550C18]/10 text-[#550C18] text-xs">
-                      YA
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium text-[#3A3A3A]">
-                      Yusuf Abdullah
-                    </p>
-                    <p className="text-xs text-[#3A3A3A]/70">General Fund</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-[#550C18]">$75.00</p>
-                  <p className="text-xs text-[#3A3A3A]/70">
-                    2 days ago, 5:30 PM
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 mt-6 grid-cols-1 lg:grid-cols-3">
-        <Card className="bg-white border-[#550C18]/10 col-span-full hover:shadow-md transition-shadow">
-          <CardHeader>
+      <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-                  Device Status
-                </CardTitle>
-                <CardDescription className="text-[#3A3A3A]/70">
-                  Monitor your kiosks and displays
-                </CardDescription>
+                <h2 className="text-2xl font-semibold text-[#2e0c12]">
+                  TV Display Status
+                </h2>
+                <p className="mt-1 text-sm text-[#8a6b74]">
+                  Real-time health across connected screens
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh Status
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-[#550C18] hover:bg-[#78001A] text-white"
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Device
-                </Button>
+              <div className="rounded-xl bg-[#550C18]/8 p-2 text-[#550C18]">
+                <Monitor className="h-5 w-5" />
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="border border-[#550C18]/10 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-[#3A3A3A] text-xl">
-                    Men Lobby - Left
-                  </h3>
-                  <Badge className="bg-green-500 hover:bg-green-600">
-                    Online
-                  </Badge>
-                </div>
-                <p className="text-sm text-[#3A3A3A]/70 mb-3">
-                  Last updated: 5 minutes ago
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+
+            <div className="mt-5 space-y-4">
+              <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50 p-4 text-emerald-800">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                    <Monitor className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">
+                      {onlineDisplays.length} Online
+                    </p>
+                    <p className="mt-1 text-xs leading-5 opacity-80">
+                      {onlineDisplays.length > 0
+                        ? onlineDisplays
+                            .slice(0, 3)
+                            .map((display) => display.location || display.name)
+                            .join(", ")
+                        : "No active displays reporting in."}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="border border-[#550C18]/10 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-[#3A3A3A] text-xl">
-                    Sisters Side
-                  </h3>
-                  <Badge className="bg-green-500 hover:bg-green-600">
-                    Online
-                  </Badge>
-                </div>
-                <p className="text-sm text-[#3A3A3A]/70 mb-3">
-                  Last updated: 10 minutes ago
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+              <div className="rounded-2xl border border-red-200/70 bg-red-50 p-4 text-red-700">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-600 text-white">
+                    <Monitor className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-semibold">
+                      {offlineDisplays.length} Offline
+                    </p>
+                    <p className="mt-1 text-xs leading-5 opacity-80">
+                      {offlineDisplays.length > 0
+                        ? offlineDisplays
+                            .slice(0, 2)
+                            .map((display) => display.location || display.name)
+                            .join(", ")
+                        : "All displays are currently online."}
+                    </p>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              <div className="border border-[#550C18]/10 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-medium text-[#3A3A3A] text-xl">
-                    Kiosk 3
-                  </h3>
-                  <Badge className="bg-yellow-500 hover:bg-yellow-600">
-                    Checking
-                  </Badge>
-                </div>
-                <p className="text-sm text-[#3A3A3A]/70 mb-3">
-                  Last updated: 2 hours ago
+            <Link href={withMasjid("/dashboard/signage", masjidId)}>
+              <Button
+                variant="outline"
+                className="mt-5 w-full border-dashed border-[#550C18]/25 text-[#550C18] hover:bg-[#550C18]/5"
+              >
+                Manage All Displays
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-semibold text-[#2e0c12]">
+                  Upcoming Events
+                </h2>
+                <p className="mt-1 text-sm text-[#8a6b74]">
+                  What your community will see next
                 </p>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
               </div>
+              <Link
+                href={withMasjid("/dashboard/events", masjidId)}
+                className="text-sm font-medium text-[#550C18] hover:text-[#78001A]"
+              >
+                View Calendar
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3">
+              {events.length > 0 ? (
+                events.map((event) => (
+                  <Link
+                    key={event.id}
+                    href={withMasjid("/dashboard/events", masjidId)}
+                    className="group rounded-[24px] border border-[#550C18]/8 bg-[#fcfafb] p-3 transition hover:-translate-y-0.5 hover:border-[#550C18]/20 hover:shadow-[0_18px_40px_-28px_rgba(85,12,24,0.35)]"
+                  >
+                    <div
+                      className="relative h-36 overflow-hidden rounded-2xl bg-cover bg-center"
+                      style={{
+                        backgroundImage: `url(${getEventImage(event)})`,
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
+                      <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-2 py-1 text-xs font-semibold text-[#550C18] shadow-sm">
+                        {new Intl.DateTimeFormat("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        }).format(new Date(event.date))}
+                      </div>
+                    </div>
+                    <div className="pt-4">
+                      <h3 className="text-lg font-semibold leading-snug text-[#2e0c12]">
+                        {event.title}
+                      </h3>
+                      <div className="mt-2 flex items-center gap-2 text-sm text-[#8a6b74]">
+                        <Calendar className="h-4 w-4" />
+                        <span>{formatTime(event.date, timezone)}</span>
+                      </div>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="rounded-[24px] border border-dashed border-[#550C18]/15 bg-[#fcfafb] p-8 text-sm text-[#8a6b74] md:col-span-3">
+                  No upcoming events yet. Add the next community program to make
+                  it visible here.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-      </div>
-    </>
+      </section>
+    </div>
   );
 }

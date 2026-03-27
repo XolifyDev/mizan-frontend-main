@@ -10,6 +10,9 @@ import {
   Trash,
   Edit,
   Loader2,
+  Calendar,
+  Sparkles,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,25 +38,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { GoogleCalendarSettings } from "@/components/dashboard/google-calendar-settings";
-import { Masjid } from "@prisma/client";
-import { getUserMasjid } from "@/lib/actions/masjid";
 import { toast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { CalendarView } from "@/components/dashboard/calendar-view";
-type Event = {
-  id: string;
-  title: string;
-  date: Date;
-  timeStart: Date;
-  timeEnd: Date;
-  location: string;
-  description: string;
-  type: string;
-  tagColor: string;
-  masjidId: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
+import type { Event } from "@prisma/client";
 
 export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -63,10 +51,23 @@ export default function EventsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
   const router = useRouter();
   const masjidId = searchParams.get("masjidId") || "";
   const currentTab = searchParams.get("tab") || "list";
+
+  const withTimeout = async <T,>(promise: Promise<T>, ms = 15000): Promise<T> => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error("Request timeout")), ms);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
 
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -75,12 +76,33 @@ export default function EventsPage() {
   };
 
   const loadData = async () => {
-    const events = await getEvents(masjidId);
-    const m = await getUserMasjid();
-    setEvents(events);
-    if (m) {
-      setMasjid(m?.googleCalendarId || "");
-      setMasjidPfp(m?.googleCalendarPfp || "");
+    if (!masjidId) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const [eventsList, masjidRes] = await Promise.all([
+        withTimeout(getEvents(masjidId)),
+        withTimeout(fetch(`/api/masjids?masjidId=${masjidId}`)),
+      ]);
+
+      setEvents(eventsList || []);
+
+      const masjidData = await masjidRes.json();
+      if (masjidRes.ok && masjidData && !("error" in masjidData)) {
+        setMasjid(masjidData.googleCalendarId || "");
+        setMasjidPfp(masjidData.googleCalendarPfp || "");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load events",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -124,45 +146,58 @@ export default function EventsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#550C18]">Events</h2>
-          <p className="text-[#3A3A3A]/70">
-            Manage and schedule events for your masjid
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <GoogleCalendarSettings masjidId={masjidId} currentCalendarId={masjidCalendarId} currentCalendarPfp={masjidPfp} refreshEvents={refreshEvents} />
-          <Button 
-            className="bg-[#550C18] hover:bg-[#78001A] text-white"
-            onClick={() => router.push(`/dashboard/events/new?masjidId=${masjidId}`)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add New Event
-          </Button>
+    <div className="space-y-8">
+      <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
+              Events
+            </p>
+            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
+              Bring your community together.
+            </h1>
+            <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
+              Create, sync, and manage events across your website, signage, and calendars.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <GoogleCalendarSettings
+              masjidId={masjidId}
+              currentCalendarId={masjidCalendarId}
+              currentCalendarPfp={masjidPfp}
+              refreshEvents={refreshEvents}
+            />
+            <Button
+              variant="outline"
+              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+              onClick={refreshEvents}
+            >
+              {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+              Refresh
+            </Button>
+            <Button
+              className="bg-[#550C18] hover:bg-[#78001A] text-white"
+              onClick={() => router.push(`/dashboard/events/new?masjidId=${masjidId}`)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Event
+            </Button>
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-end mb-2">
-        <Button onClick={refreshEvents} variant="outline" className="flex items-center gap-2">
-          {refreshing ? <Loader2 className="animate-spin h-4 w-4" /> : <></>}
-          Refresh
-        </Button>
-      </div>
-
-      <Card className="bg-white border-[#550C18]/10">
+      <Card className="bg-white border-[#550C18]/10 shadow-sm">
         <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
+              <CardTitle className="text-xl font-semibold text-[#2e0c12]">
                 Upcoming Events
               </CardTitle>
               <CardDescription className="text-[#3A3A3A]/70">
-                View and manage scheduled events
+                View, edit, and sync your event schedule.
               </CardDescription>
             </div>
-            <div className="relative w-full md:w-[300px]">
+            <div className="relative w-full md:w-[320px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#3A3A3A]/50" />
               <Input
                 placeholder="Search events..."
@@ -175,62 +210,66 @@ export default function EventsPage() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue={currentTab} onValueChange={handleTabChange}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="list">List View</TabsTrigger>
-              <TabsTrigger value="calendar">Calendar View</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 rounded-full bg-[#550C18]/10 p-1 mb-6">
+              <TabsTrigger value="list" className="rounded-full data-[state=active]:bg-white data-[state=active]:shadow">
+                List View
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="rounded-full data-[state=active]:bg-white data-[state=active]:shadow">
+                Calendar View
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="list" className="space-y-4">
-              {filteredEvents.length > 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-12 text-[#3A3A3A]/70">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading events...
+                </div>
+              ) : filteredEvents.length > 0 ? (
                 filteredEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="border border-[#550C18]/10 rounded-lg p-4 hover:shadow-md transition-shadow"
+                    className="border border-[#550C18]/10 rounded-2xl p-4 hover:shadow-md transition-shadow"
                   >
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                      {event.flyerUrl ? (
-                          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-[#550C18]/10 text-[#550C18] rounded-md">
+                      <div className="flex items-start gap-4">
+                        {event.flyerUrl ? (
+                          <div className="h-16 w-16 rounded-xl overflow-hidden bg-[#550C18]/10">
                             <Image
                               src={event.flyerUrl}
                               alt="Flyer"
                               height={120}
                               width={120}
-                              className="object-cover rounded-md max-h-full"
+                              className="h-full w-full object-cover"
                             />
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center w-16 h-16 rounded-md bg-[#550C18]/10 text-[#550C18]">
-                            <CalendarIcon className="h-6 w-8" />
+                          <div className="flex items-center justify-center h-16 w-16 rounded-xl bg-[#550C18]/10 text-[#550C18]">
+                            <Calendar className="h-6 w-6" />
                           </div>
                         )}
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-[#3A3A3A] text-lg">
+                            <h3 className="font-semibold text-[#2e0c12] text-lg">
                               {event.title}
                             </h3>
-                            <Badge
-                              className={`${event.tagColor}`}
-                            >
-                              {event.type.charAt(0).toUpperCase() +
-                                event.type.slice(1)}
+                            <Badge className={`${event.tagColor}`}>
+                              {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
                             </Badge>
                           </div>
-                          <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-4 text-sm text-[#3A3A3A]/70 mt-1">
-                            <div className="flex items-center gap-1">
+                          <div className="flex flex-wrap items-center gap-3 text-sm text-[#3A3A3A]/70 mt-2">
+                            <span className="flex items-center gap-1">
                               <CalendarIcon className="h-3 w-3" />
-                              <span className="text-[#550C18]">{new Date(event.date).toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
+                              {new Date(event.date).toLocaleDateString()}
+                            </span>
+                            <span className="flex items-center gap-1">
                               <Clock className="h-3 w-3" />
-                              <span className="text-[#550C18]">
-                                {event.timeStart.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
-                                {event.timeEnd.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
+                              {new Date(event.timeStart).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
+                              {new Date(event.timeEnd).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
-                              <span className="text-[#550C18]">{event.location}</span>
-                            </div>
+                              {event.location}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -259,22 +298,19 @@ export default function EventsPage() {
                   </div>
                 ))
               ) : (
-                <div className="text-center p-8">
-                  <CalendarIcon className="h-16 w-16 mx-auto text-[#550C18]/50 mb-4" />
+                <div className="text-center p-10">
+                  <Sparkles className="h-12 w-12 mx-auto text-[#550C18]/50 mb-4" />
                   <h3 className="text-lg font-medium text-[#3A3A3A] mb-2">
-                    No events found
+                    No events yet
                   </h3>
                   <p className="text-[#3A3A3A]/70 mb-4">
-                    No events match your search criteria. Try adjusting your
-                    search or add a new event.
+                    Create your first event to populate your community calendar.
                   </p>
                 </div>
               )}
             </TabsContent>
             <TabsContent value="calendar" className="space-y-4">
-              <div className="text-center p-8">
-                <CalendarView events={filteredEvents} masjidId={masjidId} refreshEvents={refreshEvents} />
-              </div>
+              <CalendarView events={filteredEvents} masjidId={masjidId} refreshEvents={refreshEvents} />
             </TabsContent>
           </Tabs>
         </CardContent>

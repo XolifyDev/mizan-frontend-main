@@ -3,6 +3,7 @@ import { parse } from "papaparse"
 import { z } from "zod"
 import { revalidatePath } from "next/cache"
 import { prisma } from "@/lib/db"
+import { getUserMasjid } from "@/lib/actions/masjid"
 
 // CSV validation schema
 const csvRowSchema = z.object({
@@ -62,6 +63,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Masjid ID is required" }, { status: 400 })
     }
 
+    const masjid = await getUserMasjid(masjidId)
+    if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
     // Check if the file is a CSV
     if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
       return NextResponse.json({ success: false, error: "File must be a CSV" }, { status: 400 })
@@ -71,7 +77,7 @@ export async function POST(request: NextRequest) {
     const text = await file.text()
 
     // Parse CSV
-    const { data, errors } = parse(text, {
+    const { data, errors } = parse<Record<string, string>>(text, {
       header: true,
       skipEmptyLines: true,
     })
@@ -81,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate and transform data
-    const validationResults = data.map((row: any, index: number) => {
+    const validationResults = data.map((row, index) => {
       try {
         const validatedRow = csvRowSchema.parse(row)
         return {
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Check if there are any validation errors
-    const validationErrors = validationResults.filter((result: any) => !result.success)
+    const validationErrors = validationResults.filter((result) => !result.success)
     if (validationErrors.length > 0) {
       return NextResponse.json(
         {
@@ -123,7 +129,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Insert valid data into the database
-    const validData = validationResults.filter((result: any) => result.success).map((result: any) => result.data)
+    const validData = validationResults
+      .filter((result) => result.success)
+      .map((result) => result.data)
 
     const result = await prisma.iqamahTiming.createMany({
       data: validData,
@@ -138,8 +146,7 @@ export async function POST(request: NextRequest) {
       message: `Successfully imported ${result.count} Iqamah timings`,
       count: result.count,
     })
-  } catch (error) {
-    console.error("Error uploading Iqamah timings:", error)
+  } catch {
     return NextResponse.json({ success: false, error: "Failed to process CSV upload" }, { status: 500 })
   }
 }

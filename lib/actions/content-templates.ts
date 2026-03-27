@@ -2,9 +2,21 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { getUserMasjid } from "./masjid";
+
+async function requireMasjidAccess(masjidId?: string) {
+  if (!masjidId) return null;
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
 
 export async function getAllContentTemplates(masjidId: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) return null;
     const templates = await prisma.content.findMany({
       where: {
         masjidId: masjidId,
@@ -38,6 +50,8 @@ export async function getAllContentTemplates(masjidId: string) {
 
 export async function getAllContentTemplatesIncludingInactive(masjidId: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) return null;
     const templates = await prisma.content.findMany({
       where: {
         masjidId: masjidId
@@ -81,6 +95,8 @@ export async function createContentTemplate(data: {
   masjidId: string;
 }) {
   try {
+    const access = await requireMasjidAccess(data.masjidId);
+    if (!access) return null;
     const template = await prisma.content.create({
       data: {
         title: data.name, // Map name to title
@@ -112,6 +128,13 @@ export async function updateContentTemplate(id: string, data: {
   };
 }) {
   try {
+    const existing = await prisma.content.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     const updateData: any = { ...data };
     if (data.name) {
       updateData.title = data.name; // Also update title when name changes
@@ -131,6 +154,13 @@ export async function updateContentTemplate(id: string, data: {
 
 export async function deleteContentTemplate(id: string) {
   try {
+    const existing = await prisma.content.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     await prisma.content.delete({
       where: { id },
     });
@@ -143,6 +173,13 @@ export async function deleteContentTemplate(id: string) {
 
 export async function toggleContentTemplate(id: string, active: boolean) {
   try {
+    const existing = await prisma.content.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     const template = await prisma.content.update({
       where: { id },
       data: { active },
@@ -158,6 +195,8 @@ export async function toggleContentTemplate(id: string, active: boolean) {
 // New optimized function to get templates by type
 export async function getContentTemplatesByType(masjidId: string, type: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) return null;
     const templates = await prisma.content.findMany({
       where: {
         masjidId: masjidId,
@@ -186,6 +225,8 @@ export async function getContentTemplatesByType(masjidId: string, type: string) 
 // New function to get templates with pagination
 export async function getContentTemplatesPaginated(masjidId: string, page: number = 1, limit: number = 10) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) return null;
     const skip = (page - 1) * limit;
     
     const [templates, total] = await Promise.all([

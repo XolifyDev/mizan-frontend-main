@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { logSystemEvent } from "@/lib/logger"
+import { headers } from "next/headers"
 
 interface HealthMetrics {
   status: "healthy" | "degraded" | "unhealthy"
@@ -22,9 +23,10 @@ interface HealthMetrics {
 }
 
 export async function GET(request: Request) {
-  // get device id from headers "Authorization"
-  const deviceId = await request.headers.get("Authorization");
+
+  const deviceId = (await headers()).get("Authorization");
   if (!deviceId) {
+    console.log("Unauthorized", deviceId);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

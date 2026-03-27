@@ -4,24 +4,23 @@ import { useState } from "react"
 import { format } from "date-fns"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Edit2, Trash2, Copy, ArrowUpDown, Upload } from "lucide-react"
+import { Edit2, Trash2, Copy, ArrowUpDown } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { EditIqamahTimingForm } from "./edit-iqamah-timing-form"
-import { UploadIqamahTimings } from "./upload-iqamah-timings"
 import { deleteIqamahTiming, duplicateIqamahTiming } from "@/lib/actions/prayer-times"
+import type { IqamahTiming } from "@prisma/client"
 
 type IqamahTimingsTableProps = {
-  timings: any[]
+  timings: IqamahTiming[]
   loading: boolean
   onRefresh: () => void
-  masjidId?: string
 }
 
-export function IqamahTimingsTable({ timings, loading, onRefresh, masjidId = "" }: IqamahTimingsTableProps) {
+export function IqamahTimingsTable({ timings, loading, onRefresh }: IqamahTimingsTableProps) {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
-  const [editingTiming, setEditingTiming] = useState<any>(null)
+  const [editingTiming, setEditingTiming] = useState<IqamahTiming | null>(null)
   const [openEditDialog, setOpenEditDialog] = useState(false)
   const { toast } = useToast()
 
@@ -35,7 +34,7 @@ export function IqamahTimingsTable({ timings, loading, onRefresh, masjidId = "" 
     setSortOrder(sortOrder === "asc" ? "desc" : "asc")
   }
 
-  const handleEdit = (timing: any) => {
+  const handleEdit = (timing: IqamahTiming) => {
     setEditingTiming(timing)
     setOpenEditDialog(true)
   }
@@ -68,7 +67,7 @@ export function IqamahTimingsTable({ timings, loading, onRefresh, masjidId = "" 
     }
   }
 
-  const handleDuplicate = async (timing: any) => {
+  const handleDuplicate = async (timing: IqamahTiming) => {
     try {
       const result = await duplicateIqamahTiming(timing.id)
 

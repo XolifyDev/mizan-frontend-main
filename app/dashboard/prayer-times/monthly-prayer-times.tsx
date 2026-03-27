@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Calendar, Download, Loader2, ChevronLeft, ChevronRight, ArrowLeft, ArrowRight, Edit2 } from "lucide-react"
+import { useState, useEffect, useMemo } from "react"
+import type { Dispatch, SetStateAction } from "react"
+import { Calendar, Download, Loader2, ChevronLeft, ChevronRight, Edit2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -9,17 +10,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
 import { fetchMonthPrayerTimes, generateMonthlyPrayerTimes, saveMonthlyPrayerTimes } from "@/lib/actions/prayer-times"
-import type { Masjid } from "@prisma/client"
+import type { Masjid, PrayerTime } from "@prisma/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { mockMonthlyTimings } from "@/lib/mock/monthlyTimings"
 import moment from "moment";
 import { EditPrayerTimeDialog } from "@/components/dashboard/edit-prayer-time-dialog"
 
+const MONTHS = [
+  { value: 1, label: "January" },
+  { value: 2, label: "February" },
+  { value: 3, label: "March" },
+  { value: 4, label: "April" },
+  { value: 5, label: "May" },
+  { value: 6, label: "June" },
+  { value: 7, label: "July" },
+  { value: 8, label: "August" },
+  { value: 9, label: "September" },
+  { value: 10, label: "October" },
+  { value: 11, label: "November" },
+  { value: 12, label: "December" },
+]
+
 type MonthlyPrayerTimesProps = {
   masjidId: string
   hasMonthlyTimings: boolean
-  monthlyTimings: any[];
-  setMonthlyTimings: (e: any) => void;
+  monthlyTimings: PrayerTime[];
+  setMonthlyTimings: Dispatch<SetStateAction<PrayerTime[]>>;
   currentMonth: string
   masjid?: Masjid
 }
@@ -39,14 +55,13 @@ export function MonthlyPrayerTimes({
   const [monthOrYear, setMonthOrYear] = useState("month")
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
-  const [prayerTimes, setPrayerTimes] = useState<any[]>([])
-  const [yearlyPrayerTimes, setYearlyPrayerTimes] = useState<Record<number, any[]>>({})
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTime[]>([])
+  const [yearlyPrayerTimes, setYearlyPrayerTimes] = useState<Record<number, PrayerTime[]>>({})
   const [displayMonth, setDisplayMonth] = useState(new Date().getMonth() + 1)
   const [currentMonth, setCurrentMonth] = useState<string>(
     initialCurrentMonth || new Date().toLocaleString("default", { month: "long", year: "numeric" }),
   )
   const [isLoading, setIsLoading] = useState(false)
-  const [saveToDatabase, setSaveToDatabase] = useState(false);
   const [editPrayerTime, setEditPrayerTime] = useState<{
     id: string
     date: string
@@ -58,29 +73,16 @@ export function MonthlyPrayerTimes({
   const latitude = masjid?.latitude ? Number.parseFloat(masjid.latitude) : 0
   const longitude = masjid?.longitude ? Number.parseFloat(masjid.longitude) : 0
 
-  const months = [
-    { value: 1, label: "January" },
-    { value: 2, label: "February" },
-    { value: 3, label: "March" },
-    { value: 4, label: "April" },
-    { value: 5, label: "May" },
-    { value: 6, label: "June" },
-    { value: 7, label: "July" },
-    { value: 8, label: "August" },
-    { value: 9, label: "September" },
-    { value: 10, label: "October" },
-    { value: 11, label: "November" },
-    { value: 12, label: "December" },
-  ]
-
-  const currentYear = new Date().getFullYear()
-  const years = Array.from({ length: 10 }, (_, i) => currentYear + i - 2)
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear()
+    return Array.from({ length: 10 }, (_, i) => currentYear + i - 2)
+  }, [])
 
   // Update current month string when display month changes
   useEffect(() => {
-    const monthName = months.find((m) => m.value === displayMonth)?.label
+    const monthName = MONTHS.find((m) => m.value === displayMonth)?.label
     setCurrentMonth(`${monthName} ${selectedYear}`)
-  }, [displayMonth, selectedYear, months])
+  }, [displayMonth, selectedYear])
 
   const handleGenerateTimes = async () => {
     setIsGenerating(true)
@@ -96,8 +98,7 @@ export function MonthlyPrayerTimes({
         )
 
         if (result.success) {
-          // @ts-ignore Ignore
-          setPrayerTimes(result.data)
+          setPrayerTimes(result.data as PrayerTime[])
           toast({
             title: "Success",
             description: "Prayer times generated successfully",
@@ -111,7 +112,7 @@ export function MonthlyPrayerTimes({
         }
       } else {
         // Generate for the entire year
-        const yearData: Record<number, any[]> = {}
+        const yearData: Record<number, PrayerTime[]> = {}
 
         // Show a toast to indicate the process has started
         toast({
@@ -130,12 +131,11 @@ export function MonthlyPrayerTimes({
           )
 
           if (result.success) {
-            // @ts-ignore Ignore
-            yearData[month] = result.data
+            yearData[month] = result.data as PrayerTime[]
           } else {
             toast({
               title: "Error",
-              description: `Failed to generate prayer times for ${months.find((m) => m.value === month)?.label}`,
+              description: `Failed to generate prayer times for ${MONTHS.find((m) => m.value === month)?.label}`,
               variant: "destructive",
             })
           }
@@ -163,14 +163,12 @@ export function MonthlyPrayerTimes({
     }
   }
 
-  useEffect(() => {
-    console.log("SAVE TO CHANGE", saveToDatabase)
-  }, [saveToDatabase])
-
   const handleSaveTimes = async () => {
-    setSaveToDatabase(true);
-    if (monthOrYear === "month" && !prayerTimes.length) return;
-    if (monthOrYear === "year" && Object.keys(yearlyPrayerTimes).length === 0) return;
+    if (monthOrYear === "month" && !prayerTimes.length) return
+    if (monthOrYear === "year" && Object.keys(yearlyPrayerTimes).length === 0) return
+
+    setIsSaving(true)
+    setSavingError(null)
 
     try {
       if (monthOrYear === "month") {
@@ -195,41 +193,34 @@ export function MonthlyPrayerTimes({
           })
         }
       } else {
-        // Save the entire year
-        let allSaved = true
-
-        // Show a toast to indicate the process has started
         toast({
           title: "Saving",
           description: "Saving prayer times for the entire year...",
         })
 
-        // Save each month's data
-        for (const month in yearlyPrayerTimes) {
-          const monthData = yearlyPrayerTimes[Number(month)]
-          setTimeout(async () => {
-            const result = await saveMonthlyPrayerTimes(masjidId, monthData)
-            if (!result.success) {
-              allSaved = false
-              toast({
-                title: "Error",
-                description: `Failed to save prayer times for ${months.find((m) => m.value === Number(month))?.label}`,
-                variant: "destructive",
-              })
-            }
-          }, 1000)
+        let allSaved = true
+        for (const month of Object.keys(yearlyPrayerTimes)) {
+          const monthNumber = Number(month)
+          const monthData = yearlyPrayerTimes[monthNumber]
+          const result = await saveMonthlyPrayerTimes(masjidId, monthData)
+          if (!result.success) {
+            allSaved = false
+            toast({
+              title: "Error",
+              description: `Failed to save prayer times for ${MONTHS.find((m) => m.value === monthNumber)?.label}`,
+              variant: "destructive",
+            })
+          }
         }
 
-        setTimeout(() => {
-          if (allSaved) {
-            toast({
-              title: "Success",
-              description: "Prayer times for the entire year saved successfully",
-            });
-            setIsDialogOpen(false);
-            setPrayerTimes([]);
-          }
-        }, 1400);
+        if (allSaved) {
+          toast({
+            title: "Success",
+            description: "Prayer times for the entire year saved successfully",
+          })
+          setIsDialogOpen(false)
+          setPrayerTimes([])
+        }
       }
     } catch (error) {
       toast({
@@ -239,7 +230,6 @@ export function MonthlyPrayerTimes({
       })
     } finally {
       setIsSaving(false)
-      setSaveToDatabase(false)
     }
   }
 
@@ -268,7 +258,7 @@ export function MonthlyPrayerTimes({
       document.body.removeChild(link)
     } else {
       // Export the entire year
-      const allData: any[] = []
+      const allData: PrayerTime[] = []
 
       // Combine all months' data
       for (const month in yearlyPrayerTimes) {
@@ -334,10 +324,10 @@ export function MonthlyPrayerTimes({
 
       if (result.success) {
         // @ts-ignore Ignore
-        setMonthlyTimings(result.data)
+        setMonthlyTimings(result.data as PrayerTime[])
         // Update the display month and current month string
         setDisplayMonth(month)
-        const monthName = months.find((m) => m.value === month)?.label
+        const monthName = MONTHS.find((m) => m.value === month)?.label
         setCurrentMonth(`${monthName} ${year}`)
       } else {
         toast({
@@ -357,8 +347,12 @@ export function MonthlyPrayerTimes({
     }
   }
 
-  const handleEditPrayerTime = (timing: any, prayer: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha") => {
+  const handleEditPrayerTime = (
+    timing: PrayerTime,
+    prayer: "fajr" | "sunrise" | "dhuhr" | "asr" | "maghrib" | "isha"
+  ) => {
     const time = timing[prayer]
+    if (!time) return
     const formattedTime = moment(time).toISOString();
 
     setEditPrayerTime({
@@ -397,16 +391,16 @@ export function MonthlyPrayerTimes({
               value={displayMonth.toString()}
               onValueChange={(value) => handleMonthYearChange(Number.parseInt(value), selectedYear)}
             >
-              <SelectTrigger className="w-[130px] border-[#550C18]/20 focus:ring-[#550C18]">
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                {months.map((month) => (
+            <SelectTrigger className="w-[130px] border-[#550C18]/20 focus:ring-[#550C18]">
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent>
+                {MONTHS.map((month) => (
                   <SelectItem key={month.value} value={month.value.toString()}>
                     {month.label}
                   </SelectItem>
                 ))}
-              </SelectContent>
+            </SelectContent>
             </Select>
 
             <Select
@@ -487,11 +481,11 @@ export function MonthlyPrayerTimes({
                       <SelectValue placeholder="Select month" />
                     </SelectTrigger>
                     <SelectContent>
-                      {months.map((month) => (
-                        <SelectItem key={month.value} value={month.value.toString()}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
+              {MONTHS.map((month) => (
+                <SelectItem key={month.value} value={month.value.toString()}>
+                  {month.label}
+                </SelectItem>
+              ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -554,7 +548,7 @@ export function MonthlyPrayerTimes({
                       Previous
                     </Button>
                     <h3 className="text-lg font-medium text-[#3A3A3A]">
-                      {months.find((m) => m.value === displayMonth)?.label} {selectedYear}
+                      {MONTHS.find((m) => m.value === displayMonth)?.label} {selectedYear}
                     </h3>
                     <Button
                       variant="outline"
@@ -615,9 +609,9 @@ export function MonthlyPrayerTimes({
                     <Button
                       className="bg-[#550C18] hover:bg-[#78001A] text-white"
                       onClick={handleSaveTimes}
-                      disabled={saveToDatabase}
+                      disabled={isSaving}
                     >
-                      {saveToDatabase ? (
+                      {isSaving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Saving...

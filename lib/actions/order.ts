@@ -2,6 +2,16 @@
 
 import { prisma } from "../db";
 import { stripeClient } from "../stripe";
+import { getUserMasjid } from "./masjid";
+
+async function requireMasjidAccess(masjidId: string | null) {
+  if (!masjidId) return null;
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
 
 export const getSessionAndOrder = async (sessionId: string) => {
   const checkoutSession = await prisma.checkoutSessions.findFirst({
@@ -91,6 +101,11 @@ export async function getOrderById(id: string) {
     });
     
     console.log('Order found:', order ? 'yes' : 'no');
+    if (!order) return null;
+    const access = await requireMasjidAccess(order.masjidId);
+    if (!access) {
+      throw new Error("Unauthorized");
+    }
     return order;
   } catch (error) {
     console.error('Error fetching order:', error);
@@ -100,6 +115,16 @@ export async function getOrderById(id: string) {
 
 // Update an order (status, tracking number, etc.)
 export const updateOrder = async (id: string, data: { status?: string; trackingNumber?: string }) => {
+  const existing = await prisma.orders.findUnique({
+    where: { id },
+  });
+  if (!existing) {
+    throw new Error("Order not found");
+  }
+  const access = await requireMasjidAccess(existing.masjidId);
+  if (!access) {
+    throw new Error("Unauthorized");
+  }
   const o = await prisma.orders.update({
     where: { id },
     data

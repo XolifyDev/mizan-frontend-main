@@ -2,9 +2,21 @@
 
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
+import { getUserMasjid } from "./masjid";
+
+async function requireMasjidAccess(masjidId?: string) {
+  if (!masjidId) return null;
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
 
 export async function getAllTVDisplays(masjidId: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) return null;
     const displays = await prisma.tVDisplay.findMany({
       where: {
         masjidId: masjidId
@@ -49,6 +61,8 @@ export async function createTVDisplay(data: {
   masjidId: string;
 }) {
   try {
+    const access = await requireMasjidAccess(data.masjidId);
+    if (!access) return null;
     const display = await prisma.tVDisplay.create({
       data: {
         name: data.name,
@@ -80,6 +94,13 @@ export async function updateTVDisplay(id: string, data: {
   };
 }) {
   try {
+    const existing = await prisma.tVDisplay.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     const display = await prisma.tVDisplay.update({
       where: { id },
       data: {
@@ -100,6 +121,13 @@ export async function updateTVDisplay(id: string, data: {
 
 export async function deleteTVDisplay(id: string) {
   try {
+    const existing = await prisma.tVDisplay.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     await prisma.tVDisplay.delete({
       where: { id },
     });
@@ -112,6 +140,13 @@ export async function deleteTVDisplay(id: string) {
 
 export async function assignContentToDisplay(displayId: string, contentId: string) {
   try {
+    const existing = await prisma.tVDisplay.findUnique({
+      where: { id: displayId },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     const display = await prisma.tVDisplay.update({
       where: { id: displayId },
       data: {
@@ -128,6 +163,13 @@ export async function assignContentToDisplay(displayId: string, contentId: strin
 
 export async function updateDisplayStatus(id: string, status: string) {
   try {
+    const existing = await prisma.tVDisplay.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return null;
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) return null;
     const display = await prisma.tVDisplay.update({
       where: { id },
       data: {
@@ -168,6 +210,9 @@ export async function getTVDisplayWithContent(id: string) {
         }
       }
     });
+    if (!display) return null;
+    const access = await requireMasjidAccess(display.masjid?.id);
+    if (!access) return null;
     return display;
   } catch (error) {
     console.error("Error fetching TV display with content:", error);
@@ -178,6 +223,8 @@ export async function getTVDisplayWithContent(id: string) {
 // New function to get displays by status
 export async function getTVDisplaysByStatus(masjidId: string, status: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) return null;
     const displays = await prisma.tVDisplay.findMany({
       where: {
         masjidId: masjidId,

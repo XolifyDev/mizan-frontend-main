@@ -11,8 +11,6 @@ import { toast } from "@/components/ui/use-toast"
 import { iqamahTimingSchema } from "@/lib/models/iqamah-timings"
 import { addIqamahTiming } from "@/lib/actions/prayer-times"
 import { TimeInput } from "@/components/ui/time-input"
-import { MaghribInput } from "@/components/ui/maghrib-input"
-import { DatePicker } from "@/components/ui/date-picker"
 import { CalendarDatePicker } from "@/components/ui/calendar-date-picker"
 import { IqamahTiming } from "@prisma/client"
 import { Input } from "@/components/ui/input"
@@ -86,7 +84,7 @@ export function AddIqamahTimingForm({ masjidId, lastIqamah, onSuccess }: AddIqam
         })
         if (onSuccess) onSuccess()
       } else {
-        const t = toast({
+        toast({
           title: "Error",
           description: "Failed to add Iqamah timing.",
           variant: "destructive",
@@ -235,7 +233,7 @@ export function AddIqamahTimingForm({ masjidId, lastIqamah, onSuccess }: AddIqam
                           <FormControl>
                             <Input
                               value={field.value}
-                              onChange={field.onChange}
+                              onChange={(e) => field.onChange(Number(e.target.value))}
                               type="number"
                               className="border-[#550C18]/20 focus-visible:ring-[#550C18]/30"
                             />

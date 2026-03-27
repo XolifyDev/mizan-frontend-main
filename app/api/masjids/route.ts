@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { logMasjidAction } from "@/lib/logger"
 import { getUserMasjid } from "@/lib/actions/masjid"
+import { getUser } from "@/lib/actions/user"
 
 export async function POST(request: Request) {
   try {
@@ -35,6 +35,25 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
+    const masjidId = searchParams.get("masjidId")
+
+    if (masjidId) {
+      const user = await getUser()
+      if (!user) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        )
+      }
+      const masjid = await getUserMasjid(masjidId)
+      if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+        return NextResponse.json(
+          { error: "Masjid not found" },
+          { status: 404 }
+        )
+      }
+      return NextResponse.json(masjid)
+    }
 
     const masjids = await prisma.masjid.findMany({
       where: userId ? { ownerId: userId } : undefined,
@@ -47,16 +66,6 @@ export async function GET(request: Request) {
         },
       },
     })
-
-    // Log the view
-    if (userId) {
-      await logMasjidAction(
-        userId,
-        "view",
-        "all",
-        `Viewed all masjids for user ${userId}`
-      )
-    }
 
     return NextResponse.json(masjids)
   } catch (error) {

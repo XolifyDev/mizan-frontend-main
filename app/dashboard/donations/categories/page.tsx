@@ -8,23 +8,18 @@ import {
   MoreHorizontal,
   CheckCircle2,
   XCircle,
-  Palette,
-  DollarSign,
-  Repeat,
   Lock,
-  Upload,
 } from "lucide-react";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,29 +28,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
 import { toast } from "@/components/ui/use-toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 // Server action to fetch categories
-async function getCategories() {
+async function getCategories(masjidId: string) {
   try {
-    const response = await fetch('/api/donation-categories');
+    const response = await fetch(`/api/donation-categories?masjidId=${masjidId}`);
     if (!response.ok) throw new Error('Failed to fetch categories');
     const data = await response.json();
     return data;
@@ -66,12 +50,12 @@ async function getCategories() {
 }
 
 // Server action to update category order
-async function updateCategoryOrder(categories: any[]) {
+async function updateCategoryOrder(categories: any[], masjidId: string) {
   try {
     const response = await fetch('/api/donation-categories/order', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ categories }),
+      body: JSON.stringify({ categories, masjidId }),
     });
     if (!response.ok) throw new Error('Failed to update order');
     return response.json();
@@ -117,18 +101,25 @@ function SortableRow({ category, children, ...props }: SortableRowProps) {
 
 export default function DonationsCategoriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>("create");
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
   const [orderChanged, setOrderChanged] = useState(false);
-  const [logo, setLogo] = useState<string | null>(null);
-  const [appreciation, setAppreciation] = useState<string>("");
-  const [allowCustomAmount, setAllowCustomAmount] = useState(true);
-  const [allowAnonymous, setAllowAnonymous] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<any>(null);
+  const masjidId = useSearchParams().get("masjidId") || "";
+
+  if (!masjidId) {
+    return (
+      <div className="max-w-2xl mx-auto mt-20 bg-white border border-[#550C18]/10 rounded-2xl p-8 text-center shadow-sm">
+        <h2 className="text-2xl font-semibold text-[#550C18] mb-2">
+          Select a Masjid
+        </h2>
+        <p className="text-[#3A3A3A]/70">
+          Choose a masjid to manage donation categories.
+        </p>
+      </div>
+    );
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -138,13 +129,15 @@ export default function DonationsCategoriesPage() {
   );
 
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    if (masjidId) {
+      fetchCategories();
+    }
+  }, [masjidId]);
 
   const fetchCategories = async () => {
     setIsLoading(true);
     try {
-      const data = await getCategories();
+      const data = await getCategories(masjidId);
       setCategories(data);
     } catch (error) {
       toast({
@@ -158,21 +151,12 @@ export default function DonationsCategoriesPage() {
   };
 
   const openCreateModal = () => {
-    router.push('/dashboard/donations/categories/create');
-    // setModalMode("create");
-    // setSelectedCategory(null);
-    // setIsModalOpen(true);
-  };
-
-  const openEditModal = (cat: any) => {
-    setModalMode("edit");
-    setSelectedCategory(cat);
-    setIsModalOpen(true);
+    router.push(`/dashboard/donations/categories/create?masjidId=${masjidId}`);
   };
 
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
-    
+    if (!over || active.id === over.id) return;
     if (active.id !== over.id) {
       const oldIndex = categories.findIndex((cat) => cat.id === active.id);
       const newIndex = categories.findIndex((cat) => cat.id === over.id);
@@ -188,7 +172,7 @@ export default function DonationsCategoriesPage() {
 
   const handleSaveOrder = async () => {
     try {
-      await updateCategoryOrder(categories);
+      await updateCategoryOrder(categories, masjidId);
       setOrderChanged(false);
       toast({
         title: "Success",
@@ -203,7 +187,8 @@ export default function DonationsCategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id?: string) => {
+    if (!id) return;
     try {
       await fetch('/api/donation-categories', {
         method: 'DELETE',
@@ -221,6 +206,36 @@ export default function DonationsCategoriesPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
+              Donation Categories
+            </p>
+            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
+              Organize giving options.
+            </h1>
+            <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
+              Reorder categories, update amounts, and tailor kiosk experiences.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={openCreateModal}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Category
+            </Button>
+            {orderChanged && (
+              <Button
+                variant="outline"
+                className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+                onClick={handleSaveOrder}
+              >
+                Save Order
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
       <Tabs defaultValue="categories" className="w-full">
         <TabsContent value="categories">
           <Card className="bg-white border-[#550C18]/10">
@@ -284,7 +299,7 @@ export default function DonationsCategoriesPage() {
                                       </DropdownMenuTrigger>
                                       <DropdownMenuContent align="end">
                                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/donations/categories/edit/${category.id}`)}>
+                                        <DropdownMenuItem onClick={() => router.push(`/dashboard/donations/categories/edit/${category.id}?masjidId=${masjidId}`)}>
                                           <Edit className="mr-2 h-4 w-4" />
                                           Edit Category
                                         </DropdownMenuItem>
@@ -373,57 +388,9 @@ export default function DonationsCategoriesPage() {
                 </DndContext>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between border-t border-[#550C18]/10 pt-4">
-              <div className="text-sm text-[#3A3A3A]/70">Showing {categories.length} categories</div>
-              <div className="flex gap-2">
-                {orderChanged && (
-                  <Button 
-                    className="bg-[#550C18] hover:bg-[#78001A] text-white" 
-                    onClick={handleSaveOrder}
-                  >
-                    Save Order
-                  </Button>
-                )}
-                <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={openCreateModal}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Category
-                </Button>
-              </div>
-            </CardFooter>
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings">
-          <Card className="bg-white border-[#550C18]/10">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Category Settings</CardTitle>
-              <CardDescription className="text-[#3A3A3A]/70">Configure global settings for donation categories</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-[#3A3A3A]">General Settings</h3>
-                  <div className="grid gap-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <span className="font-medium">Allow Custom Amounts</span>
-                        <p className="text-sm text-[#3A3A3A]/70">Let donors enter custom donation amounts</p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <span className="font-medium">Enable Recurring Donations</span>
-                        <p className="text-sm text-[#3A3A3A]/70">Allow donors to set up recurring donations</p>
-                      </div>
-                      <Switch defaultChecked />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Delete Confirmation Dialog */}
@@ -435,7 +402,14 @@ export default function DonationsCategoriesPage() {
           <div>Are you sure you want to delete <b>{categoryToDelete?.name}</b>? This action cannot be undone.</div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} type="button">Cancel</Button>
-            <Button className="bg-red-600 text-white" onClick={() => handleDelete(categoryToDelete.id)} type="button">Delete</Button>
+            <Button
+              className="bg-red-600 text-white"
+              onClick={() => handleDelete(categoryToDelete?.id)}
+              type="button"
+              disabled={!categoryToDelete}
+            >
+              Delete
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

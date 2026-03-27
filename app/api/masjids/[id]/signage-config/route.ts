@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getUserMasjid } from "@/lib/actions/masjid";
 
 export async function GET(
   req: NextRequest,
@@ -7,13 +8,18 @@ export async function GET(
 ) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
-  const displayId = searchParams.get('displayId');
+  const displayId = searchParams.get("displayId");
 
   try {
+    const masjid = await getUserMasjid(id);
+    if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     let signageConfig;
     if (displayId) {
       signageConfig = await prisma.signageConfig.findFirst({
-        where: { masjidId: id, displayId: displayId },
+        where: { masjidId: id, displayId },
       });
     } else {
       signageConfig = await prisma.signageConfig.findFirst({
@@ -21,9 +27,11 @@ export async function GET(
       });
     }
     return NextResponse.json(signageConfig?.config || { slides: [] });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to fetch signage config' }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to fetch signage config" },
+      { status: 500 }
+    );
   }
 }
 
@@ -33,9 +41,14 @@ export async function POST(
 ) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
-  const displayId = searchParams.get('displayId');
+  const displayId = searchParams.get("displayId");
 
   try {
+    const masjid = await getUserMasjid(id);
+    if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const config = body;
     const signageConfig = await prisma.signageConfig.upsert({
@@ -49,8 +62,10 @@ export async function POST(
       create: { masjidId: id, displayId: displayId || null, config },
     });
     return NextResponse.json(signageConfig.config);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to save signage config' }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to save signage config" },
+      { status: 500 }
+    );
   }
-} 
+}

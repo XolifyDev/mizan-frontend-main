@@ -26,8 +26,15 @@ export function useSocketIO(options: UseSocketIOOptions = {}) {
     ...callbacks
   } = options;
 
-  // Check if Socket.IO is disabled
-  const wsDisabled = typeof window !== 'undefined' && localStorage.getItem('ws_disabled') === 'true';
+  // Check if Socket.IO is disabled (browser-only, safe on SSR)
+  const wsDisabled = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage?.getItem?.('ws_disabled') === 'true';
+    } catch {
+      return false;
+    }
+  }, []);
 
   const [state, setState] = useState<SocketIOState>({
     isConnected: false,

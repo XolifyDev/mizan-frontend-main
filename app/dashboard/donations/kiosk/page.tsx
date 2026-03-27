@@ -1,9 +1,8 @@
 "use client";
 
-import { authClient } from "@/lib/auth-client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Power, Download, RefreshCcw } from "lucide-react";
+import { RefreshCw, Power, Download } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
@@ -12,64 +11,60 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table } from "@/components/ui/table";
-import { getProducts } from "@/lib/actions/products";
 import { useSearchParams } from "next/navigation";
-import { getDonations } from "@/lib/actions/donations";
-import { getMasjids } from "@/lib/actions/masjids";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface AddForm {
-  productId: string;
-  serial: string;
-  masjidId: string;
-}
-
 export default function KioskDashboardPage() {
-  const { data: session, isPending } = authClient.useSession();
   const [configureKiosk, setConfigureKiosk] = useState<any | null>(null);
   const [copiedConfigKioskId, setCopiedConfigKioskId] = useState<string | null>(null);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [savingConfig, setSavingConfig] = useState(false);
-  const [addingKiosk, setAddingKiosk] = useState(false);
-  const [addErrors, setAddErrors] = useState<any>({});
   const [configErrors, setConfigErrors] = useState<any>({});
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
-  const [loadingMasjids, setLoadingMasjids] = useState(false);
-  const [masjids, setMasjids] = useState<any[]>([]);
   const [loadingKiosks, setLoadingKiosks] = useState(false);
   const [kiosks, setKiosks] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [donationCategories, setDonationCategories] = useState<any[]>([]);
   const masjidId = useSearchParams().get("masjidId") || "";
-  const [addForm, setAddForm] = useState<AddForm>({
-    productId: "",
-    serial: "",
-    masjidId: masjidId || "",
-  });
   const [quickActionsOpen, setQuickActionsOpen] = useState<string | null>(null);
   const [performingAction, setPerformingAction] = useState(false);
 
+  if (!masjidId) {
+    return (
+      <div className="max-w-2xl mx-auto mt-20 bg-white border border-[#550C18]/10 rounded-2xl p-8 text-center shadow-sm">
+        <h2 className="text-2xl font-semibold text-[#550C18] mb-2">
+          Select a Masjid
+        </h2>
+        <p className="text-[#3A3A3A]/70">
+          Choose a masjid to manage kiosk devices.
+        </p>
+      </div>
+    );
+  }
+
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (masjidId) {
+      fetchData();
+    }
+  }, [masjidId]);
 
   // Fetch kiosks with loading skeleton
   const fetchData = async () => {
     setLoadingKiosks(true);
     try {
-      const res = await fetch(`/api/kiosk-instances?masjidId=${masjidId}`);
-      if (!res.ok) throw new Error("Failed to fetch kiosks");
-      const fetchDonations = await getDonations();
-      const products = await getProducts();
-      const masjids = await getMasjids();
-      const data = await res.json();
+      const [kioskRes, categoriesRes] = await Promise.all([
+        fetch(`/api/kiosk-instances?masjidId=${masjidId}`),
+        fetch(`/api/donation-categories?masjidId=${masjidId}`),
+      ]);
+      if (!kioskRes.ok) throw new Error("Failed to fetch kiosks");
+      if (!categoriesRes.ok) throw new Error("Failed to fetch donation categories");
 
-      setDonationCategories(fetchDonations);
-      setProducts(products);
-      setMasjids(masjids);
-      setKiosks(data);
+      const [kioskData, categoriesData] = await Promise.all([
+        kioskRes.json(),
+        categoriesRes.json(),
+      ]);
+
+      setDonationCategories(categoriesData);
+      setKiosks(kioskData);
     } finally {
       setLoadingKiosks(false);
     }
@@ -81,21 +76,13 @@ export default function KioskDashboardPage() {
     if (source && configureKiosk) {
       setConfigureKiosk({
         ...configureKiosk,
-        layout: source.layout,
-        color: source.color,
-        timeout: source.timeout,
-        categories: source.categories,
+        layout: source.config?.layout || source.layout || "default",
+        color: source.config?.color || source.color || "#550C18",
+        timeout: source.config?.timeout || source.timeout || 60,
+        categories: source.config?.categories || source.categories || [],
       });
       setCopiedConfigKioskId(kioskId);
     }
-  };
-
-  // Add New Kiosk validation
-  const validateAddForm = () => {
-    const errors: any = {};
-    if (!addForm.productId) errors.productId = "Product is required.";
-    if (!addForm.masjidId) errors.masjidId = "Masjid is required.";
-    return errors;
   };
 
   // Configure Kiosk validation
@@ -140,37 +127,6 @@ export default function KioskDashboardPage() {
     }
   };
 
-  // Add new kiosk
-  const handleAddKiosk = async () => {
-    const errors = validateAddForm();
-    setAddErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    setAddingKiosk(true);
-    try {
-      const res = await fetch("/api/kiosk-instances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addForm),
-      });
-      if (!res.ok) throw new Error("Failed to add kiosk");
-      toast({ title: "Kiosk added!", description: "New kiosk registered successfully." });
-      setAddDialogOpen(false);
-      setAddForm({
-        productId: "",
-        serial: "",
-        masjidId: masjidId || "",
-      });
-      // Refresh kiosks
-      fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
-        .then((res) => res.json())
-        .then((data) => setKiosks(data));
-    } catch (err) {
-      toast({ title: "Error", description: "Failed to add kiosk", variant: "destructive" });
-    } finally {
-      setAddingKiosk(false);
-    }
-  };
-
   const handleQuickAction = async (action: string) => {
     if (!quickActionsOpen) return;
     setPerformingAction(true);
@@ -196,43 +152,41 @@ export default function KioskDashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[#550C18]">Kiosks</h1>
-          <p className="text-[#3A3A3A]/70">Manage your assigned kiosks and view performance</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-            onClick={() => {
-              setIsRefreshing(true);
-              fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
-                .then((res) => res.json())
-                .then((data) => setKiosks(data))
-                .finally(() => setIsRefreshing(false));
-            }}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            Refresh Status
-          </Button>
-          {session?.user && (session.user as any).admin && (
-            <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={() => setAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Kiosk
+      <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
+              Donation Kiosks
+            </p>
+            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
+              Manage kiosk devices.
+            </h1>
+            <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
+              Assign kiosks, keep settings consistent, and track status in real time.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+              onClick={() => {
+                setIsRefreshing(true);
+                fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
+                  .then((res) => res.json())
+                  .then((data) => setKiosks(data))
+                  .finally(() => setIsRefreshing(false));
+              }}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              Refresh Status
             </Button>
-          )}
+          </div>
         </div>
       </div>
       <Tabs defaultValue="kiosks" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="kiosks">Kiosks</TabsTrigger>
-          <TabsTrigger value="performance">Performance</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        </TabsList>
         <TabsContent value="kiosks">
-          <Card className="bg-white border-[#550C18]/10">
+          <Card className="bg-white border-[#550C18]/10 rounded-2xl">
             <CardHeader>
               <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Kiosk Management</CardTitle>
               <CardDescription className="text-[#3A3A3A]/70">View and manage all assigned kiosks</CardDescription>
@@ -263,14 +217,30 @@ export default function KioskDashboardPage() {
                     ) : (
                       kiosks.map((kiosk) => (
                         <tr key={kiosk.id} className="bg-white border-b border-[#550C18]/10 hover:bg-[#550C18]/5 transition">
-                          <td className="py-3 px-4 font-semibold text-[#550C18]">{kiosk.name || kiosk.product?.name || "Kiosk"}</td>
+                          <td className="py-3 px-4 font-semibold text-[#550C18]">{kiosk.kioskName || kiosk.product?.name || "Kiosk"}</td>
                           <td className="py-3 px-4">{kiosk.location || kiosk.masjid?.name || "-"}</td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-1 text-xs rounded-full font-medium ${kiosk.status === "online" ? "bg-green-100 text-green-700" : kiosk.status === "offline" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>{kiosk.status || "Unknown"}</span>
                           </td>
                           <td className="py-3 px-4">{kiosk.lastTransaction || "-"}</td>
                           <td className="py-3 px-4 flex gap-2">
-                            <Button size="sm" variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/10" onClick={() => setConfigureKiosk(kiosk)}>Configure</Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/10"
+                              onClick={() =>
+                                setConfigureKiosk({
+                                  ...kiosk,
+                                  ...kiosk.config,
+                                  layout: kiosk.config?.layout || "default",
+                                  color: kiosk.config?.color || "#550C18",
+                                  timeout: kiosk.config?.timeout || 60,
+                                  categories: kiosk.config?.categories || [],
+                                })
+                              }
+                            >
+                              Configure
+                            </Button>
                             <Button size="sm" variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/10" onClick={() => setQuickActionsOpen(kiosk.id)}>Quick Actions</Button>
                             <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">Remove</Button>
                           </td>
@@ -428,121 +398,6 @@ export default function KioskDashboardPage() {
               </DrawerFooter>
             </DrawerContent>
           </Drawer>
-
-          {/* Add New Kiosk Dialog */}
-          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Register New Kiosk</DialogTitle>
-                <DialogDescription>
-                  Register a new kiosk device and assign it to a masjid. The masjid admin can configure the kiosk settings after registration.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="product">Product Model</Label>
-                  {loadingProducts ? (
-                    <Skeleton className="h-10 w-full rounded" />
-                  ) : (
-                    <Select 
-                      value={addForm.productId} 
-                      onValueChange={val => setAddForm(f => ({ ...f, productId: val }))}
-                    >
-                      <SelectTrigger 
-                        id="product"
-                        className={addErrors.productId ? 'border-red-500' : ''}
-                      >
-                        <SelectValue placeholder="Select product model..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {addErrors.productId && (
-                    <p className="text-sm text-red-500">{addErrors.productId}</p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="serial">Serial Number</Label>
-                  <Input
-                    id="serial"
-                    value={addForm.serial}
-                    onChange={e => setAddForm(f => ({ ...f, serial: e.target.value }))}
-                    placeholder="Enter device serial number"
-                    className="w-full"
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Optional: Enter the device serial number for tracking purposes
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="masjid">Assign to Masjid</Label>
-                  {loadingMasjids ? (
-                    <Skeleton className="h-10 w-full rounded" />
-                  ) : (
-                    <Select 
-                      value={addForm.masjidId} 
-                      onValueChange={val => setAddForm(f => ({ ...f, masjidId: val }))}
-                    >
-                      <SelectTrigger 
-                        id="masjid"
-                        className={addErrors.masjidId ? 'border-red-500' : ''}
-                      >
-                        <SelectValue placeholder="Select masjid..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {masjids.map((m) => (
-                          <SelectItem key={m.id} value={m.id}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {addErrors.masjidId && (
-                    <p className="text-sm text-red-500">{addErrors.masjidId}</p>
-                  )}
-                </div>
-              </div>
-              <DialogFooter>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setAddDialogOpen(false);
-                    setAddForm({
-                      productId: "",
-                      serial: "",
-                      masjidId: masjidId || "",
-                    });
-                    setAddErrors({});
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  className="bg-[#550C18] hover:bg-[#78001A] text-white" 
-                  onClick={handleAddKiosk} 
-                  disabled={addingKiosk}
-                >
-                  {addingKiosk ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Registering...
-                    </>
-                  ) : (
-                    "Register Kiosk"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           {/* Quick Actions Dialog */}
           <Dialog open={!!quickActionsOpen} onOpenChange={(open) => !open && setQuickActionsOpen(null)}>

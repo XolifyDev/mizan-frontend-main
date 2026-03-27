@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { RefreshCw, Plus, Settings, Bell, Upload } from "lucide-react"
+import { useMemo, useState, useEffect } from "react"
+import { RefreshCw, Plus, Settings, Bell, Upload, Calendar, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,19 +15,20 @@ import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { MonthlyPrayerTimes } from "./monthly-prayer-times"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getUserMasjid } from "@/lib/actions/masjid"
-import { Masjid } from "@prisma/client"
+import type { IqamahTiming, Masjid, PrayerTime } from "@prisma/client"
 import { UploadIqamahTimings } from "./upload-iqamah-timings"
+import type { PrayerCalculation } from "@/lib/models/iqamah-timings"
 
 export default function PrayerTimesClient() {
   const [autoAdjust, setAutoAdjust] = useState(true)
-  const [iqamahTimings, setIqamahTimings] = useState<Array<any>>([])
-  const [calculationSettings, setCalculationSettings] = useState<any>(null)
+  const [iqamahTimings, setIqamahTimings] = useState<IqamahTiming[]>([])
+  const [calculationSettings, setCalculationSettings] = useState<PrayerCalculation | null>(null)
   const [loading, setLoading] = useState(true)
   const [openAddDialog, setOpenAddDialog] = useState(false)
   const [openBulkDialog, setOpenBulkDialog] = useState(false)
   const { toast } = useToast()
-  const [monthlyTimings, setMonthlyTimings] = useState<Array<any>>([])
+  const [monthlyTimings, setMonthlyTimings] = useState<PrayerTime[]>([])
+  const [allPrayerTimings, setAllPrayerTimings] = useState<PrayerTime[]>([])
   const [hasMonthlyTimings, setHasMonthlyTimings] = useState(false)
   const [currentMonth, setCurrentMonth] = useState<string>(
     new Date().toLocaleString("default", { month: "long", year: "numeric" }),
@@ -35,14 +36,21 @@ export default function PrayerTimesClient() {
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [loadingMasjid, setLoadingMasjid] = useState(true);
   const [openUploadDialog, setOpenUploadDialog] = useState(false)
+  const [activeTab, setActiveTab] = useState("iqamah");
   const masjidId = useSearchParams().get("masjidId") || "";
   const router = useRouter();
+
+  useEffect(() => {
+    if (!masjidId) {
+      setLoadingMasjid(false);
+      setLoading(false);
+    }
+  }, [masjidId]);
 
   // Add timeout to prevent infinite loading
   useEffect(() => {
     const timeout = setTimeout(() => {
       if (loadingMasjid) {
-        console.log('Loading timeout reached, forcing loading to stop');
         setLoadingMasjid(false);
         setLoading(false);
         toast({
@@ -57,121 +65,102 @@ export default function PrayerTimesClient() {
   }, [loadingMasjid, toast]);
 
   useEffect(() => {
+    if (!masjidId) return;
+    let isMounted = true;
+    const controller = new AbortController();
+
     const fetchMasjid = async () => {
       try {
-        const userMasjid = await fetch(`/api/masjids?masjidId=${masjidId}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          }
-        }).then(res => res.json());
-        if (!userMasjid || (typeof userMasjid === 'object' && 'error' in userMasjid)) {
-          toast({
-            title: "Error",
-            description: "Failed to load masjid information",
-            variant: "destructive",
-          });
-          return router.push("/dashboard");
+        const res = await fetch(`/api/masjids?masjidId=${masjidId}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!res.ok || !data || (typeof data === "object" && "error" in data)) {
+          throw new Error("Failed to load masjid information");
         }
-        setMasjid(userMasjid as Masjid);
-        return userMasjid;
+        if (isMounted) setMasjid(data as Masjid);
       } catch (error) {
-        console.error('Error fetching masjid:', error);
+        if (!isMounted) return;
         toast({
           title: "Error",
           description: "Failed to load masjid information",
           variant: "destructive",
         });
-        return router.push("/dashboard");
+        router.push("/dashboard");
       } finally {
-        setLoadingMasjid(false);
+        if (isMounted) setLoadingMasjid(false);
       }
-    }
+    };
 
     const loadData = async () => {
-      if (!masjidId) {
-        console.log('No masjidId provided, skipping data load');
-        setLoading(false);
-        return;
-      }
-
+      if (!masjidId) return;
       setLoading(true);
       try {
-        const iqamahResult = await fetch(`/api/masjids/${masjidId}/dashboard/iqamah`).then(res => res.json());
-        const calculationResult = await fetch(`/api/masjids/${masjidId}/dashboard/prayer-calculations`).then(res => res.json());
-        const prayerResults = await fetch(`/api/masjids/${masjidId}/dashboard/prayer-timings`).then(res => res.json());
+        const [iqamahResult, calculationResult, prayerResults] = await Promise.all([
+          fetch(`/api/masjids/${masjidId}/dashboard/iqamah`, { signal: controller.signal }).then((res) => res.json()),
+          fetch(`/api/masjids/${masjidId}/dashboard/prayer-calculations`, { signal: controller.signal }).then((res) => res.json()),
+          fetch(`/api/masjids/${masjidId}/dashboard/prayer-timings`, { signal: controller.signal }).then((res) => res.json()),
+        ]);
 
-        if (iqamahResult.success && iqamahResult.data) {
-          setIqamahTimings(iqamahResult.data)
-          // After setting iqamah timings, check for monthly timings
-          const now = new Date()
-          const month = now.getMonth() + 1
-          const year = now.getFullYear()
-
-          const currentMonthTimings = iqamahResult.data.filter((timing: any) => {
-            // @ts-ignore Ignore
-            const timingDate = new Date(timing.changeDate)
-            return timingDate.getMonth() + 1 === month && timingDate.getFullYear() === year
-          })
-
-          setMonthlyTimings(currentMonthTimings)
-          setHasMonthlyTimings(currentMonthTimings.length > 0)
+        if (iqamahResult?.success && iqamahResult.data) {
+          setIqamahTimings(iqamahResult.data);
         } else {
-          console.error('Iqamah result error:', iqamahResult.error);
           toast({
             title: "Error",
             description: "Failed to load Iqamah timings",
             variant: "destructive",
-          })
+          });
         }
 
-        if (calculationResult.success) {
-          setCalculationSettings(calculationResult.data)
+        if (calculationResult?.success && calculationResult.data) {
+          setCalculationSettings(calculationResult.data as PrayerCalculation);
         } else {
-          console.error('Calculation result error:', calculationResult.error);
           toast({
             title: "Error",
             description: "Failed to load prayer calculation settings",
             variant: "destructive",
-          })
+          });
         }
 
-        if (prayerResults.success && prayerResults.data) {
-          const now = new Date()
-          const month = now.getMonth()
-          const year = now.getFullYear()
-
-          const currentMonthTimings = prayerResults.data.filter((timing: any) => {
-            // @ts-ignore Ignore
-            const timingDate = new Date(timing.date)
-            return timingDate.getMonth() === month && timingDate.getFullYear() === year
-          })
-          setMonthlyTimings(currentMonthTimings)
-          setHasMonthlyTimings(currentMonthTimings.length > 0)
+        if (prayerResults?.success && prayerResults.data) {
+          setAllPrayerTimings(prayerResults.data as PrayerTime[]);
+          const now = new Date();
+          const month = now.getMonth();
+          const year = now.getFullYear();
+          const currentMonthTimings = (prayerResults.data as PrayerTime[]).filter((timing) => {
+            const timingDate = new Date(timing.date);
+            return timingDate.getMonth() === month && timingDate.getFullYear() === year;
+          });
+          setMonthlyTimings(currentMonthTimings);
+          setHasMonthlyTimings(currentMonthTimings.length > 0);
         } else {
-          console.error('Prayer results error:', prayerResults.error);
           toast({
             title: "Error",
             description: "Failed to load Prayer timings",
             variant: "destructive",
-          })
+          });
         }
       } catch (error) {
-        console.error('Load data error:', error);
+        if (!isMounted) return;
         toast({
           title: "Error",
           description: "An unexpected error occurred",
           variant: "destructive",
-        })
+        });
       } finally {
-        setLoading(false)
+        if (isMounted) setLoading(false);
       }
-    }
+    };
 
-    // Run both functions
     fetchMasjid();
     loadData();
-  }, [])
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [masjidId, router, toast]);
 
   const handleRefresh = async () => {
     setLoading(true)
@@ -184,19 +173,6 @@ export default function PrayerTimesClient() {
 
         if (iqamahResult.success && iqamahResult.data) {
           setIqamahTimings(iqamahResult.data)
-          // After setting iqamah timings, check for monthly timings
-          const now = new Date()
-          const month = now.getMonth() + 1
-          const year = now.getFullYear()
-
-          const currentMonthTimings = iqamahResult.data.filter((timing: any) => {
-            // @ts-ignore Ignore
-            const timingDate = new Date(timing.changeDate)
-            return timingDate.getMonth() + 1 === month && timingDate.getFullYear() === year
-          })
-
-          setMonthlyTimings(currentMonthTimings)
-          setHasMonthlyTimings(currentMonthTimings.length > 0)
         } else {
           toast({
             title: "Error",
@@ -205,8 +181,8 @@ export default function PrayerTimesClient() {
           })
         }
 
-        if (calculationResult.success) {
-          setCalculationSettings(calculationResult.data)
+        if (calculationResult.success && calculationResult.data) {
+          setCalculationSettings(calculationResult.data as PrayerCalculation)
         } else {
           toast({
             title: "Error",
@@ -216,12 +192,12 @@ export default function PrayerTimesClient() {
         }
 
         if (prayerResults.success && prayerResults.data) {
+          setAllPrayerTimings(prayerResults.data as PrayerTime[]);
           const now = new Date()
           const month = now.getMonth()
           const year = now.getFullYear()
 
-          const currentMonthTimings = prayerResults.data.filter((timing: any) => {
-            // @ts-ignore Ignore
+          const currentMonthTimings = (prayerResults.data as PrayerTime[]).filter((timing) => {
             const timingDate = new Date(timing.date)
             return timingDate.getMonth() === month && timingDate.getFullYear() === year
           })
@@ -245,25 +221,44 @@ export default function PrayerTimesClient() {
       }
   }
 
-  const fetchMonthlyTimings = async (month: number, year: number) => {
+  const timezone = useMemo(() => {
+    const candidate = masjid?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
     try {
-      const currentMonthTimings = iqamahTimings.filter((timing) => {
-        const timingDate = new Date(timing.changeDate)
-        return timingDate.getMonth() + 1 === month && timingDate.getFullYear() === year
-      })
-
-      setMonthlyTimings(currentMonthTimings)
-      setHasMonthlyTimings(currentMonthTimings.length > 0)
-
-      setCurrentMonth(new Date(year, month - 1).toLocaleString("default", { month: "long", year: "numeric" }))
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch monthly prayer times",
-        variant: "destructive",
-      })
+      Intl.DateTimeFormat("en-US", { timeZone: candidate });
+      return candidate;
+    } catch {
+      return "UTC";
     }
-  }
+  }, [masjid?.timezone]);
+
+  const nextPrayer = useMemo(() => {
+    const source = allPrayerTimings.length ? allPrayerTimings : monthlyTimings;
+    if (!source.length) return null;
+    const now = new Date();
+
+    const allCandidates = source.flatMap((timing) => [
+      { name: "Fajr", date: timing.fajr ? new Date(timing.fajr) : null },
+      { name: "Dhuhr", date: timing.dhuhr ? new Date(timing.dhuhr) : null },
+      { name: "Asr", date: timing.asr ? new Date(timing.asr) : null },
+      { name: "Maghrib", date: timing.maghrib ? new Date(timing.maghrib) : null },
+      { name: "Isha", date: timing.isha ? new Date(timing.isha) : null },
+    ]);
+
+    const upcoming = allCandidates
+      .filter((candidate): candidate is { name: string; date: Date } => Boolean(candidate.date))
+      .filter((candidate) => candidate.date.getTime() > now.getTime())
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    return upcoming[0] ?? null;
+  }, [allPrayerTimings, monthlyTimings]);
+
+  const latestIqamah = useMemo(() => {
+    if (!iqamahTimings.length) return null;
+    const sorted = [...iqamahTimings].sort(
+      (a, b) => new Date(b.changeDate).getTime() - new Date(a.changeDate).getTime()
+    );
+    return sorted[0];
+  }, [iqamahTimings]);
 
   if(loadingMasjid) return (
     <div className="h-full flex items-center justify-center">
@@ -310,43 +305,120 @@ export default function PrayerTimesClient() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#550C18]">Prayer Times</h2>
-          <p className="text-[#3A3A3A]/70">Manage prayer and iqamah times for your masjid</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-            onClick={handleRefresh}
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh
-              </>
-            )}
-          </Button>
+    <div className="space-y-8">
+      <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
+              Prayer Times
+            </p>
+            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
+              Keep salah and iqamah perfectly aligned.
+            </h1>
+            <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
+              Manage iqamah schedules, calculation settings, and publish monthly prayer times in one place.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <Button
+              variant="outline"
+              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Data
+                </>
+              )}
+            </Button>
+            <Button
+              className="bg-[#550C18] hover:bg-[#78001A] text-white"
+              onClick={() => {
+                setActiveTab("iqamah");
+                setOpenAddDialog(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Iqamah
+            </Button>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="iqamah" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="iqamah" className="flex items-center gap-2">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-[#550C18]/10 bg-white shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center justify-between text-[#3A3A3A]/70">
+              <span>Next Prayer</span>
+              <Clock className="h-4 w-4 text-[#550C18]" />
+            </CardDescription>
+            <CardTitle className="text-2xl text-[#2e0c12]">
+              {nextPrayer ? nextPrayer.name : "—"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-[#3A3A3A]/70">
+            {nextPrayer
+              ? nextPrayer.date.toLocaleTimeString("en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  timeZone: timezone,
+                })
+              : "No upcoming prayers today."}
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#550C18]/10 bg-white shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center justify-between text-[#3A3A3A]/70">
+              <span>Active Iqamah Schedule</span>
+              <Bell className="h-4 w-4 text-[#550C18]" />
+            </CardDescription>
+            <CardTitle className="text-2xl text-[#2e0c12]">
+              {latestIqamah ? new Date(latestIqamah.changeDate).toLocaleDateString() : "—"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-[#3A3A3A]/70">
+            {latestIqamah ? "Currently applied to displays" : "Add your first iqamah schedule."}
+          </CardContent>
+        </Card>
+
+        <Card className="border-[#550C18]/10 bg-white shadow-sm">
+          <CardHeader className="pb-2">
+            <CardDescription className="flex items-center justify-between text-[#3A3A3A]/70">
+              <span>Timezone</span>
+              <Calendar className="h-4 w-4 text-[#550C18]" />
+            </CardDescription>
+            <CardTitle className="text-2xl text-[#2e0c12]">
+              {timezone}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-[#3A3A3A]/70">
+            Current time:{" "}
+            {new Date().toLocaleTimeString("en-US", {
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: timezone,
+            })}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 rounded-full bg-[#550C18]/10 p-1">
+          <TabsTrigger value="iqamah" className="flex items-center gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow">
             <Bell className="h-4 w-4" />
             Iqamah Timings
           </TabsTrigger>
-          <TabsTrigger value="calculation" className="flex items-center gap-2">
+          <TabsTrigger value="calculation" className="flex items-center gap-2 rounded-full data-[state=active]:bg-white data-[state=active]:shadow">
             <Settings className="h-4 w-4" />
-            Salah Timings/Prayer Calculation
+            Salah Calculation
           </TabsTrigger>
         </TabsList>
 
@@ -355,22 +427,21 @@ export default function PrayerTimesClient() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold text-[#3A3A3A]">Iqamah Timings</CardTitle>
+                  <CardTitle className="text-xl font-semibold text-[#2e0c12]">Iqamah Timings</CardTitle>
                   <CardDescription className="text-[#3A3A3A]/70">
-                    Manage the iqamah times for each prayer
+                    Create and manage schedules for each prayer.
                   </CardDescription>
                 </div>
                 <div className="flex flex-row items-center gap-3">
                   <Dialog open={openUploadDialog} onOpenChange={setOpenUploadDialog}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="flex items-center gap-2" onClick={() => setOpenUploadDialog(true)}>
+                      <Button variant="outline" className="flex items-center gap-2">
                         <Upload className="h-4 w-4" />
                         Upload CSV
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[800px]">
-                      <DialogTitle>
-                      </DialogTitle>
+                      <DialogTitle></DialogTitle>
                       <UploadIqamahTimings
                         masjidId={masjidId}
                         onSuccess={() => {
@@ -389,8 +460,7 @@ export default function PrayerTimesClient() {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[800px]">
-                      <DialogTitle>
-                      </DialogTitle>
+                      <DialogTitle></DialogTitle>
                       <BulkIqamahTimingForm
                         masjidId={masjidId}
                         onSuccess={() => {
@@ -409,11 +479,10 @@ export default function PrayerTimesClient() {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="p-0 max-w-xl">
-                      <DialogTitle>
-                      </DialogTitle>
+                      <DialogTitle></DialogTitle>
                       <AddIqamahTimingForm
                         masjidId={masjidId}
-                        lastIqamah={iqamahTimings.length > 0 ? iqamahTimings[iqamahTimings.length - 1] : null}
+                        lastIqamah={latestIqamah}
                         onSuccess={() => {
                           setOpenAddDialog(false)
                           handleRefresh()
@@ -435,7 +504,7 @@ export default function PrayerTimesClient() {
             <CardHeader>
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <CardTitle className="text-xl font-semibold text-[#3A3A3A] flex flex-row gap-1 items-center">
+                  <CardTitle className="text-xl font-semibold text-[#2e0c12] flex flex-row gap-1 items-center">
                     Prayer Calculation Settings
                     {calculationSettings?.updatedAt && (
                       <p className="text-gray-500 font-bold text-sm mt-1">
@@ -448,7 +517,7 @@ export default function PrayerTimesClient() {
                     )}
                   </CardTitle>
                   <CardDescription className="text-[#3A3A3A]/70">
-                    Configure how prayer times are calculated
+                    Configure how prayer times are calculated.
                   </CardDescription>
                 </div>
                 <div className="flex items-center space-x-2">

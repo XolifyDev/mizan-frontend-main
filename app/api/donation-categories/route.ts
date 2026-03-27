@@ -1,28 +1,28 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getUser } from "@/lib/actions/user";
 import { getUserMasjid } from "@/lib/actions/masjid";
 
 export async function GET(req: Request) {
   try {
-    const user = await getUser();
-    if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-    const masjid = await getUserMasjid();
-    if (!masjid || !('id' in masjid)) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const masjidId = searchParams.get("masjidId");
+
+    if (!masjidId) {
+      return new NextResponse("Missing masjidId", { status: 400 });
+    }
+
+    const masjid = await getUserMasjid(masjidId);
+    if (!masjid || !("id" in masjid)) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     if (id) {
       // Fetch a single category
       const category = await prisma.donationCategory.findFirst({
         where: {
           id,
-          masjidId: masjid.id,
+          masjidId: masjidId,
         },
       });
       if (!category) return new NextResponse("Not found", { status: 404 });
@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     // Otherwise, fetch all
     const categories = await prisma.donationCategory.findMany({
       where: {
-        masjidId: masjid.id,
+        masjidId: masjidId,
       },
       orderBy: {
         order: 'asc',
@@ -48,10 +48,6 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const user = await getUser();
-    if (!user) {
-      return new NextResponse("Unauthorized", { status: 401 });
-    }
     const body = await req.json();
     const {
       masjidId,
@@ -101,6 +97,10 @@ export async function POST(req: Request) {
 
     if (!masjidId) {
       return new NextResponse("Missing masjidId", { status: 400 });
+    }
+    const masjid = await getUserMasjid(masjidId);
+    if (!masjid || !("id" in masjid)) {
+      return new NextResponse("Unauthorized", { status: 401 });
     }
 
     const category = await prisma.donationCategory.create({
@@ -159,11 +159,20 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const user = await getUser();
-    if (!user) return new NextResponse("Unauthorized", { status: 401 });
     const body = await req.json();
     const { id, ...data } = body;
     if (!id) return new NextResponse("Missing id", { status: 400 });
+
+    const existing = await prisma.donationCategory.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return new NextResponse("Not found", { status: 404 });
+    const masjid = await getUserMasjid(existing.masjidId);
+    if (!masjid || !("id" in masjid)) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     delete data.masjidId;
     const updated = await prisma.donationCategory.update({
       where: { id },
@@ -178,10 +187,18 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const user = await getUser();
-    if (!user) return new NextResponse("Unauthorized", { status: 401 });
     const { id } = await req.json();
     if (!id) return new NextResponse("Missing id", { status: 400 });
+
+    const existing = await prisma.donationCategory.findUnique({
+      where: { id },
+      select: { masjidId: true },
+    });
+    if (!existing) return new NextResponse("Not found", { status: 404 });
+    const masjid = await getUserMasjid(existing.masjidId);
+    if (!masjid || !("id" in masjid)) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     await prisma.donationCategory.delete({ where: { id } });
     return new NextResponse(null, { status: 204 });

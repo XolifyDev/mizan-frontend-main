@@ -1,9 +1,17 @@
-"use server";
-
 import { NextRequest, NextResponse } from "next/server"
 import { getPaymentAndOrder, getSessionAndOrder } from "@/lib/actions/order";
 import EasyPost from "@easypost/api";
 import { prisma } from "@/lib/db";
+import { getUserMasjid } from "@/lib/actions/masjid";
+
+async function requireMasjidAccess(masjidId: string | null) {
+  if (!masjidId) return null;
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
 
 export async function GET(
   request: NextRequest,
@@ -24,6 +32,10 @@ export async function GET(
         { error: "Order not found" },
         { status: 404 }
       )
+    }
+    const access = await requireMasjidAccess(order.masjidId);
+    if (!access) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     let stripeAndOrder = null;
     if(order.stripeSessionId?.startsWith("pi_")) {
@@ -96,7 +108,16 @@ export async function PUT(
   const { id } = await params
   try {
     const data = await request.json()
-    console.log(data)
+    const existing = await prisma.orders.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const order = await prisma.orders.update({
       where: { id: id },
       data: data,
@@ -121,6 +142,16 @@ export async function DELETE(
 ) {
   const { id } = await params
   try {
+    const existing = await prisma.orders.findUnique({
+      where: { id },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    const access = await requireMasjidAccess(existing.masjidId);
+    if (!access) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     await prisma.orders.delete({
       where: { id: id },
     })

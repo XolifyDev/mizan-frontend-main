@@ -1,31 +1,18 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { CreateEventForm } from "@/components/dashboard/create-event-form"
-import { getEvents, getEventsById } from "@/lib/actions/events"
-
-type Event = {
-  id: string;
-  title: string;
-  date: Date;
-  timeStart: Date;
-  timeEnd: Date;
-  location: string;
-  description: string;
-  type: string;
-  tagColor: string;
-  masjidId: string;
-  createdAt: Date;
-  updatedAt: Date;
-};
+import { getEventsById } from "@/lib/actions/events"
+import type { Event } from "@prisma/client"
 
 export default function EditEventPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [event, setEvent] = useState<Event | null>(null)
-  const masjidId = new URLSearchParams(window.location.search).get("masjidId") || ""
+  const masjidId = searchParams.get("masjidId") || ""
   const params = useParams()
 
   useEffect(() => {
@@ -65,7 +52,7 @@ export default function EditEventPage() {
         <Button
           variant="outline"
           size="md"
-          onClick={() => router.push('/dashboard/events')}
+          onClick={() => router.push(`/dashboard/events?masjidId=${masjidId}`)}
           className="mt-auto mb-auto"
         >
           <ArrowLeft className="h-4 w-4" /> Back
@@ -74,9 +61,7 @@ export default function EditEventPage() {
 
       <div className="bg-white rounded-lg border border-[#550C18]/10 p-6 px-20">
         <CreateEventForm
-          isOpen={true}
-          onClose={() => router.back()}
-          onSuccess={() => router.push("/dashboard/events")}
+          onSuccess={() => router.push(`/dashboard/events?masjidId=${masjidId}`)}
           masjidId={masjidId}
           initialData={event}
           isEditMode={true}

@@ -1,8 +1,7 @@
 "use client";
-import { authClient } from "@/lib/auth-client";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Edit, Trash } from "lucide-react";
+import { RefreshCw, Edit, Trash } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
@@ -12,54 +11,26 @@ import { toast } from "@/components/ui/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableHead, TableRow, TableCell, TableBody } from "@/components/ui/table";
 import { useSearchParams } from "next/navigation";
-import { getMasjids } from "@/lib/actions/masjids";
 import { getDonationCategories } from "@/lib/actions/donations";
-import { getProducts } from "@/lib/actions/products";
 
 export default function KioskDashboardPage() {
-  const { data: session, isPending } = authClient.useSession();
   const [configureKiosk, setConfigureKiosk] = useState<any | null>(null);
   const [copiedConfigKioskId, setCopiedConfigKioskId] = useState<string | null>(null);
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const masjidId = useSearchParams().get("masjidId") || "";
-  const [addForm, setAddForm] = useState({
-    productId: "",
-    serial: "",
-    masjidId: masjidId,
-    layout: "default",
-    color: "#550C18",
-    timeout: 60,
-    categories: [] as string[],
-  });
   const [savingConfig, setSavingConfig] = useState(false);
-  const [addingKiosk, setAddingKiosk] = useState(false);
-  const [addErrors, setAddErrors] = useState<any>({});
   const [configErrors, setConfigErrors] = useState<any>({});
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [loadingMasjids, setLoadingMasjids] = useState(false);
   const [loadingKiosks, setLoadingKiosks] = useState(false);
   const [kiosks, setKiosks] = useState<any[]>([]);
-  const [masjids, setMasjids] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [editKiosk, setEditKiosk] = useState<any | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [kioskToDelete, setKioskToDelete] = useState<any | null>(null);
   const [donationCategories, setDonationCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
 
-  // Fetch products and masjids with loading skeletons
   useEffect(() => {
-    setLoadingMasjids(true);
-    getMasjids().then((masjids) => setMasjids(masjids)).finally(() => {
-      setLoadingMasjids(false);
-    });
-    setLoadingProducts(true);
-    getProducts().then((products) => setProducts(products)).finally(() => {
-      setLoadingProducts(false);
-    });
-    getDonationCategories().then((categories) => setDonationCategories(categories));
+    getDonationCategories(masjidId).then((categories) => setDonationCategories(categories || []));
     fetchKiosks();
-  }, []);
+  }, [masjidId]);
 
   // Fetch kiosks with loading skeleton
   const fetchKiosks = async () => {
@@ -86,15 +57,6 @@ export default function KioskDashboardPage() {
       });
       setCopiedConfigKioskId(kioskId);
     }
-  };
-
-  // Add New Kiosk validation
-  const validateAddForm = () => {
-    const errors: any = {};
-    if (!addForm.productId) errors.productId = "Product is required.";
-    if (!addForm.masjidId) errors.masjidId = "Masjid is required.";
-    if (!addForm.categories || addForm.categories.length === 0) errors.categories = "Select at least one category.";
-    return errors;
   };
 
   // Configure Kiosk validation
@@ -139,33 +101,6 @@ export default function KioskDashboardPage() {
     }
   };
 
-  // Add new kiosk
-  const handleAddKiosk = async () => {
-    const errors = validateAddForm();
-    setAddErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    setAddingKiosk(true);
-    try {
-      const res = await fetch("/api/kiosk-instances", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(addForm),
-      });
-      if (!res.ok) throw new Error("Failed to add kiosk");
-      toast({ title: "Kiosk added!", description: "New kiosk registered successfully." });
-      setAddDialogOpen(false);
-      setAddForm({ productId: "", serial: "", masjidId: masjidId || "", layout: "default", color: "#550C18", timeout: 60, categories: [] });
-      // Refresh kiosks
-      fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
-        .then((res) => res.json())
-        .then((data) => setKiosks(data));
-    } catch (err) {
-      toast({ title: "Error", description: "Failed to add kiosk", variant: "destructive" });
-    } finally {
-      setAddingKiosk(false);
-    }
-  };
-
   // Add delete handler
   const handleDeleteKiosk = async () => {
     if (!kioskToDelete) return;
@@ -206,13 +141,6 @@ export default function KioskDashboardPage() {
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh Status
           </Button>
-          {/* @ts-ignore */}
-          {session?.user?.admin && (
-            <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={() => setAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Kiosk
-            </Button>
-          )}
         </div>
       </div>
           <Card className="bg-white border-[#550C18]/10">
@@ -358,92 +286,6 @@ export default function KioskDashboardPage() {
               </DrawerFooter>
             </DrawerContent>
           </Drawer>
-
-          {/* Add New Kiosk Dialog */}
-          <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Kiosk</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <Label>Product</Label>
-                {loadingProducts ? <Skeleton className="h-10 w-full rounded" /> : (
-                  <select
-                    className={`w-full p-2 border border-[#550C18]/20 rounded ${addErrors.productId ? 'border-red-500' : ''}`}
-                    value={addForm.productId}
-                    onChange={e => setAddForm(f => ({ ...f, productId: e.target.value }))}
-                  >
-                    <option value="">Select product...</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                )}
-                {addErrors.productId && <div className="text-red-500 text-xs">{addErrors.productId}</div>}
-                <Label>Serial</Label>
-                <input
-                  className="w-full p-2 border border-[#550C18]/20 rounded"
-                  value={addForm.serial}
-                  onChange={e => setAddForm(f => ({ ...f, serial: e.target.value }))}
-                  placeholder="Enter serial number (optional)"
-                />
-                <Label>Assign to Masjid</Label>
-                {loadingMasjids ? <Skeleton className="h-10 w-full rounded" /> : (
-                  <select
-                    className={`w-full p-2 border border-[#550C18]/20 rounded ${addErrors.masjidId ? 'border-red-500' : ''}`}
-                    value={addForm.masjidId}
-                    onChange={e => setAddForm(f => ({ ...f, masjidId: e.target.value }))}
-                  >
-                    <option value="">Select masjid...</option>
-                    {masjids.map((m) => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                )}
-                {addErrors.masjidId && <div className="text-red-500 text-xs">{addErrors.masjidId}</div>}
-                {/* Initial config fields */}
-                <Label>Initial Layout</Label>
-                <select className="w-full p-2 border border-[#550C18]/20 rounded" value={addForm.layout || "default"} onChange={e => setAddForm(f => ({ ...f, layout: e.target.value }))}>
-                  <option value="default">Default</option>
-                  <option value="compact">Compact</option>
-                  <option value="expanded">Expanded</option>
-                </select>
-                <Label>Initial Color</Label>
-                <input type="color" className="w-full h-10 border border-[#550C18]/20 rounded" value={addForm.color || "#550C18"} onChange={e => setAddForm(f => ({ ...f, color: e.target.value }))} />
-                <Label>Initial Timeout (seconds)</Label>
-                <input type="number" className="w-full p-2 border border-[#550C18]/20 rounded" min={10} max={600} value={addForm.timeout || 60} onChange={e => setAddForm(f => ({ ...f, timeout: Number(e.target.value) }))} />
-                <Label>Initial Donation Categories</Label>
-                <div className="space-y-2">
-                  {donationCategories.map((category) => (
-                    <label key={category.id} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={addForm.categories?.includes(category.id)}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          setAddForm(f => ({
-                            ...f,
-                            categories: checked
-                              ? [...(f.categories || []), category.id]
-                              : (f.categories || []).filter((id: any) => id !== category.id),
-                          }));
-                        }}
-                      />
-                      {category.name}
-                    </label>
-                  ))}
-                </div>
-                {addErrors.categories && <div className="text-red-500 text-xs">{addErrors.categories}</div>}
-              </div>
-              <DialogFooter>
-                <Button className="bg-[#550C18] hover:bg-[#78001A] text-white" onClick={handleAddKiosk} disabled={addingKiosk}>
-                  {addingKiosk ? "Adding..." : "Add Kiosk"}
-                </Button>
-                <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           {/* Delete Kiosk Dialog */}
           <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

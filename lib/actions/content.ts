@@ -2,38 +2,72 @@
 
 import { prisma } from "@/lib/db";
 import { ContentType } from "@prisma/client";
+import { getUserMasjid } from "./masjid";
+
+async function requireMasjidAccess(masjidId?: string) {
+  if (!masjidId) return null;
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
 
 export const getAllContent = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
   return prisma.content.findMany({
-    where: masjidId ? { masjidId } : undefined,
+    where: { masjidId: access.id },
     include: { displays: true, assignedToDisplays: true, announcements: true },
     orderBy: { createdAt: "desc" },
   });
 };
 
 export const getAllAnnouncements = async (masjidId: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
   return prisma.announcement.findMany({
-    where: masjidId ? { masjidId } : undefined,
+    where: { masjidId: access.id },
     orderBy: { createdAt: "desc" },
   });
 };
 
 export const getContentById = async (id: string) => {
-  return prisma.content.findUnique({
+  const content = await prisma.content.findUnique({
     where: { id },
     include: { displays: true, assignedToDisplays: true, announcements: true },
   });
+  if (!content) return null;
+  const access = await requireMasjidAccess(content.masjidId);
+  if (!access) return null;
+  return content;
 };
 
 export const createContent = async (data: any) => {
+  const access = await requireMasjidAccess(data?.masjidId);
+  if (!access) return null;
   return prisma.content.create({ data });
 };
 
 export const updateContent = async (id: string, data: any) => {
+  const existing = await prisma.content.findUnique({
+    where: { id },
+    select: { masjidId: true },
+  });
+  if (!existing) return null;
+  const access = await requireMasjidAccess(existing.masjidId);
+  if (!access) return null;
   return prisma.content.update({ where: { id }, data });
 };
 
 export const deleteContent = async (id: string) => {
+  const existing = await prisma.content.findUnique({
+    where: { id },
+    select: { masjidId: true },
+  });
+  if (!existing) return null;
+  const access = await requireMasjidAccess(existing.masjidId);
+  if (!access) return null;
   return prisma.content.delete({ where: { id } });
 };
 
@@ -50,6 +84,8 @@ export const createAnnouncement = async (data: {
   endDate?: string;
   active?: boolean;
 }) => {
+  const access = await requireMasjidAccess(data.masjidId);
+  if (!access) return null;
   return prisma.announcement.create({
     data: {
       masjidId: data.masjidId,
@@ -87,6 +123,8 @@ export const createContentWithConfig = async (data: {
   active?: boolean; 
   timeType?: string;
 }) => {
+  const access = await requireMasjidAccess(data.masjidId);
+  if (!access) return null;
   return prisma.content.create({
     data: {
       masjidId: data.masjidId,

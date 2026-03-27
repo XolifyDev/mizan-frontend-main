@@ -2,18 +2,39 @@
 
 import { prisma } from "@/lib/db";
 import { startOfMonth, endOfMonth } from "date-fns";
+import { getUserMasjid } from "./masjid";
 
-export const getDonations = async () => {
-  const donations = await prisma.donation.findMany();
+async function requireMasjidAccess(masjidId?: string) {
+  if (!masjidId) return null;
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
+
+export const getDonations = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
+  const donations = await prisma.donation.findMany({
+    where: { masjidId: access.id },
+  });
   return donations;
 };
 
-export const getDonationCategories = async () => {
-  const donationCategories = await prisma.donationCategory.findMany();
+export const getDonationCategories = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
+  const donationCategories = await prisma.donationCategory.findMany({
+    where: { masjidId: access.id },
+    orderBy: { order: "asc" },
+  });
   return donationCategories;
 };
 
 export const getTotalDonationsThisMonth = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
   const now = new Date();
   const start = startOfMonth(now);
   const end = endOfMonth(now);
@@ -21,7 +42,7 @@ export const getTotalDonationsThisMonth = async (masjidId?: string) => {
     createdAt: { gte: start, lte: end },
     status: "completed",
   };
-  if (masjidId) where.masjidId = masjidId;
+  where.masjidId = access.id;
   const result = await prisma.donation.aggregate({
     _sum: { amount: true },
     where,
@@ -29,7 +50,24 @@ export const getTotalDonationsThisMonth = async (masjidId?: string) => {
   return result._sum.amount || 0;
 };
 
+export const getDonationCountThisMonth = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
+  const now = new Date();
+  const start = startOfMonth(now);
+  const end = endOfMonth(now);
+  return prisma.donation.count({
+    where: {
+      masjidId: access.id,
+      status: "completed",
+      createdAt: { gte: start, lte: end },
+    },
+  });
+};
+
 export const getTopDonationCategories = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
   const now = new Date();
   const start = startOfMonth(now);
   const end = endOfMonth(now);
@@ -37,7 +75,7 @@ export const getTopDonationCategories = async (masjidId?: string) => {
     createdAt: { gte: start, lte: end },
     status: "completed",
   };
-  if (masjidId) where.masjidId = masjidId;
+  where.masjidId = access.id;
   const top = await prisma.donation.groupBy({
     by: ["categoryId"],
     where,
@@ -55,6 +93,8 @@ export const getTopDonationCategories = async (masjidId?: string) => {
 };
 
 export const getDonationOverview = async (masjidId?: string) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
   const now = new Date();
   const start = startOfMonth(now);
   const end = endOfMonth(now);
@@ -62,7 +102,7 @@ export const getDonationOverview = async (masjidId?: string) => {
     createdAt: { gte: start, lte: end },
     status: "completed",
   };
-  if (masjidId) where.masjidId = masjidId;
+  where.masjidId = access.id;
   const grouped = await prisma.donation.groupBy({
     by: ["categoryId"],
     where,
@@ -78,8 +118,10 @@ export const getDonationOverview = async (masjidId?: string) => {
 };
 
 export const getRecentDonations = async (masjidId?: string, page = 1, pageSize = 10) => {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) return null;
   const where: any = { status: "completed" };
-  if (masjidId) where.masjidId = masjidId;
+  where.masjidId = access.id;
   const [donations, total] = await Promise.all([
     prisma.donation.findMany({
       where,
@@ -135,4 +177,3 @@ export const seedTestDonationsAndCategories = async () => {
   }
   return { categories, donations: donationsData };
 };
-

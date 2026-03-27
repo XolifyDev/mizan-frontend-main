@@ -9,19 +9,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/
 import { useToast } from "@/components/ui/use-toast"
 import { iqamahTimingSchema } from "@/lib/models/iqamah-timings"
 import { updateIqamahTiming } from "@/lib/actions/prayer-times"
-import { Input } from "@/components/ui/input"
 import { TimeInput } from "@/components/ui/time-input"
 import { MaghribInput } from "@/components/ui/maghrib-input"
 import { CalendarDatePicker } from "@/components/ui/calendar-date-picker"
-import { toast } from "@/hooks/use-toast"
+import type { IqamahTiming } from "@prisma/client"
 
 type EditIqamahTimingFormProps = {
-  timing: any
+  timing: IqamahTiming
   onSuccess?: () => void
 }
 
 export function EditIqamahTimingForm({ timing, onSuccess }: EditIqamahTimingFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { toast } = useToast()
 
   const form = useForm<z.infer<typeof iqamahTimingSchema>>({
     resolver: zodResolver(iqamahTimingSchema),
@@ -238,9 +238,7 @@ export function EditIqamahTimingForm({ timing, onSuccess }: EditIqamahTimingForm
             >
               Cancel
             </Button>
-            <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isSubmitting} onClick={() => {
-              form.handleSubmit(onSubmit);
-            }}>
+            <Button type="submit" className="bg-[#550C18] hover:bg-[#78001A] text-white" disabled={isSubmitting}>
               Update
             </Button>
           </div>

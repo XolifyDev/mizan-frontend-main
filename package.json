@@ -3,7 +3,13 @@
   "version": "0.3",
   "private": true,
   "packageManager": "pnpm@10.6.5",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "scripts": {
+    "check-node": "node -e \"const [maj]=process.versions.node.split('.').map(Number); if (maj < 22 || maj >= 23) { console.error('Unsupported Node.js version for this repo. Use Node 22.x. Current: ' + process.version); process.exit(1); }\"",
+    "predev": "pnpm run check-node",
+    "prebuild": "pnpm run check-node",
     "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
     "start": "next start",

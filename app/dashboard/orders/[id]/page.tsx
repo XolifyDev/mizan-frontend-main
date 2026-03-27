@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   updateOrder,
   getSessionAndOrder,
@@ -43,65 +43,60 @@ export default function OrderDetailPage() {
   const [saving, setSaving] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<any>(null);
   const [cart, setCart] = useState<any>([]);
-  const [masjid, setMasjid] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
+  const masjidId = useSearchParams().get("masjidId") || "";
 
   const fetchOrder = async () => {
     try {
       setIsLoading(true);
       if (!id) {
-        console.log("No order ID provided");
-        return router.push("/dashboard/orders");
+        return router.push(`/dashboard/orders?masjidId=${masjidId}`);
       }
       const orderData = await fetch(`/api/orders/${id}`).then(async (res) => {
         if (!res.ok) {
-          console.log("Error fetching order:", res.statusText);
-          return router.push("/dashboard/orders");
+          return router.push(`/dashboard/orders?masjidId=${masjidId}`);
         }
         return res.json();
       });
 
       if (!orderData || orderData.error) {
-        console.log("No order data found");
-        return router.push("/dashboard/orders");
+        return router.push(`/dashboard/orders?masjidId=${masjidId}`);
       }
 
-    setOrder(orderData);
-    setCart(JSON.parse(orderData.cart));
-      console.log(JSON.parse(orderData.cart))
-    setMasjid(orderData.masjid);
-    setStatus(orderData.status);
-    setTracking(orderData.trackingNumber || "");
+      setOrder(orderData);
+      setCart(JSON.parse(orderData.cart));
+      setStatus(orderData.status);
+      setTracking(orderData.trackingNumber || "");
 
       if (orderData.stripeSessionId) {
         try {
           if (orderData.stripeSessionId.includes("cs_")) {
-        const payment = await getSessionAndOrder(orderData.stripeSessionId);
-        setPaymentInfo(payment.stripeSession);
-      } else {
-        const payment = await getPaymentAndOrder(orderData.stripeSessionId);
-        setPaymentInfo(payment.stripeSession);
-      }
+            const payment = await getSessionAndOrder(orderData.stripeSessionId);
+            setPaymentInfo(payment.stripeSession);
+          } else {
+            const payment = await getPaymentAndOrder(orderData.stripeSessionId);
+            setPaymentInfo(payment.stripeSession);
+          }
         } catch (error) {
           console.error("Error fetching payment info:", error);
         }
       }
     } catch (error) {
       console.error("Error in fetchOrder:", error);
-      router.push("/dashboard/orders");
+      router.push(`/dashboard/orders?masjidId=${masjidId}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isPending) return console.log("Loading...");
-    if (!session)
-      return router.push(
-        "/signin?message=You need to login to access this page!"
-      );
+    if (isPending) return;
+    if (!session) {
+      router.push("/signin?message=You need to login to access this page!");
+      return;
+    }
     fetchOrder();
   }, [isPending, id, session, router]);
 
@@ -113,342 +108,184 @@ export default function OrderDetailPage() {
     setSaving(false);
   };
 
-  if (isPending || !session || !order || isLoading)
-    return <div className="p-8 text-center text-gray-400 1">Loading...</div>;
+  if (isPending || !session || !order || isLoading) {
+    return <div className="p-8 text-center text-gray-400">Loading...</div>;
+  }
 
   return (
-    <div className="px-12 py-8 flex flex-row gap-4">
-      <Card className="bg-white border-[#550C18]/10 w-full">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-            Order Details
-          </CardTitle>
-          <CardDescription className="text-[#3A3A3A]/70">
-            View and update order information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col gap-2">
-            <div className="flex gap-4 items-center">
-              <span className="font-medium whitespace-nowrap">Order ID:</span>
-              <span className="group w-full text-sm relative p-2 border rounded-md flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors">
-                {order.id}
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(order.id);
-                    const btn = document.activeElement as HTMLButtonElement;
-                    // Use state instead of class
-                    const tooltip = btn.querySelector(
-                      ".tooltip"
-                    ) as HTMLElement;
-                    tooltip.style.opacity = "1";
-                    const svg = btn.querySelector(
-                      "svg"
-                    ) as unknown as HTMLElement;
-                    svg.style.color = "green";
-                    svg.style.transform = "rotate(360deg)";
-                    svg.style.transition = "transform 0.5s ease-in-out";
-                    svg.style.boxShadow = "0 0 10px 0 rgba(0, 255, 0, 0.5)";
-                    setTimeout(() => {
-                      tooltip.style.opacity = "0";
-                      svg.style.color = "currentColor";
-                      svg.style.transform = "rotate(0deg)";
-                      svg.style.boxShadow = "none";
-                    }, 1000);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 p-1 hover:bg-gray-100 rounded relative"
-                >
-                  <span className="tooltip absolute top-[-25px] right-0 bg-black text-white px-2 py-1 rounded text-xs opacity-0 transition-opacity">
-                    Copied!
-                  </span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                  </svg>
-                </button>
+    <div className="space-y-8">
+      <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
+              Order Details
+            </p>
+            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
+              Order {order.id}
+            </h1>
+            <p className="text-[#3A3A3A]/70 mt-2">
+              Review fulfillment, payment, and line items for this order.
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push(`/dashboard/orders?masjidId=${masjidId}`)}
+            >
+              Back to Orders
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-[#550C18] hover:bg-[#78001A] text-white"
+            >
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card className="bg-white border-[#550C18]/10 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-[#2e0c12]">
+              Summary
+            </CardTitle>
+            <CardDescription className="text-[#3A3A3A]/70">
+              Customer and order metadata.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[#3A3A3A]/70">Customer</span>
+              <span className="font-medium text-[#2e0c12]">{order.user?.name || "-"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[#3A3A3A]/70">Masjid</span>
+              <span className="font-medium text-[#2e0c12]">{order.masjid?.name || "—"}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[#3A3A3A]/70">Placed</span>
+              <span className="font-medium text-[#2e0c12]">
+                {new Date(order.createdAt).toLocaleString("en-US", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  hour: "numeric",
+                  minute: "numeric",
+                  hour12: true,
+                })}
               </span>
-            </div>
-            <div className="flex gap-4">
-              <span className="font-medium">Customer:</span>
-              <span>{order.user?.name || "-"}</span>
-            </div>
-            <div className="flex gap-4">
-              <span className="font-medium">Masjid:</span>
-              <span>
-                {order.masjid?.name || <span className="text-gray-400">—</span>}
-              </span>
-            </div>
-            <div className="flex gap-4">
-              <span className="font-medium">Date:</span>
-              <span>{new Date(order.createdAt).toLocaleString("en-US", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-                hour: "numeric",
-                minute: "numeric",
-                hour12: true,
-              })}</span>
             </div>
             {paymentInfo && (
-              <div className="">
-                <span className="font-medium">Payment Info:</span>
-                <div className="flex flex-col gap-1 mt-1 text-sm">
-                  <span>
-                    Amount:{" "}
-                    <span className="font-semibold">
-                      ${(paymentInfo.amount_total / 100).toFixed(2)}
-                    </span>
-                  </span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[#3A3A3A]/70">Amount</span>
+                <span className="font-medium text-[#2e0c12]">
+                  ${(paymentInfo.amount_total / 100).toFixed(2)}
+                </span>
               </div>
             )}
-          </div>
+          </CardContent>
+        </Card>
 
-          <div>
-            <span className="font-medium">Products:</span>
-            <div className="mt-1">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product Name</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Price</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-              {cart.map((item: any, i: number) => (
-                    <TableRow key={i}>
-                      <TableCell>
-                        {item.name || item.productName || item.id} {item.size && `(${item.size})`}
-                      </TableCell>
-                      <TableCell className="ml-1">{item.quantity}</TableCell>
-                      <TableCell>${item.price}</TableCell>
-                    </TableRow>
+        <Card className="bg-white border-[#550C18]/10 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-[#2e0c12]">
+              Fulfillment
+            </CardTitle>
+            <CardDescription className="text-[#3A3A3A]/70">
+              Update status and tracking details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger className="capitalize">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((option) => (
+                    <SelectItem key={option} value={option} className="capitalize">
+                      {option}
+                    </SelectItem>
                   ))}
-                </TableBody>
-              </Table>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Tracking Number</label>
+              <Input
+                value={tracking}
+                onChange={(e) => setTracking(e.target.value)}
+                placeholder="Enter tracking number"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
-          {session?.user?.admin ? (
-            <form className="space-y-4" onSubmit={handleSave}>
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="capitalize">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((s) => (
-                      <SelectItem key={s} value={s} className="capitalize">
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Tracking Number
-                </label>
-                <Input
-                  value={tracking}
-                  onChange={(e) => setTracking(e.target.value)}
-                  placeholder="Enter tracking number"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  className="bg-[#550C18] hover:bg-[#78001A] text-white w-full"
-                  type="submit"
-                  disabled={saving}
-                >
-                  {saving ? "Saving..." : "Save"}
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Status</label>
-                <div className="p-2 border rounded-md capitalize">{status}</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  Tracking Number
-                </label>
-                <div className="group relative p-2 border rounded-md flex items-center justify-between gap-2 hover:bg-gray-50 transition-colors">
-                  <span>{tracking || "-"}</span>
-                  {tracking && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(tracking);
-                        const btn = document.activeElement as HTMLButtonElement;
-                        // Use state instead of class
-                        const tooltip = btn.querySelector(
-                          ".tooltip"
-                        ) as HTMLElement;
-                        tooltip.style.opacity = "1";
-                        const svg = btn.querySelector(
-                          "svg"
-                        ) as unknown as HTMLElement;
-                        svg.style.color = "green";
-                        svg.style.transform = "rotate(360deg)";
-                        svg.style.transition = "transform 0.5s ease-in-out";
-                        svg.style.boxShadow = "0 0 10px 0 rgba(0, 255, 0, 0.5)";
-                        setTimeout(() => {
-                          tooltip.style.opacity = "0";
-                          svg.style.color = "currentColor";
-                          svg.style.transform = "rotate(0deg)";
-                          svg.style.boxShadow = "none";
-                        }, 1000);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 p-1 hover:bg-gray-100 rounded relative"
-                    >
-                      <span className="tooltip absolute top-[-25px] right-0 bg-black text-white px-2 py-1 rounded text-xs opacity-0 transition-opacity">
-                        Copied!
-                      </span>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect
-                          width="14"
-                          height="14"
-                          x="8"
-                          y="8"
-                          rx="2"
-                          ry="2"
-                        />
-                        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
-                      </svg>
-                    </button>
-                  )}
-              </div>
-              </div>
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card className="bg-white border-[#550C18]/10 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-[#2e0c12]">Items</CardTitle>
+            <CardDescription className="text-[#3A3A3A]/70">
+              Products purchased in this order.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Product</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Size</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cart.map((item: any) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{item.name || item.productName || item.id}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>${item.price}</TableCell>
+                    <TableCell>{item.size || "—"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-[#550C18]/10 shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-[#2e0c12]">Payment</CardTitle>
+            <CardDescription className="text-[#3A3A3A]/70">
+              Stripe checkout details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-[#3A3A3A]/70">Amount</span>
+              <span className="font-medium text-[#2e0c12]">
+                {paymentInfo?.amount_total ? `$${(paymentInfo.amount_total / 100).toFixed(2)}` : "—"}
+              </span>
             </div>
-          )}
-        </CardContent>
-      </Card>
-      <Card className="bg-white border-[#550C18]/10 w-3/4 h-fit">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-[#3A3A3A]">
-            Tracking
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Tracking Details UI for non-admins */}
-          {order.trackingDetails ? (
-            <div className="relative mt-3 mx-auto">
-              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-              <div className="pl-8 mb-6">
-                <div className="flex items-center mb-2">
-                  <div className="absolute left-3 w-3 h-3 bg-primary rounded-full"></div>
-                  <h4 className="font-medium text-lg">Current Status</h4>
-                </div>
-                <p
-                  className={`text-sm ${
-                    order.trackingDetails.status === "delivered"
-                      ? "text-green-600"
-                      : order.trackingDetails.status === "in_transit"
-                        ? "text-blue-600"
-                        : order.trackingDetails.status === "out_for_delivery"
-                          ? "text-purple-600"
-                          : order.trackingDetails.status === "failure" ||
-                              order.trackingDetails.status === "error"
-                            ? "text-red-600"
-                            : "text-muted-foreground"
-                  }`}
-                >
-                  {order.trackingDetails.status === "pre_transit"
-                    ? "Pre-Transit"
-                    : order.trackingDetails.status === "in_transit"
-                      ? "In Transit"
-                      : order.trackingDetails.status === "out_for_delivery"
-                        ? "Out for Delivery"
-                        : order.trackingDetails.status === "delivered"
-                          ? "Delivered"
-                          : order.trackingDetails.status ===
-                              "available_for_pickup"
-                            ? "Available for Pickup"
-                            : order.trackingDetails.status ===
-                                "return_to_sender"
-                              ? "Return to Sender"
-                              : order.trackingDetails.status === "failure"
-                                ? "Failed"
-                                : order.trackingDetails.status === "cancelled"
-                                  ? "Cancelled"
-                                  : order.trackingDetails.status === "error"
-                                    ? "Error"
-                                    : "Unknown"}
-                </p>
-                {order.trackingDetails.est_delivery_date && (
-                  <div className="flex flex-col">
-                    <p className="text-sm text-muted-foreground font-bold">
-                      Expected delivery:
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1 ml-1">
-                      {new Date(
-                        order.trackingDetails.est_delivery_date
-                      ).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                        hour: "numeric",
-                        minute: "numeric",
-                        hour12: true,
-                      })}
-                    </p>
-                  </div>
-                )}
-              </div>
-              {order.trackingDetails.tracking_details &&
-                order.trackingDetails.tracking_details.length > 0 && (
-                  <div className="space-y-4">
-                    {[...order.trackingDetails.tracking_details]
-                      .reverse()
-                      .map((detail: any, index: number) => (
-                        <div key={index} className="pl-8 relative">
-                          <div className="absolute left-3 w-3 h-3 bg-primary/60 rounded-full"></div>
-                          <p className="text-sm font-medium">
-                            {new Date(detail.datetime).toLocaleString()}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {detail.message}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                )}
+            <div className="flex items-center justify-between">
+              <span className="text-[#3A3A3A]/70">Payment Date</span>
+              <span className="font-medium text-[#2e0c12]">
+                {paymentInfo?.created ? new Date(paymentInfo.created * 1000).toLocaleString() : "—"}
+              </span>
             </div>
-          ) : order.trackingDetails && order.trackingDetails.error ? (
-            <div className="flex items-center gap-2 text-red-500 p-4 bg-red-50 rounded-lg mt-8">
-              <span className="text-sm">{order.trackingDetails.error}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[#3A3A3A]/70">Session</span>
+              <span className="font-medium text-[#2e0c12] break-all">
+                {order.stripeSessionId || "—"}
+              </span>
             </div>
-          ) : (
-            <div className="flex items-center gap-2 text-muted-foreground p-4 bg-gray-50 rounded-lg mt-8">
-              <span className="text-sm">No tracking information available</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
-} 
+}

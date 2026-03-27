@@ -1,8 +1,5 @@
-"use server";
-
 import { getUserMasjid } from "@/lib/actions/masjid";
 import { fetchIqamahTimings } from "@/lib/actions/prayer-times";
-import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = async (
@@ -11,8 +8,10 @@ export const GET = async (
 ) => {
   const { id } = await params;
   const masjid = await getUserMasjid(id);
-  if (!masjid) {
-    return NextResponse.json({ error: "Masjid not found" }, { status: 404 });
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    const status = masjid && "error" in masjid ? 401 : 404;
+    const message = status === 401 ? "Unauthorized" : "Masjid not found";
+    return NextResponse.json({ error: message }, { status });
   }
   const iqamah = await fetchIqamahTimings(id);
   return NextResponse.json(iqamah);

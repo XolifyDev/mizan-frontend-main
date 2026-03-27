@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import type { z } from "zod"
@@ -13,8 +13,10 @@ import { useToast } from "@/components/ui/use-toast"
 import { prayerCalculationSchema } from "@/lib/models/iqamah-timings"
 import { updatePrayerCalculationSettings } from "@/lib/actions/prayer-times"
 
+type PrayerCalculationForm = z.infer<typeof prayerCalculationSchema>
+
 type PrayerCalculationSettingsProps = {
-  initialData: any
+  initialData: PrayerCalculationForm
   masjidId: string
   onSuccess?: () => void
 }
@@ -23,7 +25,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
-  const form = useForm<z.infer<typeof prayerCalculationSchema>>({
+  const form = useForm<PrayerCalculationForm>({
     resolver: zodResolver(prayerCalculationSchema),
     defaultValues: {
       ...initialData,
@@ -31,12 +33,18 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
     },
   })
 
+  useEffect(() => {
+    form.reset({
+      ...initialData,
+      masjidId,
+    });
+  }, [form, initialData, masjidId]);
+
   async function onSubmit(values: z.infer<typeof prayerCalculationSchema>) {
     setIsSubmitting(true)
     try {
       delete values.updatedAt;
       const result = await updatePrayerCalculationSettings(values)
-      console.log(result)
 
       if (result.success) {
         toast({

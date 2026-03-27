@@ -1,10 +1,20 @@
-import { NextResponse } from "next/server"
-import { prisma } from "@/lib/db"
-import { logDonationAction } from "@/lib/logger"
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
+import { getUserMasjid } from "@/lib/actions/masjid";
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json()
+    const data = await request.json();
+    if (!data?.masjidId) {
+      return NextResponse.json(
+        { error: "masjidId is required" },
+        { status: 400 }
+      );
+    }
+    const masjid = await getUserMasjid(data.masjidId);
+    if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const donation = await prisma.donation.create({
       data: {
         ...data,
@@ -14,72 +24,77 @@ export async function POST(request: Request) {
         masjid: true,
         category: true,
       },
-    })
+    });
 
-    // Log the creation
-    await logDonationAction(
-      data.userId || "anonymous",
-      "create",
-      donation.id,
-      `Created new donation of ${donation.amount} for ${donation.category.name}`
-    )
-
-    return NextResponse.json(donation)
+    return NextResponse.json(donation);
   } catch (error) {
-    console.error("Error creating donation:", error)
+    console.error("Error creating donation:", error);
     return NextResponse.json(
       { error: "Failed to create donation" },
       { status: 500 }
-    )
+    );
   }
 }
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url)
-    const masjidId = searchParams.get("masjidId")
-    const categoryId = searchParams.get("categoryId")
-    const status = searchParams.get("status")
+    const { searchParams } = new URL(request.url);
+    const masjidId = searchParams.get("masjidId");
+    const categoryId = searchParams.get("categoryId");
+    const status = searchParams.get("status");
+    const page = Math.max(parseInt(searchParams.get("page") || "1", 10) || 1, 1);
+    const pageSize = Math.min(
+      Math.max(parseInt(searchParams.get("pageSize") || "10", 10) || 10, 1),
+      50
+    );
 
-    const donations = await prisma.donation.findMany({
-      where: {
-        ...(masjidId && { masjidId }),
-        ...(categoryId && { categoryId }),
-        ...(status && { status }),
-      },
-      include: {
-        masjid: {
-          select: {
-            name: true,
-          },
-        },
-        category: {
-          select: {
-            name: true,
-          },
-        },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    })
-
-    // Log the view
-    if (masjidId) {
-      await logDonationAction(
-        "system",
-        "view",
-        "all",
-        `Viewed all donations for masjid ${masjidId}`
-      )
+    if (!masjidId) {
+      return NextResponse.json(
+        { error: "masjidId is required" },
+        { status: 400 }
+      );
+    }
+    const masjid = await getUserMasjid(masjidId);
+    if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    return NextResponse.json(donations)
+    const where = {
+      masjidId,
+      ...(categoryId && { categoryId }),
+      ...(status && { status }),
+    };
+
+    const [donations, total] = await Promise.all([
+      prisma.donation.findMany({
+        where,
+        include: {
+          masjid: {
+            select: {
+              name: true,
+            },
+          },
+          category: {
+            select: {
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.donation.count({ where }),
+    ]);
+
+    return NextResponse.json({ donations, total, page, pageSize });
   } catch (error) {
-    console.error("Error fetching donations:", error)
+    console.error("Error fetching donations:", error);
     return NextResponse.json(
       { error: "Failed to fetch donations" },
       { status: 500 }
-    )
+    );
   }
-} 
+}

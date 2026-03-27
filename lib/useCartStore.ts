@@ -27,6 +27,26 @@ interface CartStore {
   calculateTotal: () => void;
 }
 
+const noopStorage = {
+  getItem: () => null,
+  setItem: () => {},
+  removeItem: () => {},
+};
+
+const getSafeStorage = () => {
+  if (typeof window === "undefined") return noopStorage;
+  const storage = window.localStorage;
+  if (
+    !storage ||
+    typeof storage.getItem !== "function" ||
+    typeof storage.setItem !== "function" ||
+    typeof storage.removeItem !== "function"
+  ) {
+    return noopStorage;
+  }
+  return storage;
+};
+
 const useCartStore = create<CartStore>()(
   persist(
     set => ({
@@ -51,11 +71,7 @@ const useCartStore = create<CartStore>()(
     }),
     {
       name: "cart",
-      storage: createJSONStorage(() => typeof window !== "undefined" ? localStorage : {
-        getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {}
-      })
+      storage: createJSONStorage(getSafeStorage)
     }
   )
 );

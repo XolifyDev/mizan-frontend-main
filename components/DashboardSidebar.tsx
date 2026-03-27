@@ -4,7 +4,6 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -33,23 +32,13 @@ import {
   CreditCard,
   Home,
   Menu,
-  MessageSquare,
   Search,
   Settings,
-  Monitor,
   Users,
   FileText,
   Clock,
   DollarSign,
-  Building2,
-  AlertCircle,
-  MapPin,
-  Loader2,
-  MapIcon as City,
-  Map,
   ShoppingBag,
-  ChevronDown,
-  Plus,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -59,6 +48,7 @@ import { Masjid } from "@prisma/client";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { MasjidSwitcher } from "./masjid-switcher";
+import { canAccessGroup, canAccessPath, getEffectiveRole } from "@/lib/permissions";
 
 const mainNavItems = [
   {
@@ -77,6 +67,11 @@ const mainNavItems = [
     path: "/dashboard/events",
   },
   {
+    title: "Analytics",
+    icon: BarChart3,
+    path: "/dashboard/analytics",
+  },
+  {
     title: "Orders",
     icon: ShoppingBag,
     path: "/dashboard/orders",
@@ -85,14 +80,9 @@ const mainNavItems = [
 
 const contentNavItems = [
   {
-    title: "TV Displays",
-    icon: Monitor,
-    path: "/dashboard/tv-displays",
-  },
-  {
-    title: "Content Library",
+    title: "Signage",
     icon: FileText,
-    path: "/dashboard/content-library",
+    path: "/dashboard/signage",
   },
 ];
 
@@ -108,11 +98,6 @@ const managementNavItems = [
     path: "/dashboard/products",
   },
   {
-    title: "Analytics",
-    icon: BarChart3,
-    path: "/dashboard/analytics",
-  },
-  {
     title: "Settings",
     icon: Settings,
     path: "/dashboard/settings",
@@ -121,15 +106,22 @@ const managementNavItems = [
 
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
+type SidebarSession = {
+  user?: {
+    id?: string | null;
+    role?: string | null;
+    admin?: boolean | null;
+  } | null;
+} | null;
+
 export default function DashboardSidebar({
   session,
-  isPending,
   children,
   masjid,
   setShowAddMasjidModal,
 }: {
   children: React.ReactNode;
-  session: any;
+  session: SidebarSession;
   isPending: boolean;
   masjid: Masjid;
   setShowAddMasjidModal: (show: boolean) => void;
@@ -138,26 +130,22 @@ export default function DashboardSidebar({
   const searchParams = useSearchParams();
   const masjidId = searchParams.get("masjidId");
   const user = session?.user;
-  const getCurrentPageTitle = () => {
-    const allNavItems = [
-      ...mainNavItems,
-      ...contentNavItems,
-      ...managementNavItems,
-    ];
-    const currentItem = allNavItems.find((item) => item.path === pathname);
-    return currentItem?.title || "Dashboard";
-  };
+  const effectiveRole = getEffectiveRole({
+    role: user?.role,
+    isOwner: masjid?.ownerId === user?.id,
+    isAdmin: user?.admin,
+  });
 
   return (
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen bg-white w-full">
         <Sidebar className="border-r border-[#550C18]/10 bg-white z-20">
-          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-3">
+          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-3.5">
             <Link
               href="/"
               className="flex items-center justify-center gap-2 !m-0"
             >
-              <Image src="/mizan.svg" width={27} height={27} alt="Mizan Logo" />
+              <Image src="/mizan.svg" width={28} height={28} alt="Mizan Logo" />
               <h1
                 className={`text-3xl font-semibold text-[#550C18] !m-0 ${philosopher.className}`}
               >
@@ -170,7 +158,15 @@ export default function DashboardSidebar({
               <SidebarGroupLabel>Main</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {mainNavItems.map((item) => (
+                  {mainNavItems
+                    .filter((item) =>
+                      canAccessPath(item.path, {
+                        role: effectiveRole,
+                        isOwner: masjid?.ownerId === user?.id,
+                        isAdmin: user?.admin,
+                      })
+                    )
+                    .map((item) => (
                     <SidebarMenuItem key={item.path}>
                       <Link href={item.path + "?masjidId=" + masjidId}>
                         <SidebarMenuButton
@@ -190,87 +186,95 @@ export default function DashboardSidebar({
             </SidebarGroup>
 
             {/* Donations Group */}
-            <SidebarGroup>
-              <SidebarGroupLabel>Donations</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem key="/dashboard/donations/kiosk">
-                    <Link
-                      href={"/dashboard/donations/kiosk?masjidId=" + masjidId}
-                    >
-                      <SidebarMenuButton
-                        isActive={pathname === "/dashboard/donations/kiosk"}
-                        className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+            {canAccessGroup("donations", {
+              role: effectiveRole,
+              isOwner: masjid?.ownerId === user?.id,
+              isAdmin: user?.admin,
+            }) && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Donations</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    <SidebarMenuItem key="/dashboard/donations/kiosk">
+                      <Link
+                        href={"/dashboard/donations/kiosk?masjidId=" + masjidId}
                       >
-                        <CreditCard className="h-5 w-5" />
-                        <span>Kiosk</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem key="/dashboard/donations/categories">
-                    <Link
-                      href={
-                        "/dashboard/donations/categories?masjidId=" + masjidId
-                      }
-                    >
-                      <SidebarMenuButton
-                        isActive={
-                          pathname === "/dashboard/donations/categories"
-                        }
-                        className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                      >
-                        <FileText className="h-5 w-5" />
-                        <span>Categories</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem key="/dashboard/donations">
-                    <Link href={"/dashboard/donations?masjidId=" + masjidId}>
-                      <SidebarMenuButton
-                        isActive={pathname === "/dashboard/donations"}
-                        className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                      >
-                        <DollarSign className="h-5 w-5" />
-                        <span>Donations</span>
-                      </SidebarMenuButton>
-                    </Link>
-                  </SidebarMenuItem>
-                  {/* <SidebarMenuItem key="/dashboard/donations/settings">
-                        <Link href="/dashboard/donations/settings" passHref legacyBehavior>
-                            <SidebarMenuButton isActive={pathname === "/dashboard/donations/settings"} className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]">
-                            <Settings className="h-5 w-5" />
-                            <span>Settings</span>
-                            </SidebarMenuButton>
-                        </Link>
-                        </SidebarMenuItem> */}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-
-            <SidebarGroup>
-              <SidebarGroupLabel>Content</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {contentNavItems.map((item) => (
-                    <SidebarMenuItem key={item.path}>
-                      <Link href={item.path + "?masjidId=" + masjidId}>
                         <SidebarMenuButton
-                          className={cn(
-                            "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                          )}
-                          isActive={item.path === pathname}
+                          isActive={pathname === "/dashboard/donations/kiosk"}
+                          className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
                         >
-                          <item.icon className="h-5 w-5" />
-                          <span>{item.title}</span>
+                          <CreditCard className="h-5 w-5" />
+                          <span>Kiosk</span>
                         </SidebarMenuButton>
                       </Link>
                     </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
+                    <SidebarMenuItem key="/dashboard/donations/categories">
+                      <Link
+                        href={
+                          "/dashboard/donations/categories?masjidId=" + masjidId
+                        }
+                      >
+                        <SidebarMenuButton
+                          isActive={
+                            pathname === "/dashboard/donations/categories"
+                          }
+                          className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                        >
+                          <FileText className="h-5 w-5" />
+                          <span>Categories</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem key="/dashboard/donations">
+                      <Link href={"/dashboard/donations?masjidId=" + masjidId}>
+                        <SidebarMenuButton
+                          isActive={pathname === "/dashboard/donations"}
+                          className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                        >
+                          <DollarSign className="h-5 w-5" />
+                          <span>Donations</span>
+                        </SidebarMenuButton>
+                      </Link>
+                    </SidebarMenuItem>
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
 
-            {masjid && masjid.ownerId === session.user.id && (
+            {canAccessGroup("content", {
+              role: effectiveRole,
+              isOwner: masjid?.ownerId === user?.id,
+              isAdmin: user?.admin,
+            }) && (
+              <SidebarGroup>
+                <SidebarGroupLabel>Content</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {contentNavItems.map((item) => (
+                      <SidebarMenuItem key={item.path}>
+                        <Link href={item.path + "?masjidId=" + masjidId}>
+                          <SidebarMenuButton
+                            className={cn(
+                              "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
+                            )}
+                            isActive={item.path === pathname}
+                          >
+                            <item.icon className="h-5 w-5" />
+                            <span>{item.title}</span>
+                          </SidebarMenuButton>
+                        </Link>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+
+            {canAccessGroup("management", {
+              role: effectiveRole,
+              isOwner: masjid?.ownerId === user?.id,
+              isAdmin: user?.admin,
+            }) && (
               <SidebarGroup>
                 <SidebarGroupLabel>Masjid Management</SidebarGroupLabel>
                 <SidebarGroupContent>
@@ -326,22 +330,25 @@ export default function DashboardSidebar({
               </SidebarGroup>
             )}
           </SidebarContent>
-          <SidebarFooter className="border-t border-[#550C18]/10 p-4 bg-white/50">
-            {session && session.user && (
-              <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} user={session.user} setShowAddMasjidModal={setShowAddMasjidModal} />
-            )}
-          </SidebarFooter>
         </Sidebar>
 
-        <main className="flex flex-col w-full relative h-full">
-          <header className="border-b border-[#550C18]/10 bg-white py-3 px-6 flex items-center justify-between h-min sticky top-0 z-10 max-h-14">
+        <main className="flex flex-col w-full relative h-full -mt-4 overflow-hidden">
+          <header className="border-b border-[#550C18]/10 bg-white -mt-1 py-9 px-6 flex items-center justify-between h-min top-0 z-10 max-h-12">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />
               </SidebarTrigger>
-              <h1 className="text-2xl font-semibold text-[#550C18]">
+              <div className="flex flex-col items-start gap-1">
+                <div className="flex flex-row items-center gap">
+                  Welcome,&nbsp;<span className="font-medium text-[#550C18]">{session && session.user?.name || "User"}</span>
+                </div>
+                {session && session.user && (
+                  <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} user={session.user} setShowAddMasjidModal={setShowAddMasjidModal} />
+                )}
+              </div>
+              {/* <h1 className="text-2xl font-semibold text-[#550C18]">
                 {getCurrentPageTitle()}
-              </h1>
+              </h1> */}
             </div>
             <div className="flex items-center gap-4">
               <div className="relative hidden md:block">
@@ -412,7 +419,7 @@ export default function DashboardSidebar({
               </Avatar>
             </div>
           </header>
-          <div className="flex-1 p-6 overflow-auto">{children}</div>
+          <div className="h-full px-6 py-2 overflow-auto max-h-[calc(100vh-90px)] mb-auto">{children}</div>
         </main>
       </div>
     </SidebarProvider>

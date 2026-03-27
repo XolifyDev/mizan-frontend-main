@@ -2,8 +2,24 @@
 
 import { prisma } from "../db";
 import { syncEventToGoogleCalendar, deleteEventFromGoogleCalendar } from "./google-calendar";
+import { getUserMasjid } from "./masjid";
+
+async function requireMasjidAccess(masjidId: string) {
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
+}
 
 export async function createEvent(data: any) {
+  if (!data?.masjidId) {
+    throw new Error("Missing masjidId");
+  }
+  const access = await requireMasjidAccess(data.masjidId);
+  if (!access) {
+    throw new Error("Unauthorized");
+  }
   const event = await prisma.event.create({
     data: {
       ...data,
@@ -37,12 +53,17 @@ export async function updateEvent(id: string, data: any) {
   const existingEvent = await prisma.event.findUnique({
     where: { id },
   }); 
+  if (!existingEvent) return null;
+  const access = await requireMasjidAccess(existingEvent.masjidId);
+  if (!access) {
+    throw new Error("Unauthorized");
+  }
   const masjid = await prisma.masjid.findUnique({
     where: { id: existingEvent?.masjidId },
     select: { googleCalendarCredentials: true, googleCalendarId: true },
   });
 
-  if(!masjid || !existingEvent) return null;
+  if(!masjid) return null;
 
   const event = await prisma.event.update({
     where: { id },
@@ -78,6 +99,16 @@ export async function updateEvent(id: string, data: any) {
 }
 
 export async function deleteEvent(id: string) {
+  const existingEvent = await prisma.event.findUnique({
+    where: { id },
+  });
+  if (!existingEvent) {
+    throw new Error("Event not found");
+  }
+  const access = await requireMasjidAccess(existingEvent.masjidId);
+  if (!access) {
+    throw new Error("Unauthorized");
+  }
   try {
     await deleteEventFromGoogleCalendar(id);
   } catch (error) {
@@ -90,6 +121,10 @@ export async function deleteEvent(id: string) {
 }
 
 export async function getEvents(masjidId: string) {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) {
+    throw new Error("Unauthorized");
+  }
   return prisma.event.findMany({
     where: { masjidId },
     orderBy: { date: 'asc' },
@@ -101,5 +136,10 @@ export async function getEventsById(id: string) {
     where: { id },
     include: { masjid: true },
   });
+  if (!event) return null;
+  const access = await requireMasjidAccess(event.masjidId);
+  if (!access) {
+    throw new Error("Unauthorized");
+  }
   return event;
 }

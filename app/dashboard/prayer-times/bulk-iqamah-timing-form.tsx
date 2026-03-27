@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { FormLabel } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
 import { TimeInput } from "@/components/ui/time-input"
@@ -11,23 +10,6 @@ import { Input } from "@/components/ui/input"
 import { bulkCreateIqamahTimings } from "@/lib/actions/prayer-times"
 import { Plus, X } from "lucide-react"
 import { Label } from "@/components/ui/label"
-
-// Schema for bulk iqamah timing
-const bulkIqamahTimingSchema = {
-  masjidId: "string",
-  startDate: "object",
-  endDate: "object",
-  fajr: "string",
-  dhuhr: "string",
-  asr: "string",
-  maghrib: "string",
-  maghribType: "string",
-  maghribOffset: "string",
-  isha: "string",
-  jumuahI: "string?",
-  jumuahII: "string?",
-  jumuahIII: "string?",
-}
 
 type IqamahTimingEntry = {
   changeDate: Date;
@@ -104,9 +86,9 @@ export function BulkIqamahTimingForm({ masjidId, onSuccess, onCancel }: BulkIqam
     }
   };
 
-  const updateIqamahEntry = (index: number, field: keyof IqamahTimingEntry, value: any) => {
+  const updateIqamahEntry = (index: number, field: keyof IqamahTimingEntry, value: string | Date) => {
     const updatedEntries = [...iqamahEntries];
-    updatedEntries[index] = { ...updatedEntries[index], [field]: value };
+    updatedEntries[index] = { ...updatedEntries[index], [field]: value } as IqamahTimingEntry;
     setIqamahEntries(updatedEntries);
   };
 

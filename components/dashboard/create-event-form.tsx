@@ -98,6 +98,16 @@ export function CreateEventForm({
   const [timeError, setTimeError] = useState<string | null>(null);
   const [typeState, setType] = useState<string>("");
 
+  const getUploadedFileUrl = (results: any): string | undefined => {
+    const first = Array.isArray(results) ? results[0] : results;
+    return (
+      first?.data?.ufsUrl ||
+      first?.data?.url ||
+      first?.ufsUrl ||
+      first?.url
+    );
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -130,6 +140,15 @@ export function CreateEventForm({
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
+      if (!masjidId) {
+        toast({
+          title: "Missing masjid",
+          description: "Please select a masjid before creating an event.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       let flyerUrl = values.flyerUrl;
       let tvFlyerUrl = values.tvFlyerUrl;
 
@@ -143,9 +162,9 @@ export function CreateEventForm({
           body: formData,
         });
         const results = await response.json();
-        console.log(results);
-        if (results?.[0]?.data?.ufsUrl) {
-          flyerUrl = results[0].data?.ufsUrl;
+        const uploadedFlyerUrl = getUploadedFileUrl(results);
+        if (uploadedFlyerUrl) {
+          flyerUrl = uploadedFlyerUrl;
         }
       }
 
@@ -158,9 +177,9 @@ export function CreateEventForm({
           body: formData,
         });
         const results = await response.json();
-        console.log(results);
-        if (results?.[0]?.data?.ufsUrl) {
-          tvFlyerUrl = results[0].data?.ufsUrl;
+        const uploadedTvFlyerUrl = getUploadedFileUrl(results);
+        if (uploadedTvFlyerUrl) {
+          tvFlyerUrl = uploadedTvFlyerUrl;
         }
       }
 

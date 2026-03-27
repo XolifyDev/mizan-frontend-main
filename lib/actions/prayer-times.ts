@@ -6,9 +6,13 @@ import { iqamahTimingSchema, iqamahTimingSchemaAPI, prayerCalculationSchema } fr
 import { prisma } from "../db"
 import { CalculationMethod, Coordinates, Madhab, PrayerTimes } from "adhan"
 import moment from "moment";
+import { getUserMasjid } from "./masjid";
 
 
-async function savePrayerCalculationSettings(data: any, masjidId: string) {
+async function savePrayerCalculationSettings(
+  data: z.infer<typeof prayerCalculationSchema>,
+  masjidId: string
+) {
   const update = await prisma.prayerCalculation.findFirst({
     where: {
       masjidId,
@@ -34,16 +38,25 @@ async function savePrayerCalculationSettings(data: any, masjidId: string) {
   }
 }
 
-async function saveIqamahTiming(data: any, masjidId: string) {
-  console.log(data, "DATA");
+async function saveIqamahTiming(
+  data: z.infer<typeof iqamahTimingSchemaAPI>,
+  masjidId: string
+) {
   const iqamahTiming = await prisma.iqamahTiming.create({
     data: {
       ...data,
       masjidId,
     },
   })
-  console.log(iqamahTiming, "TIMING");
   return iqamahTiming
+}
+
+async function requireMasjidAccess(masjidId: string) {
+  const masjid = await getUserMasjid(masjidId);
+  if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
+    return null;
+  }
+  return masjid;
 }
 
 async function getIqamahTimings(masjidId: string) {
@@ -96,6 +109,10 @@ async function getPrayerCalculationSettings(masjidId: string) {
 export async function updatePrayerCalculationSettings(data: z.infer<typeof prayerCalculationSchema>) {
   try {
     const validatedData = prayerCalculationSchema.parse(data)
+    const access = await requireMasjidAccess(validatedData.masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const result = await savePrayerCalculationSettings(validatedData, validatedData.masjidId)
     revalidatePath("/dashboard/prayer-times")
     return { success: true, data: result }
@@ -116,8 +133,11 @@ export async function addIqamahTiming(rawData: z.infer<typeof iqamahTimingSchema
   };
   try {
     const validatedData = iqamahTimingSchemaAPI.parse(data)
+    const access = await requireMasjidAccess(validatedData.masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const result = await saveIqamahTiming(validatedData, validatedData.masjidId)
-    console.log(result, "INSERT RESULT");
     revalidatePath("/dashboard/prayer-times")
     return { success: true, data: result }
   } catch (error) {
@@ -130,6 +150,10 @@ export async function addIqamahTiming(rawData: z.infer<typeof iqamahTimingSchema
 
 export async function fetchIqamahTimings(masjidId: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const timings = await getIqamahTimings(masjidId)
     return { success: true, data: timings }
   } catch (error) {
@@ -139,6 +163,10 @@ export async function fetchIqamahTimings(masjidId: string) {
 
 export async function fetchPrayerTimings(masjidId: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const timings = await getPrayerTimings(masjidId)
     return { success: true, data: timings }
   } catch (error) {
@@ -148,6 +176,10 @@ export async function fetchPrayerTimings(masjidId: string) {
 
 export async function fetchPrayerCalculationSettings(masjidId: string) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const settings = await getPrayerCalculationSettings(masjidId)
     return { success: true, data: settings }
   } catch (error) {
@@ -227,6 +259,10 @@ export async function generateMonthlyPrayerTimes(
   longitude: number,
 ) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     // Get prayer calculation settings
     const settings = await getPrayerCalculationSettings(masjidId)
 
@@ -296,6 +332,10 @@ export async function generateMonthlyPrayerTimes(
 // Save generated prayer times to database
 export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[]) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     // First delete existing prayer times for this month to avoid duplicates
     const firstDate = new Date(prayerTimes[0].date)
     const lastDate = new Date(prayerTimes[prayerTimes.length - 1].date)
@@ -406,6 +446,10 @@ export async function getMonthPrayerTimes({
     year: number;
     masjidId: string;
 }) {
+  const access = await requireMasjidAccess(masjidId);
+  if (!access) {
+    return [];
+  }
   const prayerTimes = await prisma.prayerTime.findMany({
     where: {
       masjidId,
@@ -422,6 +466,10 @@ export async function getMonthPrayerTimes({
 
 export async function fetchMonthPrayerTimes(masjidId: string, month: number, year: number) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const timings = await getMonthPrayerTimes({month, year, masjidId})
     return { success: true, data: timings }
   } catch (error) {
@@ -442,6 +490,10 @@ export async function updatePrayerTime(
     });
     if (!timing) {
       return { success: false, error: "Prayer time not found" };
+    }
+    const access = await requireMasjidAccess(timing.masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" };
     }
 
     const baseDate = moment(timing.date);
@@ -477,6 +529,10 @@ export async function updateIqamahTiming(rawData: z.infer<typeof iqamahTimingSch
   }
   try {
     const validatedData = iqamahTimingSchemaAPI.parse(data)
+    const access = await requireMasjidAccess(validatedData.masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const result = await prisma.iqamahTiming.update({
       where: {
         id: id,
@@ -508,6 +564,16 @@ export async function updateIqamahTiming(rawData: z.infer<typeof iqamahTimingSch
 
 export async function deleteIqamahTiming(id: string) {
   try {
+    const timing = await prisma.iqamahTiming.findUnique({
+      where: { id },
+    });
+    if (!timing) {
+      return { success: false, error: "Iqamah timing not found" }
+    }
+    const access = await requireMasjidAccess(timing.masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     await prisma.iqamahTiming.delete({
       where: {
         id,
@@ -533,6 +599,10 @@ export async function duplicateIqamahTiming(id: string) {
 
     if (!original) {
       return { success: false, error: "Iqamah timing not found" }
+    }
+    const access = await requireMasjidAccess(original.masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
     }
 
     // Create a new timing with the same values but a new ID
@@ -577,6 +647,10 @@ export async function bulkCreateIqamahTimings(
   changeDates: Date[] = [] // Array of specific dates when iqamah should change
 ) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     // If no specific change dates provided, create one for the start date
     const datesToCreate = changeDates.length > 0 ? changeDates : [startDate];
     
@@ -615,6 +689,10 @@ export async function bulkCreateIqamahTimings(
 // Get iqamah timing schedule for a date range
 export async function getIqamahTimingSchedule(masjidId: string, startDate: Date, endDate: Date) {
   try {
+    const access = await requireMasjidAccess(masjidId);
+    if (!access) {
+      return { success: false, error: "Unauthorized" }
+    }
     const timings = await prisma.iqamahTiming.findMany({
       where: {
         masjidId,

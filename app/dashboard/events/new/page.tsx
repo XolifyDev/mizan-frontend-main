@@ -1,13 +1,14 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { CreateEventForm } from "@/components/dashboard/create-event-form"
 
 export default function NewEventPage() {
   const router = useRouter()
-  const masjidId = new URLSearchParams(window.location.search).get("masjidId") || ""
+  const searchParams = useSearchParams()
+  const masjidId = searchParams.get("masjidId") || ""
 
   return (
     <div className="space-y-6">
@@ -30,7 +31,7 @@ export default function NewEventPage() {
 
       <div className="bg-white rounded-lg border border-[#550C18]/10 p-6">
         <CreateEventForm
-          onSuccess={() => router.push("/dashboard/events")}
+          onSuccess={() => router.push(`/dashboard/events?masjidId=${masjidId}`)}
           masjidId={masjidId}
         />
       </div>

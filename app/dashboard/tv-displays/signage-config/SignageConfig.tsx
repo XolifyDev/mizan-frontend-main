@@ -47,7 +47,6 @@ import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
 import { Masjid } from "@prisma/client";
 import { getMasjidById } from "@/lib/actions/masjids";
-import { useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CustomComponentLoader from "./CustomComponentLoader";
@@ -706,7 +705,6 @@ function CustomSlideModal({
       const text = await response.text();
       setCode(text);
     } catch (error) {
-      console.error(error);
       setCode('// Failed to fetch code.');
     } finally {
       setIsLoadingCode(false);
@@ -775,7 +773,6 @@ function CustomSlideModal({
       setValidationResult(parsedResult);
 
     } catch (error: any) {
-      console.error(error);
       setValidationResult({ isSafe: false, feedback: error.message });
     } finally {
       setIsValidating(false);
@@ -1026,7 +1023,6 @@ function ThemeManagementModal({
         effects: defaultThemes[0].effects,
       });
     } catch (error) {
-      console.error("Failed to create theme:", error);
     }
   };
 
@@ -1654,14 +1650,10 @@ export default function SignageDisplay({
 }) {
   const [slides, setSlides] = useState<SlideConfig[]>(initialSlides);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
-  const [editingSlide, setEditingSlide] = useState<SlideConfig | null>(null);
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const [showContentModal, setShowContentModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [addType, setAddType] = useState<SlideConfig["type"]>("prayerTimes");
   const [masjid, setMasjid] = useState<Masjid | null>(null);
   const [displays, setDisplays] = useState<any[]>([]);
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(
@@ -1669,9 +1661,10 @@ export default function SignageDisplay({
   );
   const [contentItems, setContentItems] = useState<any[]>([]);
   const [cacheBuster, setCacheBuster] = useState<Record<string, number>>({});
-  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
-  const isFirstRender = useRef(true);
   const initialSlidesLoaded = useRef(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const fetchMasjid = async () => {
     const masjid = await getMasjidById(masjidId);
@@ -1687,14 +1680,13 @@ export default function SignageDisplay({
         const announcementItems = (data.announcements || []).map(
           (item: any) => ({ ...item, source: "announcement" })
         );
-        console.log(contentItems, announcementItems, data);
         setContentItems([...contentItems, ...announcementItems]);
       })
   };
 
   const fetchDisplays = async () => {
     const displays = await getAllTVDisplays(masjidId);
-    setDisplays(displays);
+    setDisplays(displays || []);
   }
 
   useEffect(() => {
@@ -1707,25 +1699,20 @@ export default function SignageDisplay({
     if (initialSlides.length > 0 || initialSlidesLoaded.current) {
       setSlides(initialSlides);
       initialSlidesLoaded.current = true;
+      setIsDirty(false);
     }
   }, [initialSlides]);
 
-  // Debounced save to DB on slides change (skip first render and empty slides)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
 
-    // Don't save if slides are empty and we haven't loaded initial data yet
-    if (slides.length === 0 && !initialSlidesLoaded.current) {
-      return;
-    }
-
-    if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    console.log("Saving slides", slides, displayId);
-    saveTimeout.current = setTimeout(() => {
-      fetch(
+  const handleSave = async () => {
+    if (!masjidId) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(
         `/api/masjids/${masjidId}/signage-config${displayId ? `?displayId=${displayId}` : ""}`,
         {
           method: "POST",
@@ -1733,15 +1720,17 @@ export default function SignageDisplay({
           body: JSON.stringify({ slides }),
         }
       );
-    }, 700); // 700ms debounce
-    return () => {
-      if (saveTimeout.current) clearTimeout(saveTimeout.current);
-    };
-  }, [slides, masjidId, displayId]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload?.error || "Failed to save signage config");
+      }
+      setIsDirty(false);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save signage config");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   function handleDragEnd(event: any) {
     const { active, over } = event;
@@ -1750,11 +1739,8 @@ export default function SignageDisplay({
       const newIndex = slides.findIndex((_, i) => i.toString() === over.id);
       setSlides((slides) => arrayMove(slides, oldIndex, newIndex));
       setSelectedIndex(newIndex);
+      setIsDirty(true);
     }
-  }
-
-  function addSlide() {
-    setAddMenuOpen(true);
   }
 
   function handleAddContentSlide(item: any) {
@@ -1776,6 +1762,7 @@ export default function SignageDisplay({
       setSelectedIndex(newSlides.length - 1);
       return newSlides;
     });
+    setIsDirty(true);
   }
   function handleAddCustomSlide(url: string) {
     setSlides((prev) => {
@@ -1792,6 +1779,7 @@ export default function SignageDisplay({
       setSelectedIndex(newSlides.length - 1);
       return newSlides;
     });
+    setIsDirty(true);
   }
   function handleAddSplitSlide(split: {
     left: SlideConfig;
@@ -1811,6 +1799,7 @@ export default function SignageDisplay({
       setSelectedIndex(newSlides.length - 1);
       return newSlides;
     });
+    setIsDirty(true);
   }
 
   function handleThemeSelect(theme: ThemeConfig) {
@@ -1834,18 +1823,25 @@ export default function SignageDisplay({
         },
       }))
     );
+    setIsDirty(true);
   }
 
   const handleUpdateSlide = (updatedSlide: SlideConfig) => {
     setSlides((prev) =>
       prev.map((slide, i) => (i === selectedIndex ? updatedSlide : slide))
     );
+    setIsDirty(true);
   };
 
   const handleDeleteSlide = (slideId: string) => {
-    setSlides((prev) =>
-      prev.filter((slide: SlideConfig) => slide.id !== slideId)
-    );
+    setSlides((prev) => {
+      const next = prev.filter((slide: SlideConfig) => slide.id !== slideId);
+      if (selectedIndex >= next.length) {
+        setSelectedIndex(Math.max(0, next.length - 1));
+      }
+      return next;
+    });
+    setIsDirty(true);
   };
 
   const handleRefreshSlide = (slideId: string) => {
@@ -1878,10 +1874,36 @@ export default function SignageDisplay({
           <div className="flex flex-col w-full gap-2">
             <h1 className="text-3xl font-bold text-[#550C18]">Signage Slides</h1>
             <p className="text-sm text-gray-500">
-              Add, edit, and manage your signage slides for your TV screens. (Device will automatically refresh every 30 seconds)
+              Add, edit, and manage your signage slides for your TV screens. Changes apply only after you save. (Devices refresh about every 30 seconds)
             </p>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {isDirty ? (
+                <Badge className="bg-[#550C18]/10 text-[#550C18]">Unsaved changes</Badge>
+              ) : (
+                <Badge className="bg-emerald-100 text-emerald-700">All changes saved</Badge>
+              )}
+              {saveError && <span className="text-red-600">{saveError}</span>}
+            </div>
           </div>
           <div className="flex flex-row gap-3 items-center justify-end">
+            <Button
+              variant="default"
+              onClick={handleSave}
+              disabled={!isDirty || isSaving}
+              className="bg-[#550C18] text-white hover:bg-[#78001A]"
+            >
+              {isSaving ? (
+                <>
+                  <Loader className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
@@ -1922,6 +1944,7 @@ export default function SignageDisplay({
                                   theme: defaultTheme
                                 }
                               ]);
+                              setIsDirty(true);
                             }}
                           >
                             Apply Default Settings
@@ -1954,6 +1977,7 @@ export default function SignageDisplay({
                               onClick={() => {
                                 if (display.config?.slides) {
                                   setSlides(display.config.slides);
+                                  setIsDirty(true);
                                 }
                               }}
                             >
@@ -1978,8 +2002,8 @@ export default function SignageDisplay({
             <Popover>
               <PopoverTrigger asChild>
                 <Button
-                  variant="default"
-                  className="bg-[#550C18] text-white hover:bg-[#78001A]"
+                  variant="outline"
+                  className="border-[#550C18]/30 text-[#550C18] hover:bg-[#550C18]/10"
                 >
                   <Plus className="h-4 w-4 mr-2" /> Add Slide
                 </Button>

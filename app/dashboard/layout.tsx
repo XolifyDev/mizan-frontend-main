@@ -24,6 +24,7 @@ import { ProgressProvider } from "@bprogress/next/app";
 import { Toaster } from "@/components/ui/toaster";
 import DashboardSidebar from "@/components/DashboardSidebar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { canAccessPath } from "@/lib/permissions";
 
 export default function DashboardLayout({
   children,
@@ -76,6 +77,11 @@ export default function DashboardLayout({
     );
 
   if(!session) return <>Loading...</>
+  const isAllowed = canAccessPath(pathname, {
+    role: session?.user?.role,
+    isOwner: masjid?.ownerId === session?.user?.id,
+    isAdmin: session?.user?.admin,
+  });
   return (
     <>
       <ProgressProvider
@@ -180,7 +186,28 @@ export default function DashboardLayout({
           masjid={masjid as Masjid}
           setShowAddMasjidModal={setShowAddMasjidModal}
         >
-          {children}
+          {isAllowed ? (
+            children
+          ) : (
+            <div className="max-w-2xl mx-auto mt-20 bg-white border border-[#550C18]/10 rounded-2xl p-8 text-center shadow-sm">
+              <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-[#550C18]/10 flex items-center justify-center text-[#550C18] font-semibold">
+                !
+              </div>
+              <h2 className="text-2xl font-semibold text-[#550C18] mb-2">
+                Access Restricted
+              </h2>
+              <p className="text-[#3A3A3A] mb-6">
+                You don’t have permission to view this page. If you believe this is a mistake,
+                contact your masjid administrator.
+              </p>
+              <Button
+                className="bg-[#550C18] hover:bg-[#78001A] text-white"
+                onClick={() => router.push(`/dashboard?masjidId=${masjid?.id || ""}`)}
+              >
+                Go to Dashboard
+              </Button>
+            </div>
+          )}
         </DashboardSidebar>
       </ProgressProvider>
     </>
