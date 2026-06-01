@@ -1,6 +1,7 @@
 "use server";
 import { prisma } from "@/lib/db";
 import { getUserMasjid } from "./masjid";
+import { publishRealtimeUpdate } from "@/lib/realtime/publish";
 
 async function requireMasjidAccess(masjidId?: string) {
   if (!masjidId) return null;
@@ -35,7 +36,13 @@ export const getAnnouncementById = async (id: string) => {
 export const createAnnouncement = async (data: any) => {
   const access = await requireMasjidAccess(data?.masjidId);
   if (!access) return null;
-  return prisma.announcement.create({ data });
+  const created = await prisma.announcement.create({ data });
+  await publishRealtimeUpdate({
+    masjidId: created.masjidId,
+    type: "content_update",
+    reason: "announcement_created",
+  });
+  return created;
 };
 
 export const updateAnnouncement = async (id: string, data: any) => {
@@ -52,7 +59,7 @@ export const updateAnnouncement = async (id: string, data: any) => {
   if (data?.data) delete data.data;
   if (data?.masjidId) delete data.masjidId;
 
-  return prisma.announcement.update({
+  const updated = await prisma.announcement.update({
     where: { id },
     data: {
       ...data,
@@ -68,6 +75,12 @@ export const updateAnnouncement = async (id: string, data: any) => {
         : {}),
     },
   });
+  await publishRealtimeUpdate({
+    masjidId: existing.masjidId,
+    type: "content_update",
+    reason: "announcement_updated",
+  });
+  return updated;
 };
 
 export const deleteAnnouncement = async (id: string) => {
@@ -78,5 +91,11 @@ export const deleteAnnouncement = async (id: string) => {
   if (!existing) return null;
   const access = await requireMasjidAccess(existing.masjidId);
   if (!access) return null;
-  return prisma.announcement.delete({ where: { id } });
+  const deleted = await prisma.announcement.delete({ where: { id } });
+  await publishRealtimeUpdate({
+    masjidId: existing.masjidId,
+    type: "content_update",
+    reason: "announcement_deleted",
+  });
+  return deleted;
 };

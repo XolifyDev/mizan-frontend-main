@@ -5,13 +5,26 @@ import { useSearchParams } from "next/navigation";
 
 declare global {
   interface Window {
-    MizanDynamicComponent?: any;
+    MizanDynamicComponent?: React.ComponentType<{
+      slide?: unknown;
+      masjid?: unknown;
+      theme?: unknown;
+    }>;
+  }
+}
+
+function decodeJsonParam<T>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(decodeURIComponent(value)) as T;
+  } catch {
+    return null;
   }
 }
 
 export default function ViewComponentPage() {
   const searchParams = useSearchParams();
-  const [Component, setComponent] = useState<React.ComponentType | null>(null);
+  const [Component, setComponent] = useState<React.ComponentType<{ slide?: unknown; masjid?: unknown }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,25 +32,23 @@ export default function ViewComponentPage() {
   const slideParam = searchParams.get("slide");
   const masjidParam = searchParams.get("masjid");
   const urlParam = searchParams.get("url");
-  
-  let slide, masjid, url;
-  try {
-    slide = slideParam ? JSON.parse(decodeURIComponent(slideParam)) : null;
-    masjid = masjidParam ? JSON.parse(decodeURIComponent(masjidParam)) : null;
-    url = urlParam ? decodeURIComponent(urlParam) : slide?.customComponentUrl || null;
-  } catch (e) {
-    console.error('Failed to parse parameters:', e);
-    return <div style={{ padding: '20px', color: 'red' }}>Invalid parameters</div>;
-  }
+  const slide = decodeJsonParam<{ id?: string; customComponentUrl?: string | null }>(slideParam);
+  const masjid = decodeJsonParam<{ name?: string }>(masjidParam);
+  const url = urlParam ? decodeURIComponent(urlParam) : slide?.customComponentUrl || null;
+  const hasInvalidParams = (!!slideParam && !slide) || (!!masjidParam && !masjid);
 
   useEffect(() => {
+    if (hasInvalidParams) {
+      setError("Invalid view-component parameters.");
+      setLoading(false);
+      return;
+    }
+
     if (!url) {
       setError("No custom component URL provided.");
       setLoading(false);
       return;
     }
-
-    console.log('Loading custom component from:', url);
 
     // Clear any existing component
     window.MizanDynamicComponent = undefined;
@@ -49,13 +60,10 @@ export default function ViewComponentPage() {
 
     // Handle script load success
     script.onload = () => {
-      console.log('Script loaded successfully');
-      
       // Give a small delay for the script to execute
       setTimeout(() => {
         const Comp = window.MizanDynamicComponent;
-        console.log('Component loaded:', Comp);
-        
+
         if (Comp && typeof Comp === 'function') {
           setComponent(() => Comp);
           setError(null);
@@ -68,7 +76,6 @@ export default function ViewComponentPage() {
 
     // Handle script load error
     script.onerror = () => {
-      console.error('Failed to load script');
       setError('Failed to load component script.');
       setLoading(false);
     };
@@ -83,7 +90,7 @@ export default function ViewComponentPage() {
       }
       window.MizanDynamicComponent = undefined;
     };
-  }, [url]);
+  }, [url, hasInvalidParams]);
 
   // Show loading state
   if (loading) {

@@ -451,16 +451,38 @@ model TVDisplay {
   installationId    String?        // Installation ID
   networkStatus     String?        @default("disconnected") // connected, disconnected
   registeredAt      DateTime?      // When device was registered
+  lastContentVersion String?
+  lastContentAckAt   DateTime?
+  lastSyncRequestedAt DateTime?
   
   assignedContent   Content?       @relation("AssignedContent", fields: [assignedContentId], references: [id], onDelete: Cascade)
   masjid            Masjid         @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   Orders            Orders?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   announcements     Announcement[] @relation("AnnouncementToTVDisplay")
   displayedContent  Content[]      @relation("DisplayContent")
+  pairingSessions   DevicePairingSession[]
   
   @@index([status])
   @@index([lastSeen])
   @@index([masjidId])
+}
+
+model DevicePairingSession {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  deviceId         String
+  status           String    @default("pending")
+  requestedMasjidId String?
+  requestedByUserId String?
+  createdAt        DateTime  @default(now())
+  expiresAt        DateTime
+  verifiedAt       DateTime?
+
+  device           TVDisplay @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model Content {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type MouseEvent, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   updateOrder,
@@ -32,23 +32,53 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { toast } from "@/hooks/use-toast";
 
 const statusOptions = ["processing", "shipped", "delivered", "cancelled"];
 
+type CartItem = {
+  id: string;
+  name?: string;
+  productName?: string;
+  quantity?: number;
+  price?: number | string;
+  size?: string | null;
+};
+
+type PaymentInfo = {
+  amount_total?: number | null;
+  created?: number | null;
+};
+
+type OrderDetail = {
+  id: string;
+  status: string;
+  trackingNumber?: string | null;
+  stripeSessionId?: string | null;
+  createdAt: string | Date;
+  cart: string;
+  user?: {
+    name?: string | null;
+  } | null;
+  masjid?: {
+    name?: string | null;
+  } | null;
+};
+
 export default function OrderDetailPage() {
   const { id } = useParams();
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<OrderDetail | null>(null);
   const [status, setStatus] = useState("");
   const [tracking, setTracking] = useState("");
   const [saving, setSaving] = useState(false);
-  const [paymentInfo, setPaymentInfo] = useState<any>(null);
-  const [cart, setCart] = useState<any>([]);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
   const masjidId = useSearchParams().get("masjidId") || "";
 
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       setIsLoading(true);
       if (!id) {
@@ -65,8 +95,12 @@ export default function OrderDetailPage() {
         return router.push(`/dashboard/orders?masjidId=${masjidId}`);
       }
 
-      setOrder(orderData);
-      setCart(JSON.parse(orderData.cart));
+      setOrder(orderData as OrderDetail);
+      try {
+        setCart(JSON.parse(orderData.cart) as CartItem[]);
+      } catch {
+        setCart([]);
+      }
       setStatus(orderData.status);
       setTracking(orderData.trackingNumber || "");
 
@@ -89,7 +123,7 @@ export default function OrderDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, masjidId, router]);
 
   useEffect(() => {
     if (isPending) return;
@@ -98,14 +132,27 @@ export default function OrderDetailPage() {
       return;
     }
     fetchOrder();
-  }, [isPending, id, session, router]);
+  }, [fetchOrder, isPending, router, session]);
 
-  const handleSave = async (e: any) => {
+  const handleSave = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setSaving(true);
-    await updateOrder(order.id, { status, trackingNumber: tracking });
-    await fetchOrder();
-    setSaving(false);
+    try {
+      await updateOrder(order.id, { status, trackingNumber: tracking });
+      toast({
+        title: "Order updated",
+        description: "Fulfillment details were saved successfully.",
+      });
+      await fetchOrder();
+    } catch (error) {
+      toast({
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Unable to update this order.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (isPending || !session || !order || isLoading) {
@@ -244,10 +291,10 @@ export default function OrderDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cart.map((item: any) => (
+                {cart.map((item: CartItem) => (
                   <TableRow key={item.id}>
                     <TableCell>{item.name || item.productName || item.id}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{item.quantity ?? 1}</TableCell>
                     <TableCell>${item.price}</TableCell>
                     <TableCell>{item.size || "—"}</TableCell>
                   </TableRow>

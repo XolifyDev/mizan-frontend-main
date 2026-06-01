@@ -9,7 +9,7 @@ import { Upload } from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "@/components/ui/use-toast";
 
-type DonationCategoryFormValues = {
+export type DonationCategoryFormValues = {
   masjidId: string;
   name: string;
   description: string;
@@ -65,7 +65,7 @@ type Props = {
 };
 
 export default function DonationCategoryForm({ mode, initialValues, onSubmit, onCancel, isSubmitting }: Props) {
-  const { control, handleSubmit, setValue, watch, reset } = useForm<DonationCategoryFormValues>({
+  const { control, handleSubmit, setValue, watch } = useForm<DonationCategoryFormValues>({
     defaultValues: {
       masjidId: initialValues?.masjidId || "",
       name: initialValues?.name || "",
@@ -169,7 +169,7 @@ export default function DonationCategoryForm({ mode, initialValues, onSubmit, on
       };
       await onSubmit(payload);
       toast({ title: "Success", description: "Category saved successfully!", variant: "default" });
-    } catch (err) {
+    } catch {
       toast({ title: "Error", description: "Failed to save category. Please try again.", variant: "destructive" });
     }
   };
@@ -370,6 +370,7 @@ export default function DonationCategoryForm({ mode, initialValues, onSubmit, on
                 />
                 <label htmlFor="logo-upload" className="cursor-pointer">
                   {formValues.logo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={formValues.logo}
                       alt="Logo Preview"
@@ -411,6 +412,7 @@ export default function DonationCategoryForm({ mode, initialValues, onSubmit, on
                 />
                 <label htmlFor="featured-upload" className="cursor-pointer">
                   {formValues.featuredImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={formValues.featuredImage}
                       alt="Featured Preview"
@@ -583,7 +585,7 @@ export default function DonationCategoryForm({ mode, initialValues, onSubmit, on
                 <Controller
                   name={`amountsPerInterval.${interval}` as const}
                   control={control}
-                  render={({ field }) => (
+                  render={() => (
                     <Input
                       value={amountsInput[interval] ?? ""}
                       type="text"
@@ -740,7 +742,7 @@ export default function DonationCategoryForm({ mode, initialValues, onSubmit, on
             Ask donors to cover fees by default
           </label>
           <div>
-            <label className="block text-sm font-medium mb-1">Custom "Donate" Label</label>
+            <label className="block text-sm font-medium mb-1">Custom &quot;Donate&quot; Label</label>
             <Controller
               name="customLabel"
               control={control}

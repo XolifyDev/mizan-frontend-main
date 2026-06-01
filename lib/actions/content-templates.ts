@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { getUserMasjid } from "./masjid";
+import { publishRealtimeUpdate } from "@/lib/realtime/publish";
 
 async function requireMasjidAccess(masjidId?: string) {
   if (!masjidId) return null;
@@ -109,6 +110,11 @@ export async function createContentTemplate(data: {
       },
     });
     revalidatePath("/dashboard/tv-displays");
+    await publishRealtimeUpdate({
+      masjidId: template.masjidId,
+      type: "content_update",
+      reason: "template_created",
+    });
     return template;
   } catch (error) {
     console.error("Error creating content template:", error);
@@ -145,6 +151,11 @@ export async function updateContentTemplate(id: string, data: {
       data: updateData,
     });
     revalidatePath("/dashboard/tv-displays");
+    await publishRealtimeUpdate({
+      masjidId: existing.masjidId,
+      type: "content_update",
+      reason: "template_updated",
+    });
     return template;
   } catch (error) {
     console.error("Error updating content template:", error);
@@ -165,6 +176,11 @@ export async function deleteContentTemplate(id: string) {
       where: { id },
     });
     revalidatePath("/dashboard/tv-displays");
+    await publishRealtimeUpdate({
+      masjidId: existing.masjidId,
+      type: "content_update",
+      reason: "template_deleted",
+    });
   } catch (error) {
     console.error("Error deleting content template:", error);
     throw new Error("Failed to delete content template");
@@ -185,6 +201,11 @@ export async function toggleContentTemplate(id: string, active: boolean) {
       data: { active },
     });
     revalidatePath("/dashboard/tv-displays");
+    await publishRealtimeUpdate({
+      masjidId: existing.masjidId,
+      type: "content_update",
+      reason: active ? "template_enabled" : "template_disabled",
+    });
     return template;
   } catch (error) {
     console.error("Error toggling content template:", error);

@@ -3,15 +3,50 @@
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { useHttpConnection } from '@/hooks/useHttpConnection';
 import { useSearchParams } from 'next/navigation';
+import { io, Socket } from 'socket.io-client';
 
 interface WebSocketContextType {
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
-  sendMessage: (message: any) => Promise<void>;
-  devices: any[];
-  deviceStatus: Record<string, any>;
+  sendMessage: (message: Record<string, unknown>) => Promise<void>;
+  devices: WebSocketDevice[];
+  deviceStatus: Record<string, string>;
 }
+
+type WebSocketDevice = {
+  id: string;
+  name: string;
+  status: string;
+  lastSeen: Date | null;
+  platform?: string | null;
+  model?: string | null;
+  masjidId?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+  config?: Record<string, unknown>;
+  assignedContentId?: string | null;
+  ipAddress?: string | null;
+  content?: string;
+  lastContentUpdate?: Date;
+};
+
+type WebSocketMessage = {
+  type: string;
+  devices?: WebSocketDevice[];
+  deviceId?: string;
+  deviceInfo?: {
+    deviceName?: string;
+    platform?: string;
+    model?: string;
+  };
+  masjidId?: string;
+  status?: string;
+  lastSeen?: string;
+  config?: Record<string, unknown>;
+  contentType?: string;
+  lastContentUpdate?: string;
+};
 
 const WebSocketContext = createContext<WebSocketContextType | undefined>(undefined);
 
@@ -34,9 +69,15 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
   const masjidId = propMasjidId || searchParams.get('masjidId') || '';
   const isAdmin = propIsAdmin || false;
   
-  const [devices, setDevices] = useState<any[]>([]);
-  const [deviceStatus, setDeviceStatus] = useState<Record<string, any>>({});
-  
+  const [devices, setDevices] = useState<WebSocketDevice[]>([]);
+  const [deviceStatus] = useState<Record<string, string>>({});
+  const [socketState, setSocketState] = useState({
+    isConnected: false,
+    isConnecting: false,
+    error: null as string | null,
+  });
+  const socketRef = useRef<Socket | null>(null);
+
   const masjidIdRef = useRef(masjidId);
   const isAdminRef = useRef(isAdmin);
 
@@ -49,17 +90,14 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
     isAdminRef.current = isAdmin;
   }, [isAdmin]);
 
-  const onMessage = useCallback((message: any) => {
-    console.log('WebSocket message received:', message);
-    
+  const onMessage = useCallback((message: WebSocketMessage) => {
     switch (message.type) {
+      case 'presence_snapshot':
       case 'admin_subscribed':
-        console.log('Admin subscribed, received devices:', message.devices);
         setDevices(message.devices || []);
         break;
         
       case 'device_connected':
-        console.log('Device connected:', message);
         setDevices(prev => {
           const existing = prev.find(d => d.id === message.deviceId);
           if (existing) {
@@ -88,7 +126,6 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
         break;
         
       case 'device_disconnected':
-        console.log('Device disconnected:', message);
         setDevices(prev => 
           prev.map(d => 
             d.id === message.deviceId 
@@ -99,7 +136,6 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
         break;
         
       case 'device_status_changed':
-        console.log('Device status changed:', message);
         setDevices(prev => 
           prev.map(d => 
             d.id === message.deviceId 
@@ -114,7 +150,6 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
         break;
         
       case 'device_config_changed':
-        console.log('Device config changed:', message);
         setDevices(prev => 
           prev.map(d => 
             d.id === message.deviceId 
@@ -125,7 +160,6 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
         break;
         
       case 'device_content_changed':
-        console.log('Device content changed:', message);
         setDevices(prev => 
           prev.map(d => 
             d.id === message.deviceId 
@@ -141,11 +175,11 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
         break;
         
       default:
-        console.log('Unknown message type:', message.type);
+        break;
     }
   }, []);
 
-  const onError = useCallback((error: any) => {
+  const onError = useCallback((error: unknown) => {
     console.error('HTTP connection error:', error);
   }, []);
 
@@ -156,22 +190,139 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
     interval: 5000
   });
 
+  const handleRealtimeMessage = useCallback((message: WebSocketMessage) => {
+    onMessage(message);
+  }, [onMessage]);
+
+  useEffect(() => {
+    const realtimeUrl = process.env.NEXT_PUBLIC_REALTIME_URL;
+    if (!realtimeUrl || !isAdmin || !masjidId) return;
+
+    let mounted = true;
+
+    const connectRealtime = async () => {
+      setSocketState({
+        isConnected: false,
+        isConnecting: true,
+        error: null,
+      });
+
+      try {
+        const response = await fetch(`/api/realtime/admin-token?masjidId=${encodeURIComponent(masjidId)}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch realtime token');
+        }
+
+        const data = await response.json();
+        if (!mounted) return;
+
+        const socket = io(data.realtimeUrl || realtimeUrl, {
+          transports: ['websocket', 'polling'],
+          auth: {
+            token: data.token,
+          },
+        });
+
+        socketRef.current = socket;
+
+        socket.on('connect', () => {
+          if (!mounted) return;
+          setSocketState({
+            isConnected: true,
+            isConnecting: false,
+            error: null,
+          });
+          socket.emit('admin_subscribe', { masjidId });
+        });
+
+        socket.on('connect_error', (socketError) => {
+          if (!mounted) return;
+          setSocketState({
+            isConnected: false,
+            isConnecting: false,
+            error: socketError.message || 'Realtime connection error',
+          });
+        });
+
+        socket.on('disconnect', () => {
+          if (!mounted) return;
+          setSocketState((prev) => ({
+            ...prev,
+            isConnected: false,
+            isConnecting: false,
+          }));
+        });
+
+        [
+          'presence_snapshot',
+          'device_connected',
+          'device_disconnected',
+          'device_status_changed',
+          'device_config_changed',
+          'device_content_changed',
+        ].forEach((eventName) => {
+          socket.on(eventName, handleRealtimeMessage);
+        });
+      } catch (realtimeError) {
+        console.error('Realtime connection failed, falling back to HTTP polling:', realtimeError);
+        if (!mounted) return;
+        setSocketState({
+          isConnected: false,
+          isConnecting: false,
+          error: realtimeError instanceof Error ? realtimeError.message : 'Realtime connection failed',
+        });
+      }
+    };
+
+    connectRealtime();
+
+    return () => {
+      mounted = false;
+      socketRef.current?.disconnect();
+      socketRef.current = null;
+    };
+  }, [handleRealtimeMessage, isAdmin, masjidId]);
+
+  const sendRealtimeMessage = useCallback(async (message: Record<string, unknown>) => {
+    const socket = socketRef.current;
+    if (!socket || !socket.connected) {
+      await sendMessage(message);
+      return;
+    }
+
+    switch (message.type) {
+      case 'admin_device_control':
+        socket.emit('admin_device_control', message);
+        break;
+      case 'admin_broadcast':
+      case 'admin_broadcast_message':
+        socket.emit('admin_broadcast_message', message);
+        break;
+      case 'admin_subscribe':
+        socket.emit('admin_subscribe', message);
+        break;
+      default:
+        await sendMessage(message);
+        break;
+    }
+  }, [sendMessage]);
+
   // Send admin subscribe when connected
   useEffect(() => {
-    if (isConnected && isAdminRef.current && masjidIdRef.current) {
-      console.log('HTTP connection established, sending admin subscribe for masjid:', masjidIdRef.current);
-      sendMessage({
+    const activeRealtime = process.env.NEXT_PUBLIC_REALTIME_URL && socketRef.current?.connected;
+    if ((activeRealtime || isConnected) && isAdminRef.current && masjidIdRef.current) {
+      sendRealtimeMessage({
         type: 'admin_subscribe',
         masjidId: masjidIdRef.current
       });
     }
-  }, [isConnected]); // Remove sendMessage from dependencies to prevent infinite loop
+  }, [isConnected, sendRealtimeMessage, socketState.isConnected]);
 
   const contextValue: WebSocketContextType = {
-    isConnected,
-    isConnecting,
-    error,
-    sendMessage,
+    isConnected: socketRef.current ? socketState.isConnected : isConnected,
+    isConnecting: socketRef.current ? socketState.isConnecting : isConnecting,
+    error: socketRef.current ? socketState.error : error,
+    sendMessage: sendRealtimeMessage,
     devices,
     deviceStatus
   };

@@ -23,8 +23,26 @@ import { Edit, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
+type OrderCartItem = {
+  id?: string;
+  name?: string;
+  productName?: string;
+};
+
+type DashboardOrder = {
+  id: string;
+  status: string;
+  trackingNumber?: string | null;
+  createdAt: string | Date;
+  cart: string;
+  user?: {
+    name?: string | null;
+    email?: string | null;
+  } | null;
+};
+
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
@@ -35,7 +53,6 @@ export default function OrdersPage() {
       setIsLoading(true);
       const data = await fetch(`/api/orders?masjidId=${masjidId}`).then(async (res) => {
         if(!res.ok) {
-          console.log('Error fetching orders:', res.statusText);
           return [];
         }
         return res.json();
@@ -138,9 +155,9 @@ export default function OrdersPage() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {(() => {
-                          let cart = [];
+                          let cart: OrderCartItem[] = [];
                           try { cart = JSON.parse(order.cart); } catch {}
-                          return cart.map((p: any, i: number) => (
+                          return cart.map((p: OrderCartItem, i: number) => (
                             <Badge key={i} className="bg-[#550C18]/10 hover:text-white text-[#550C18] cursor-default">{p.name || p.productName || p.id}</Badge>
                           ));
                         })()}

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ArrowLeft, Check, ChevronRight, ShoppingCart, Star } from "lucide-react"
+import { ArrowLeft, Check, ShoppingCart, Star } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -42,7 +42,6 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
   const [selectedSize, setSelectedSize] = useState<string | null>(product.meta_data?.sizes?.[0]?.size || null);
   const [selectedSizePrice, setSelectedSizePrice] = useState<number | null>(product.price);
   const { addToCart } = useCart()
-  console.log(product)
 
   const handleAddToCart = () => {
     const metaData = product.meta_data as ProductMetaData
@@ -98,12 +97,12 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
         {/* Product Detail */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
           {/* Product Image */}
-            <div className="relative h-full w-full overflow-hidden">
+            <div className="relative min-h-[420px] w-full overflow-hidden rounded-2xl bg-[#550C18]/5">
               <Image
                 src={product.image || "/placeholder.svg"} 
                 alt={product.name}
                 fill
-                className="w-full h-full object-center rounded-xl z-0"
+                className="object-cover object-center"
                 priority
                 sizes="(max-width: 768px) 100vw, 50vw"
                 quality={90}
@@ -265,13 +264,13 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
                     streamline operations and enhance community engagement.
                   </p>
                   <p className="text-[#3A3A3A] mb-4">
-                    With {product.name}, you'll have access to a comprehensive set of tools that make managing your
-                    masjid easier than ever before. From prayer time displays to donation management, we've got you
+                    With {product.name}, you&apos;ll have access to a comprehensive set of tools that make managing your
+                    masjid easier than ever before. From prayer time displays to donation management, we&apos;ve got you
                     covered.
                   </p>
                   <p className="text-[#3A3A3A]">
                     Our platform is cloud-based, meaning you can access it from anywhere, on any device. Updates are
-                    automatic, so you'll always have the latest features and security enhancements.
+                    automatic, so you&apos;ll always have the latest features and security enhancements.
                   </p>
                 </div>
                 <div>
@@ -302,7 +301,7 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
                       <Check className="h-5 w-5 text-[#550C18] shrink-0 mt-0.5" />
                       <span className="text-[#3A3A3A]">
                         <span className="font-medium">Secure:</span> Enterprise-grade security protects your data and
-                        your community's information.
+                        your community&apos;s information.
                       </span>
                     </li>
                     <li className="flex items-start gap-2">
@@ -434,7 +433,7 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
                       </div>
                     </div>
                     <p className="text-[#3A3A3A]">
-                      Great product overall. The only reason I'm giving it 4 stars is because I'd like to see more
+                      Great product overall. The only reason I&apos;m giving it 4 stars is because I&apos;d like to see more
                       customization options. The customer support team has been very responsive though.
                     </p>
                   </CardContent>
@@ -457,7 +456,7 @@ export default function ProductDetailClient({ product, relatedProducts }: { prod
                       </div>
                     </div>
                     <p className="text-[#3A3A3A]">
-                      We've been using this for our masjid for the past month and it has exceeded our expectations. The
+                      We&apos;ve been using this for our masjid for the past month and it has exceeded our expectations. The
                       setup was easy and the features are comprehensive. Worth every penny!
                     </p>
                   </CardContent>

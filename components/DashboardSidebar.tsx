@@ -109,8 +109,11 @@ const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 type SidebarSession = {
   user?: {
     id?: string | null;
+    name?: string | null;
+    image?: string | null;
     role?: string | null;
     admin?: boolean | null;
+    masjids?: Masjid[];
   } | null;
 } | null;
 
@@ -130,10 +133,11 @@ export default function DashboardSidebar({
   const searchParams = useSearchParams();
   const masjidId = searchParams.get("masjidId");
   const user = session?.user;
+  const masjidQuery = masjidId ? `?masjidId=${masjidId}` : "";
   const effectiveRole = getEffectiveRole({
     role: user?.role,
     isOwner: masjid?.ownerId === user?.id,
-    isAdmin: user?.admin,
+    isAdmin: Boolean(user?.admin),
   });
 
   return (
@@ -163,12 +167,12 @@ export default function DashboardSidebar({
                       canAccessPath(item.path, {
                         role: effectiveRole,
                         isOwner: masjid?.ownerId === user?.id,
-                        isAdmin: user?.admin,
+                        isAdmin: Boolean(user?.admin),
                       })
                     )
                     .map((item) => (
                     <SidebarMenuItem key={item.path}>
-                      <Link href={item.path + "?masjidId=" + masjidId}>
+                      <Link href={`${item.path}${masjidQuery}`}>
                         <SidebarMenuButton
                           className={cn(
                             "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#7c3742]/10 data-[active=true]:text-[#7c3742]"
@@ -189,7 +193,7 @@ export default function DashboardSidebar({
             {canAccessGroup("donations", {
               role: effectiveRole,
               isOwner: masjid?.ownerId === user?.id,
-              isAdmin: user?.admin,
+              isAdmin: Boolean(user?.admin),
             }) && (
               <SidebarGroup>
                 <SidebarGroupLabel>Donations</SidebarGroupLabel>
@@ -197,7 +201,7 @@ export default function DashboardSidebar({
                   <SidebarMenu>
                     <SidebarMenuItem key="/dashboard/donations/kiosk">
                       <Link
-                        href={"/dashboard/donations/kiosk?masjidId=" + masjidId}
+                        href={`/dashboard/donations/kiosk${masjidQuery}`}
                       >
                         <SidebarMenuButton
                           isActive={pathname === "/dashboard/donations/kiosk"}
@@ -210,9 +214,7 @@ export default function DashboardSidebar({
                     </SidebarMenuItem>
                     <SidebarMenuItem key="/dashboard/donations/categories">
                       <Link
-                        href={
-                          "/dashboard/donations/categories?masjidId=" + masjidId
-                        }
+                        href={`/dashboard/donations/categories${masjidQuery}`}
                       >
                         <SidebarMenuButton
                           isActive={
@@ -226,7 +228,7 @@ export default function DashboardSidebar({
                       </Link>
                     </SidebarMenuItem>
                     <SidebarMenuItem key="/dashboard/donations">
-                      <Link href={"/dashboard/donations?masjidId=" + masjidId}>
+                      <Link href={`/dashboard/donations${masjidQuery}`}>
                         <SidebarMenuButton
                           isActive={pathname === "/dashboard/donations"}
                           className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
@@ -244,7 +246,7 @@ export default function DashboardSidebar({
             {canAccessGroup("content", {
               role: effectiveRole,
               isOwner: masjid?.ownerId === user?.id,
-              isAdmin: user?.admin,
+              isAdmin: Boolean(user?.admin),
             }) && (
               <SidebarGroup>
                 <SidebarGroupLabel>Content</SidebarGroupLabel>
@@ -252,7 +254,7 @@ export default function DashboardSidebar({
                   <SidebarMenu>
                     {contentNavItems.map((item) => (
                       <SidebarMenuItem key={item.path}>
-                        <Link href={item.path + "?masjidId=" + masjidId}>
+                        <Link href={`${item.path}${masjidQuery}`}>
                           <SidebarMenuButton
                             className={cn(
                               "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
@@ -273,7 +275,7 @@ export default function DashboardSidebar({
             {canAccessGroup("management", {
               role: effectiveRole,
               isOwner: masjid?.ownerId === user?.id,
-              isAdmin: user?.admin,
+              isAdmin: Boolean(user?.admin),
             }) && (
               <SidebarGroup>
                 <SidebarGroupLabel>Masjid Management</SidebarGroupLabel>
@@ -281,7 +283,7 @@ export default function DashboardSidebar({
                   <SidebarMenu>
                     {managementNavItems.map((item) => (
                       <SidebarMenuItem key={item.path}>
-                        <Link href={item.path + "?masjidId=" + masjidId}>
+                        <Link href={`${item.path}${masjidQuery}`}>
                           <SidebarMenuButton
                             className={cn(
                               "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
@@ -312,8 +314,7 @@ export default function DashboardSidebar({
                                   pathname === "/dashboard/products/manage"
                                 }
                                 href={
-                                  "/dashboard/products/manage?masjidId=" +
-                                  masjidId
+                                  `/dashboard/products/manage${masjidQuery}`
                                 }
                                 className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
                               >
@@ -340,10 +341,10 @@ export default function DashboardSidebar({
               </SidebarTrigger>
               <div className="flex flex-col items-start gap-1">
                 <div className="flex flex-row items-center gap">
-                  Welcome,&nbsp;<span className="font-medium text-[#550C18]">{session && session.user?.name || "User"}</span>
+                  Welcome,&nbsp;<span className="font-medium text-[#550C18]">{session?.user?.name || "User"}</span>
                 </div>
-                {session && session.user && (
-                  <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} user={session.user} setShowAddMasjidModal={setShowAddMasjidModal} />
+                {session?.user && (
+                  <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} setShowAddMasjidModal={setShowAddMasjidModal} />
                 )}
               </div>
               {/* <h1 className="text-2xl font-semibold text-[#550C18]">
@@ -408,13 +409,16 @@ export default function DashboardSidebar({
 
               <Avatar>
                 <AvatarImage
-                  src={(session && session.user.image) || undefined}
+                  src={session?.user?.image || undefined}
                 />
                 <AvatarFallback className="bg-[#550C18] text-[#FDF0D5]">
-                  {(session &&
-                    session.user?.name?.split(" ")[0]?.charAt(0) +
-                      session.user?.name?.split(" ")[1]?.charAt(0)) ||
-                    "Loading..."}
+                  {session?.user?.name
+                    ?.split(" ")
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part.charAt(0))
+                    .join("")
+                    .toUpperCase() || "MI"}
                 </AvatarFallback>
               </Avatar>
             </div>

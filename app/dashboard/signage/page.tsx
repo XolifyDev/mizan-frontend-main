@@ -535,7 +535,10 @@ export default function SignagePage() {
           </CardContent>
         </Card>
 
-        <Link href="#create-content" className="block">
+        <Link
+          href={`/dashboard/content-library?masjidId=${masjidId}`}
+          className="block"
+        >
           <Card className="h-full rounded-[24px] border-[#550C18]/10 bg-white shadow-[0_18px_40px_-32px_rgba(85,12,24,0.35)] transition hover:-translate-y-0.5">
             <CardContent className="flex h-full items-center gap-4 p-6">
               <div className="rounded-2xl bg-[#550C18]/8 p-3 text-[#550C18]">
@@ -756,7 +759,10 @@ export default function SignagePage() {
             );
           })}
 
-          <Link href="#display-management" className="group">
+          <Link
+            href={`/dashboard/content-library?masjidId=${masjidId}`}
+            className="group"
+          >
             <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#cad3df] bg-[#fbfcfd] px-8 text-center transition hover:border-[#550C18]/30 hover:bg-white">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#b9c2d3] shadow-sm">
                 <Plus className="h-8 w-8" />

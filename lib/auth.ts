@@ -33,7 +33,7 @@ export const auth = betterAuth({
                 user: {
                     ...user,
                     admin: dbUser?.admin || false,
-                    role: dbUser?.role || user.role,
+                    role: dbUser?.role || null,
                     masjids: dbUser?.masjids || [],
                 },
                 session,

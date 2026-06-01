@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { buildMasjidSlidesResponse } from "@/lib/mizantv/slides";
 
 export async function GET(
   request: Request,
@@ -34,50 +35,32 @@ export async function GET(
       );
     }
 
-    // Get device-specific content (assigned content + displayed content)
-    const deviceContent = [];
-    
-    if (device.assignedContent) {
-      deviceContent.push(device.assignedContent);
-    }
-    
-    if (device.displayedContent && device.displayedContent.length > 0) {
-      deviceContent.push(...device.displayedContent);
-    }
+    const signageSlides = await buildMasjidSlidesResponse(masjidId, deviceId);
 
-    // If no device-specific content, get general masjid content
-    if (deviceContent.length === 0) {
-      const generalContent = await prisma.content.findMany({
-        where: {
-          masjidId,
-          active: true,
-          OR: [
-            { type: "prayer" },
-            { type: "announcement" },
-            { type: "daily_verse" },
-            { type: "daily_hadith" },
-            { type: "daily_dua" },
-            { type: "eid_countdown" },
-            { type: "ramadan_countdown" },
-          ]
-        },
-        orderBy: { createdAt: "desc" },
-        take: 10
-      });
-      
-      deviceContent.push(...generalContent);
-    }
+    const slides =
+      signageSlides && signageSlides.slides.length > 0
+        ? signageSlides.slides
+        : (() => {
+            const deviceContent = [];
 
-    // Convert content to slides format
-    const slides = deviceContent.map((content, index) => ({
-      id: content.id,
-      type: content.type,
-      content: content.data || {},
-      order: index,
-      layout: "default",
-      theme: device.config?.theme || "default",
-      contentId: content.id,
-    }));
+            if (device.assignedContent) {
+              deviceContent.push(device.assignedContent);
+            }
+
+            if (device.displayedContent && device.displayedContent.length > 0) {
+              deviceContent.push(...device.displayedContent);
+            }
+
+            return deviceContent.map((content, index) => ({
+              id: content.id,
+              type: content.type,
+              content: content.data || {},
+              order: index,
+              layout: "default",
+              theme: device.config?.theme || "default",
+              contentId: content.id,
+            }));
+          })();
 
     return NextResponse.json({
       masjid: {
@@ -86,6 +69,8 @@ export async function GET(
         logo: device.masjid.logo,
       },
       slides,
+      version: signageSlides?.version || `${device.updatedAt.getTime()}`,
+      generatedAt: signageSlides?.generatedAt || new Date().toISOString(),
       deviceConfig: device.config || {
         slideDuration: 10000,
         theme: "default",

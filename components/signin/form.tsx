@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Check, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { Check, Eye, EyeOff, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { authClient } from "@/lib/auth-client";
 import { loginUser } from "@/lib/actions";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -117,13 +116,12 @@ export default function SignInForm() {
         password: values.password,
         rememberMe: values.rememberMe || false,
       });
-      console.log(user)
-      if (user.statusCode || user.status && user.status !== 200 || !user && !user?.user) {
+      if (!user.success) {
         setIsLoading(false);
         setButtonState("error");
         toast({
           title: "Sign in failed",
-          description: "Please check your credentials and try again.",
+          description: user.message || "Please check your credentials and try again.",
           variant: "destructive",
         });
 
@@ -141,15 +139,21 @@ export default function SignInForm() {
             description: "Welcome back to Mizan!",
             variant: "default",
           });
-          redirect("/dashboard");
-        }, 2000)
+          router.push("/dashboard");
+          router.refresh();
+        }, 800)
       }
-    } catch (error) {
+    } catch {
+      setIsLoading(false);
+      setButtonState("error");
       toast({
         title: "Sign in failed",
         description: "Please check your credentials and try again.",
         variant: "destructive",
       });
+      setTimeout(() => {
+        setButtonState("default");
+      }, 2000);
     }
 
     // const user = await authClient.signIn.email({
@@ -327,8 +331,7 @@ export default function SignInForm() {
               key={ButtonState}
             >
               <span className="flex flex-row justify-center items-center w-full h-full relative">
-                {/* @ts-ignore */}
-                {states[ButtonState]}
+                {states[ButtonState as keyof typeof states]}
               </span>
             </motion.span>
           </AnimatePresence>

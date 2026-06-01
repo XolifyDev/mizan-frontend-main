@@ -4,12 +4,16 @@ import React, { useEffect, useState } from 'react';
 
 declare global {
   interface Window {
-    MizanDynamicComponent?: any;
+    MizanDynamicComponent?: React.ComponentType<{
+      slide?: unknown;
+      masjid?: unknown;
+      theme?: unknown;
+    }>;
   }
 }
 
 export default function TestCustomComponentPage() {
-  const [Component, setComponent] = useState<React.ComponentType | null>(null);
+  const [Component, setComponent] = useState<React.ComponentType<{ slide?: unknown; masjid?: unknown; theme?: unknown }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +43,6 @@ export default function TestCustomComponentPage() {
   };
 
   useEffect(() => {
-    console.log('Loading test component...');
 
     // Clear any existing component
     window.MizanDynamicComponent = undefined;
@@ -51,12 +54,10 @@ export default function TestCustomComponentPage() {
 
     // Handle script load success
     script.onload = () => {
-      console.log('Test script loaded successfully');
       
       // Give a small delay for the script to execute
       setTimeout(() => {
         const Comp = window.MizanDynamicComponent;
-        console.log('Test component loaded:', Comp);
         
         if (Comp && typeof Comp === 'function') {
           setComponent(() => Comp);

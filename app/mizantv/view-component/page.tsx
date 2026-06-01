@@ -3,9 +3,28 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+declare global {
+  interface Window {
+    MizanDynamicComponent?: React.ComponentType<{
+      slide?: unknown;
+      masjid?: unknown;
+      theme?: unknown;
+    }>;
+  }
+}
+
+function decodeJsonParam<T>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(decodeURIComponent(value)) as T;
+  } catch {
+    return null;
+  }
+}
+
 export default function MizanTVViewComponentPage() {
   const searchParams = useSearchParams();
-  const [Component, setComponent] = useState<React.ComponentType | null>(null);
+  const [Component, setComponent] = useState<React.ComponentType<{ slide?: unknown; masjid?: unknown; theme?: unknown }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -14,21 +33,22 @@ export default function MizanTVViewComponentPage() {
   const masjidParam = searchParams.get('masjid');
   const themeParam = searchParams.get('theme');
   const urlParam = searchParams.get('url');
-  
-  let slide, masjid, theme, url;
-  try {
-    slide = slideParam ? JSON.parse(decodeURIComponent(slideParam)) : null;
-    masjid = masjidParam ? JSON.parse(decodeURIComponent(masjidParam)) : null;
-    theme = themeParam ? JSON.parse(decodeURIComponent(themeParam)) : null;
-    url = urlParam
-      ? decodeURIComponent(urlParam)
-      : (slide?.customComponentUrl ?? null);
-  } catch (e) {
-    console.error('Failed to parse parameters:', e);
-    return <div style={{ padding: '20px', color: 'red' }}>Invalid parameters</div>;
-  }
+  const slide = decodeJsonParam<{ id?: string; customComponentUrl?: string | null }>(slideParam);
+  const masjid = decodeJsonParam<{ name?: string }>(masjidParam);
+  const theme = decodeJsonParam<{ background?: string; text?: string }>(themeParam);
+  const url = urlParam
+    ? decodeURIComponent(urlParam)
+    : (slide?.customComponentUrl ?? null);
+  const hasInvalidParams =
+    (!!slideParam && !slide) || (!!masjidParam && !masjid) || (!!themeParam && !theme);
 
   useEffect(() => {
+    if (hasInvalidParams) {
+      setError('Invalid view-component parameters.');
+      setLoading(false);
+      return;
+    }
+
     if (!url) {
       setError('No custom component URL provided.');
       setLoading(false);
@@ -43,12 +63,9 @@ export default function MizanTVViewComponentPage() {
     script.src = `/api/esm/displaytv?url=${encodeURIComponent(url)}`;
     script.async = true;
 
-    script.onload = (e) => {
-      console.log(window, e);
+    script.onload = () => {
       setTimeout(() => {
         const Comp = window.MizanDynamicComponent;
-
-        console.log(Comp);
         if (Comp && typeof Comp === 'function') {
           setComponent(() => Comp);
           setError(null);
@@ -71,7 +88,7 @@ export default function MizanTVViewComponentPage() {
       }
       window.MizanDynamicComponent = undefined;
     };
-  }, [url]);
+  }, [url, hasInvalidParams]);
 
   // Show loading state
   if (loading) {

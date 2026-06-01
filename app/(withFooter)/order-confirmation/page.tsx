@@ -3,15 +3,12 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import { CheckCircle2, Home, Loader2, ShoppingBag, Download, Calendar } from "lucide-react"
+import { CheckCircle2, Home, ShoppingBag, Download, Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import Footer from "@/components/Footer"
 import Navbar from "@/components/Navbar"
-import { StripeCheckoutSession } from "@stripe/stripe-js"
 import { getPaymentAndOrder, getSessionAndOrder } from "@/lib/actions/order"
-import { CartItem } from "@/lib/cartItemSchema"
 import useCart from "@/lib/useCart"
 import { formatDate } from "@/lib/utils"
 
@@ -25,6 +22,7 @@ type OrderDetails = {
     name: string
     price: number
     quantity: number
+    size?: string | null
   }[]
   paymentMethod: string
 }
@@ -33,7 +31,6 @@ export default function OrderConfirmationPage() {
   const searchParams = useSearchParams()
   const [isLoading, setIsLoading] = useState(true)
   const [order, setOrder] = useState<OrderDetails | null>(null)
-  const [session, setSession] = useState<StripeCheckoutSession | null>(null);
   const [isSubscription, setIsSubscription] = useState(false);
   const [error, setError] = useState<string | null>(null)
   const { clearCart } = useCart()
@@ -58,12 +55,13 @@ export default function OrderConfirmationPage() {
           id: `${data.order ? data.order.id : data.checkoutSession.id}`,
           date: data.stripeSession.created,
           total: data.stripeSession.amount_total!, // This would come from your database
-          items: JSON.parse(data.checkoutSession.cart).map((e: any) => {
+          items: JSON.parse(data.checkoutSession.cart).map((e: { productId?: string; id?: string; name: string; price: number; quantity: number; size?: string | null }) => {
             return {
-              id: e.productId,
+              id: e.productId || e.id || e.name,
               name: e.name,
               price: e.price,
-              quantity: e.quantity
+              quantity: e.quantity,
+              size: e.size ?? null,
             }
           }),
           paymentMethod: "Credit Card",
@@ -72,7 +70,7 @@ export default function OrderConfirmationPage() {
         setOrder(mockOrder)
         setIsSubscription(!data.order ? true : false)
         clearCart();
-      } catch (err) {
+      } catch {
         setError("We couldn't retrieve your order details. Please contact customer support.")
       } finally {
         setIsLoading(false)
@@ -86,7 +84,7 @@ export default function OrderConfirmationPage() {
       setIsLoading(false)
       setError("No order information found. Please check your confirmation email for order details.")
     }
-  }, [sessionId])
+  }, [clearCart, sessionId])
 
   return (
     <div className="min-h-screen bg-white">
@@ -188,7 +186,7 @@ export default function OrderConfirmationPage() {
                 </div>
 
                 <div>
-                  <h3 className="text-lg font-medium text-[#3A3A3A] mb-3">What's Next?</h3>
+                  <h3 className="text-lg font-medium text-[#3A3A3A] mb-3">What&apos;s Next?</h3>
                   <ul className="space-y-3">
                     <li className="flex items-center gap-3 mt-0.5">
                       <div className="h-6 w-6 rounded-full bg-[#550C18]/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -269,4 +267,3 @@ export default function OrderConfirmationPage() {
     </div>
   )
 }
-

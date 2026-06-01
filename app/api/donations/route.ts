@@ -1,20 +1,59 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserMasjid } from "@/lib/actions/masjid";
+import { z } from "zod";
+
+const donationCreateSchema = z.object({
+  masjidId: z.string().min(1, "masjidId is required"),
+  categoryId: z.string().min(1, "categoryId is required"),
+  amount: z.coerce.number().int().positive("Donation amount must be greater than 0"),
+  donorName: z.string().optional().nullable(),
+  donorEmail: z.string().email().optional().nullable().or(z.literal("")),
+  kioskInstanceId: z.string().optional().nullable(),
+  paymentMethod: z.string().min(1, "paymentMethod is required"),
+  transactionId: z.string().optional().nullable(),
+});
 
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    if (!data?.masjidId) {
+    const body = await request.json();
+    const parsed = donationCreateSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "masjidId is required" },
+        { error: parsed.error.issues[0]?.message || "Invalid donation payload" },
         { status: 400 }
       );
     }
+    const data = parsed.data;
     const masjid = await getUserMasjid(data.masjidId);
     if (!masjid || (typeof masjid === "object" && "error" in masjid)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const category = await prisma.donationCategory.findFirst({
+      where: {
+        id: data.categoryId,
+        masjidId: data.masjidId,
+        active: true,
+      },
+      select: {
+        id: true,
+        min: true,
+        max: true,
+        enforceMax: true,
+      },
+    });
+
+    if (!category) {
+      return NextResponse.json({ error: "Donation category not found" }, { status: 404 });
+    }
+    if (data.amount < category.min) {
+      return NextResponse.json({ error: `Minimum donation is ${category.min}` }, { status: 400 });
+    }
+    if (category.enforceMax && data.amount > category.max) {
+      return NextResponse.json({ error: `Maximum donation is ${category.max}` }, { status: 400 });
+    }
+
     const donation = await prisma.donation.create({
       data: {
         ...data,

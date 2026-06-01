@@ -2,15 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ChevronRight,
-  ShoppingCart,
-  Trash2,
-  X,
-  CreditCard,
-  Check,
-} from "lucide-react";
+import Image from "next/image";
+import { ArrowLeft, ShoppingCart, Trash2, X, Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -30,51 +23,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import Navbar from "@/components/Navbar";
 // import { withSSR, useCart } from "cart"
-import { Products } from "@prisma/client";
+import { Product as PrismaProduct } from "@prisma/client";
 import useCart from "@/lib/useCart";
 import { v4 as uuid } from "uuid";
 import { createCheckoutPage } from "@/lib/actions/payment";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { loadStripe } from "@stripe/stripe-js";
 
-// Product type definition
-type Product = {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  features: string[];
-  image: string;
-  category: string;
-  popular?: boolean;
-};
-
-// Cart item type definition
-type CartItem = {
-  product: Product;
-  quantity: number;
-};
-
 type Props = {
-  products: Products[];
+  products: PrismaProduct[];
 };
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 export default function CartPage({ products }: Props) {
   const {
-    addToCart,
     cart,
-    clearCart,
-    getTotal,
     removeFromCart: removeFCart,
     setDiscount: setDiscountStore,
     discount: discountData
@@ -97,13 +63,6 @@ export default function CartPage({ products }: Props) {
   const total = subtotal - discountAmount;
 
   // Update product quantity in cart
-  const updateQuantity = (productId: string, newQuantity: number) => {
-    if (newQuantity < 1) {
-      removeFromCart(productId);
-      return;
-    }
-  };
-
   // Remove product from cart
   const removeFromCart = (itemId: string) => {
     removeFCart(itemId);
@@ -246,9 +205,11 @@ export default function CartPage({ products }: Props) {
                         >
                           <TableCell className="p-4">
                             <div className="h-16 w-16 rounded-md overflow-hidden bg-[#550C18]/5">
-                              <img
+                              <Image
                                 src={item.imagesrc || "/placeholder.svg"}
                                 alt={item.name}
+                                width={64}
+                                height={64}
                                 className="h-full w-full object-cover"
                               />
                             </div>
@@ -393,7 +354,7 @@ export default function CartPage({ products }: Props) {
               Your cart is empty
             </h3>
             <p className="text-[#3A3A3A]/70 mb-6 text-center max-w-md">
-              Looks like you haven't added any products to your cart yet.
+              Looks like you haven&apos;t added any products to your cart yet.
               Explore our products to find the perfect solution for your masjid.
             </p>
             <Link href="/products">
@@ -420,11 +381,13 @@ export default function CartPage({ products }: Props) {
                   className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow"
                 >
                   <div className="h-[150px] overflow-hidden bg-[#550C18]/5">
-                    <img
-                      src={product.image || "/placeholder.svg"}
-                      alt={product.name}
-                      className="h-full w-full object-cover"
-                    />
+	                    <Image
+	                      src={product.image || "/placeholder.svg"}
+	                      alt={product.name}
+                        width={320}
+                        height={150}
+	                      className="h-full w-full object-cover"
+	                    />
                   </div>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">

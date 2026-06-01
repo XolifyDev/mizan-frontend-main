@@ -4,6 +4,20 @@ import EasyPost from "@easypost/api";
 import { prisma } from "@/lib/db";
 import { getUserMasjid } from "@/lib/actions/masjid";
 
+type RouteContext = {
+  params: Promise<{
+    id: string;
+  }>;
+};
+
+type CheckoutCartItem = {
+  productId?: string;
+  name?: string;
+  price?: number;
+  quantity?: number;
+  size?: string | null;
+};
+
 async function requireMasjidAccess(masjidId: string | null) {
   if (!masjidId) return null;
   const masjid = await getUserMasjid(masjidId);
@@ -14,8 +28,8 @@ async function requireMasjidAccess(masjidId: string | null) {
 }
 
 export async function GET(
-  request: NextRequest,
-  { params }: any
+  _request: NextRequest,
+  { params }: RouteContext
 ) {
   const { id } = await params
   try {
@@ -68,17 +82,23 @@ export async function GET(
           const tracker = await client.Tracker.create({ tracking_code: order.trackingNumber });
           trackingDetails = tracker;
         }
-      } catch (err) {
-        console.error("EasyPost tracking fetch failed:", err);
+      } catch {
         trackingDetails = { error: "Failed to fetch tracking info" };
       }
+    }
+
+    let checkoutItems: CheckoutCartItem[] = [];
+    try {
+      checkoutItems = JSON.parse(checkoutSession.cart) as CheckoutCartItem[];
+    } catch {
+      checkoutItems = [];
     }
 
     const newOrder = {
       ...order,
       ...stripeAndOrder,  
       checkoutSession,
-      items: JSON.parse(checkoutSession.cart).map((e: any) => {
+      items: checkoutItems.map((e: CheckoutCartItem) => {
         return {
           id: e.productId,
           name: e.name,
@@ -103,7 +123,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: any
+  { params }: RouteContext
 ) {
   const { id } = await params
   try {
@@ -137,8 +157,8 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: any
+  _request: Request,
+  { params }: RouteContext
 ) {
   const { id } = await params
   try {

@@ -16,6 +16,8 @@ type CreateCheckoutSessionProps = {
   };
 }
 export const createCheckoutSession = async ({ cart, discount, card }: CreateCheckoutSessionProps) => {
+  void discount;
+  void card;
   const products = [];
   const line_items = [];
 
@@ -51,24 +53,27 @@ export const createCheckoutPage = async ({
   cart,
   discount,
 }: CreateCheckoutPageProps) => {
+  void discount;
   const user = await getUser();
   if(!user) return {
     error: true,
     message: "Please login"
   };
-  const products = [];
-  const line_items = [];
+  const productIds = cart.map((product) => product.productId);
+  const products = await prisma.product.findMany({
+    where: {
+      id: {
+        in: productIds,
+      },
+    },
+  });
+  const productMap = new Map(products.map((product) => [product.id, product]));
+  const line_items = cart
+    .map((product) => {
+      const pro = productMap.get(product.productId);
+      if (!pro) return null;
 
-  for (const product of cart) {
-    const pro = await prisma.product.findFirst({
-      where: {
-        id: product.productId
-      }
-    });
-    if(pro) {
-      console.log(pro);
-      products.push(pro);
-      line_items.push({
+      return {
         price_data: {
           currency: "USD",
           product_data: {
@@ -77,10 +82,10 @@ export const createCheckoutPage = async ({
           },
           unit_amount: Math.round(Number(product.price) * 100),
         },
-        quantity: 1,
-      })
-    }
-  };
+        quantity: product.quantity,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   if(products.find((e) => e?.requiredSubscriptionId && e?.requiredSubscriptionId.length < 1) && products.length > 1) return {
     error: true,
@@ -93,7 +98,6 @@ export const createCheckoutPage = async ({
     redirect: true
   };
 
-  // @ts-ignore Ignore
   const session = await stripeClient.checkout.sessions.create({
     payment_method_types: ['card'],
     line_items: subscription ? [{
@@ -136,7 +140,7 @@ type CreatePaymentIntentParams = {
     percent: number
     id: string
   } | null
-  shippingData: any
+  shippingData: Record<string, unknown>
 }
 export async function createPaymentIntent({ amount, cart, discount, shippingData }: CreatePaymentIntentParams) {
   const user = await getUser();
@@ -169,7 +173,7 @@ export async function createPaymentIntent({ amount, cart, discount, shippingData
       },
     });
 
-    const dbIntent = await prisma.checkoutSessions.create({
+    await prisma.checkoutSessions.create({
       data: {
         id: v4(),
         cart: JSON.stringify(cart.map((item) => ({
@@ -197,5 +201,3 @@ export async function createPaymentIntent({ amount, cart, discount, shippingData
     throw new Error("Failed to create payment intent")
   }
 }
-
-

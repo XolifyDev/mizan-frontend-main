@@ -2,25 +2,15 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Check, ShoppingCart, X, ChevronRight, Tag, Search } from "lucide-react"
+import Image from "next/image"
+import { Check, ShoppingCart, Tag, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-  SheetFooter,
-  SheetClose,
-} from "@/components/ui/sheet"
 import { toast } from "@/hooks/use-toast"
 import Navbar from "../Navbar"
-import { Products } from "@prisma/client"
+import { Product as PrismaProduct } from "@prisma/client"
 import useCart from "@/lib/useCart"
 import { v4 as uuid } from "uuid";
 
@@ -37,14 +27,19 @@ type Product = {
 }
 
 type Props = {
-  products: Products[]
+  products: PrismaProduct[]
 }
 
 export default function ProductsPage({ products }: Props) {
   const cart = useCart();
-  const [cartOpen, setCartOpen] = useState(false)
   const [filter, setFilter] = useState<string>("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const normalizeFeatures = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.filter((feature): feature is string => typeof feature === "string");
+    }
+    return [];
+  };
 
   // Add product to cart
   const addToCart = (product: Product) => {
@@ -60,17 +55,6 @@ export default function ProductsPage({ products }: Props) {
     toast({
       title: "Added to cart",
       description: `${product.name} has been added to your cart.`,
-    })
-  }
-
-  // Remove product from cart
-  const removeFromCart = (productId: string) => {
-    cart?.removeFromCart!(productId);
-
-    toast({
-      title: "Removed from cart",
-      description: "Item has been removed from your cart.",
-      variant: "destructive",
     })
   }
 
@@ -165,9 +149,11 @@ export default function ProductsPage({ products }: Props) {
                     </div>
                   )}
                   <div className="h-[200px] overflow-hidden bg-[#550C18]/5">
-                    <img
+                    <Image
                       src={product.image || "/placeholder.svg"}
                       alt={product.name}
+                      width={640}
+                      height={400}
                       className="h-full w-full object-cover transition-transform hover:scale-105"
                     />
                   </div>
@@ -189,7 +175,7 @@ export default function ProductsPage({ products }: Props) {
                   <CardContent>
                     <h4 className="font-medium text-[#3A3A3A] mb-2">Features:</h4>
                     <ul className="space-y-1">
-                      {product.features.map((feature, index) => (
+                      {normalizeFeatures(product.features).map((feature, index) => (
                         <li key={index} className="flex items-start gap-2 text-sm text-[#3A3A3A]/80">
                           <Check className="h-4 w-4 text-[#550C18] mt-0.5 shrink-0" />
                           <span>{feature}</span>
@@ -244,4 +230,3 @@ export default function ProductsPage({ products }: Props) {
     </div>
   )
 }
-

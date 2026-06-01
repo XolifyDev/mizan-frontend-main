@@ -9,29 +9,19 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar"
 import { Masjid } from "@prisma/client"
-import { User } from "better-auth"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 
 export function MasjidSwitcher({
   masjids,
   activeMasjid,
-  user,
   setShowAddMasjidModal,
 }: {
   masjids: Masjid[]
   activeMasjid: Masjid
-  user: User
   setShowAddMasjidModal: (show: boolean) => void
 }) {
   const router = useRouter()
@@ -68,7 +58,7 @@ export function MasjidSwitcher({
             <span className="font-medium text-gray-500">{activeMasjid.name}</span>
             <span className="text-primary/60 text-xs ml-auto">Current</span>
         </DropdownMenuItem> 
-        {masjids.filter((masjid) => masjid.id !== activeMasjid.id).map((masjid, index) => (
+        {masjids.filter((masjid) => masjid.id !== activeMasjid.id).map((masjid) => (
           <DropdownMenuItem
             key={masjid.id}
             onClick={() => router.push(`/dashboard?masjidId=${masjid.id}`)}

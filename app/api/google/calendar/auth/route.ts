@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
-import { google } from "googleapis";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-);
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
+    const { google } = await import("googleapis");
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
     const { searchParams } = new URL(request.url);
     const masjidId = searchParams.get("masjidId");
 
@@ -46,6 +48,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const { google } = await import("googleapis");
+    const oauth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
     const { code, state: masjidId } = await request.json();
 
     if (!code || !masjidId) {
@@ -82,14 +90,12 @@ export async function POST(request: Request) {
       throw new Error("No primary calendar found");
     }
 
-    console.log(primaryCalendar, user, profilePicture);
-
     // Update masjid with calendar ID and credentials
     await prisma.masjid.update({
       where: { id: masjidId },
       data: {
         googleCalendarId: primaryCalendar.id,
-        googleCalendarCredentials: tokens as any,
+        googleCalendarCredentials: tokens as Prisma.InputJsonValue,
         googleCalendarPfp: profilePicture,
       },
     });

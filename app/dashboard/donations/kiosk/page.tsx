@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Power, Download } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer";
 import { Label } from "@/components/ui/label";
@@ -15,48 +15,77 @@ import { useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+type ConfigErrors = {
+  layout?: string;
+  color?: string;
+  timeout?: string;
+  categories?: string;
+};
+
+type DonationCategory = {
+  id: string;
+  name: string;
+};
+
+type KioskConfig = {
+  layout?: string;
+  color?: string;
+  timeout?: number;
+  categories?: string[];
+};
+
+type KioskRecord = {
+  id: string;
+  kioskName?: string | null;
+  name?: string | null;
+  serial?: string | null;
+  location?: string | null;
+  status?: string | null;
+  lastTransaction?: string | null;
+  product?: { name?: string | null } | null;
+  masjid?: { name?: string | null } | null;
+  config?: KioskConfig | null;
+  layout?: string;
+  color?: string;
+  timeout?: number;
+  categories?: string[];
+};
+
 export default function KioskDashboardPage() {
-  const [configureKiosk, setConfigureKiosk] = useState<any | null>(null);
+  const [configureKiosk, setConfigureKiosk] = useState<KioskRecord | null>(null);
   const [copiedConfigKioskId, setCopiedConfigKioskId] = useState<string | null>(null);
   const [savingConfig, setSavingConfig] = useState(false);
-  const [configErrors, setConfigErrors] = useState<any>({});
+  const [configErrors, setConfigErrors] = useState<ConfigErrors>({});
   const [loadingKiosks, setLoadingKiosks] = useState(false);
-  const [kiosks, setKiosks] = useState<any[]>([]);
+  const [kiosks, setKiosks] = useState<KioskRecord[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [donationCategories, setDonationCategories] = useState<any[]>([]);
+  const [donationCategories, setDonationCategories] = useState<DonationCategory[]>([]);
   const masjidId = useSearchParams().get("masjidId") || "";
   const [quickActionsOpen, setQuickActionsOpen] = useState<string | null>(null);
   const [performingAction, setPerformingAction] = useState(false);
 
-  if (!masjidId) {
-    return (
-      <div className="max-w-2xl mx-auto mt-20 bg-white border border-[#550C18]/10 rounded-2xl p-8 text-center shadow-sm">
-        <h2 className="text-2xl font-semibold text-[#550C18] mb-2">
-          Select a Masjid
-        </h2>
-        <p className="text-[#3A3A3A]/70">
-          Choose a masjid to manage kiosk devices.
-        </p>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (masjidId) {
-      fetchData();
+      void fetchData();
     }
-  }, [masjidId]);
+  }, [fetchData, masjidId]);
 
   // Fetch kiosks with loading skeleton
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoadingKiosks(true);
     try {
       const [kioskRes, categoriesRes] = await Promise.all([
         fetch(`/api/kiosk-instances?masjidId=${masjidId}`),
         fetch(`/api/donation-categories?masjidId=${masjidId}`),
       ]);
-      if (!kioskRes.ok) throw new Error("Failed to fetch kiosks");
-      if (!categoriesRes.ok) throw new Error("Failed to fetch donation categories");
+      if (!kioskRes.ok) {
+        const message = await kioskRes.text();
+        throw new Error(message || "Failed to fetch kiosks");
+      }
+      if (!categoriesRes.ok) {
+        const message = await categoriesRes.text();
+        throw new Error(message || "Failed to fetch donation categories");
+      }
 
       const [kioskData, categoriesData] = await Promise.all([
         kioskRes.json(),
@@ -65,10 +94,16 @@ export default function KioskDashboardPage() {
 
       setDonationCategories(categoriesData);
       setKiosks(kioskData);
+    } catch (error) {
+      toast({
+        title: "Unable to load kiosk data",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoadingKiosks(false);
     }
-  };
+  }, [masjidId]);
 
   // Handler to copy config from another kiosk
   const handleCopyConfig = (kioskId: string) => {
@@ -87,7 +122,7 @@ export default function KioskDashboardPage() {
 
   // Configure Kiosk validation
   const validateConfigForm = () => {
-    const errors: any = {};
+    const errors: ConfigErrors = {};
     if (!configureKiosk?.layout) errors.layout = "Layout is required.";
     if (!configureKiosk?.color) errors.color = "Color is required.";
     if (!configureKiosk?.timeout) errors.timeout = "Timeout is required.";
@@ -113,15 +148,19 @@ export default function KioskDashboardPage() {
           categories: configureKiosk.categories,
         } }),
       });
-      if (!res.ok) throw new Error("Failed to save config");
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.message || "Failed to save config");
+      }
       toast({ title: "Kiosk configuration saved!", description: "Kiosk settings updated successfully." });
       setConfigureKiosk(null);
-      // Optionally refresh kiosks
-      fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
-        .then((res) => res.json())
-        .then((data) => setKiosks(data));
+      await fetchData();
     } catch (err) {
-      toast({ title: "Error", description: "Failed to save kiosk config", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to save kiosk config",
+        variant: "destructive",
+      });
     } finally {
       setSavingConfig(false);
     }
@@ -139,7 +178,7 @@ export default function KioskDashboardPage() {
         description: `${action} command sent to kiosk. This may take a few moments to complete.`,
       });
       setQuickActionsOpen(null);
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to perform action. Please try again.",
@@ -149,6 +188,19 @@ export default function KioskDashboardPage() {
       setPerformingAction(false);
     }
   };
+
+  if (!masjidId) {
+    return (
+      <div className="max-w-2xl mx-auto mt-20 bg-white border border-[#550C18]/10 rounded-2xl p-8 text-center shadow-sm">
+        <h2 className="text-2xl font-semibold text-[#550C18] mb-2">
+          Select a Masjid
+        </h2>
+        <p className="text-[#3A3A3A]/70">
+          Choose a masjid to manage kiosk devices.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -171,9 +223,7 @@ export default function KioskDashboardPage() {
               className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
               onClick={() => {
                 setIsRefreshing(true);
-                fetch(`/api/kiosk-instances?masjidId=${masjidId}`)
-                  .then((res) => res.json())
-                  .then((data) => setKiosks(data))
+                fetchData()
                   .finally(() => setIsRefreshing(false));
               }}
               disabled={isRefreshing}
@@ -212,7 +262,7 @@ export default function KioskDashboardPage() {
                   <tbody>
                     {kiosks.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="text-center py-8 text-[#3A3A3A]/70">No kiosks found for this masjid.</td>
+                        <td colSpan={6} className="text-center py-8 text-[#3A3A3A]/70">No kiosks found for this masjid.</td>
                       </tr>
                     ) : (
                       kiosks.map((kiosk) => (
@@ -242,7 +292,6 @@ export default function KioskDashboardPage() {
                               Configure
                             </Button>
                             <Button size="sm" variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/10" onClick={() => setQuickActionsOpen(kiosk.id)}>Quick Actions</Button>
-                            <Button size="sm" variant="outline" className="border-red-200 text-red-600 hover:bg-red-50">Remove</Button>
                           </td>
                         </tr>
                       ))
@@ -362,7 +411,7 @@ export default function KioskDashboardPage() {
                               ...configureKiosk,
                               categories: checked
                                 ? [...(configureKiosk.categories || []), category.id]
-                                : (configureKiosk.categories || []).filter((id: any) => id !== category.id),
+                                : (configureKiosk.categories || []).filter((id) => id !== category.id),
                             });
                           }}
                         />
@@ -405,7 +454,7 @@ export default function KioskDashboardPage() {
               <DialogHeader>
                 <DialogTitle>Quick Actions</DialogTitle>
                 <DialogDescription>
-                  Perform quick actions on {kiosks.find(k => k.id === quickActionsOpen)?.name || "this kiosk"}
+                  Perform quick actions on {kiosks.find((k) => k.id === quickActionsOpen)?.name || "this kiosk"}
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">

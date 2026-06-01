@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserMasjid } from "@/lib/actions/masjid";
+import { publishRealtimeUpdate } from "@/lib/realtime/publish";
 
 export async function GET(
   req: NextRequest,
@@ -60,6 +61,12 @@ export async function POST(
       },
       update: { config },
       create: { masjidId: id, displayId: displayId || null, config },
+    });
+    await publishRealtimeUpdate({
+      masjidId: id,
+      deviceId: displayId,
+      type: "content_update",
+      reason: "signage_config_saved",
     });
     return NextResponse.json(signageConfig.config);
   } catch {

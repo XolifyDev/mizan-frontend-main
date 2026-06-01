@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { syncEventToGoogleCalendar } from "@/lib/actions/google-calendar";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(
   request: Request,
@@ -7,6 +9,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const { syncEventToGoogleCalendar } = await import("@/lib/actions/google-calendar");
     await syncEventToGoogleCalendar(id);
     return NextResponse.json({ success: true });
   } catch (error) {

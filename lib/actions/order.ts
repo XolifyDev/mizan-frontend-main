@@ -89,7 +89,6 @@ export const getAllOrders = async () => {
 
 export async function getOrderById(id: string) {
   try {
-    console.log('Fetching order with ID 123:', id);
     const order = await prisma.orders.findFirst({
       where: {
         id: id
@@ -99,8 +98,6 @@ export async function getOrderById(id: string) {
         user: true,
       },
     });
-    
-    console.log('Order found:', order ? 'yes' : 'no');
     if (!order) return null;
     const access = await requireMasjidAccess(order.masjidId);
     if (!access) {

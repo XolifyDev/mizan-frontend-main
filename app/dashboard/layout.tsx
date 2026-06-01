@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
@@ -13,7 +13,6 @@ import {
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
@@ -23,7 +22,7 @@ import { CreateMasjidForm } from "@/components/dashboard/create-masjid-form";
 import { ProgressProvider } from "@bprogress/next/app";
 import { Toaster } from "@/components/ui/toaster";
 import DashboardSidebar from "@/components/DashboardSidebar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { canAccessPath } from "@/lib/permissions";
 
 export default function DashboardLayout({
@@ -42,31 +41,39 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if(isPending) return;
-    if(!isPending && !session) return router.push("/signin?message=You need to login to access this page!");
+    if (isPending) return;
+    if (!session) router.push("/signin?message=You need to login to access this page!");
   }, [isPending, session, router]); 
 
-  useEffect(() => {
-    const fetchMasjid = async () => {
-      if(isPending || !session) return;
-      const userMasjid = await getUserMasjid(masjidId || "");
+  const searchParamsString = searchParams.toString();
 
-      if (!userMasjid || userMasjid.error) {
-        setMasjid(null);
-        setShowAddMasjidModal(true);
-        setMasjidCreationStep(1);
-        setLoadingMasjid(false);
-        return;
-      }
-      setMasjid(userMasjid as Masjid);
-      const params = new URLSearchParams(searchParams);
-      params.set("masjidId", userMasjid?.id || "");
-      window.history.pushState(null, "", `?${params.toString()}`);
+  const fetchMasjid = useCallback(async () => {
+    if (isPending || !session) return;
+
+    setLoadingMasjid(true);
+    const userMasjid = await getUserMasjid(masjidId || "");
+
+    if (!userMasjid || ("error" in userMasjid && userMasjid.error)) {
+      setMasjid(null);
+      setShowAddMasjidModal(true);
+      setMasjidCreationStep(1);
       setLoadingMasjid(false);
-    };
+      return;
+    }
 
-    fetchMasjid();
-  }, [isPending, pathname, masjidId]);
+    setMasjid(userMasjid as Masjid);
+    const params = new URLSearchParams(searchParamsString);
+    if (userMasjid.id && params.get("masjidId") !== userMasjid.id) {
+      params.set("masjidId", userMasjid.id);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+    setLoadingMasjid(false);
+  }, [isPending, session, masjidId, searchParamsString, pathname, router]);
+
+  useEffect(() => {
+    void fetchMasjid();
+  }, [fetchMasjid]);
+
   if (isPending || loadingMasjid)
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -76,12 +83,15 @@ export default function DashboardLayout({
       </div>
     );
 
-  if(!session) return <>Loading...</>
-  const isAllowed = canAccessPath(pathname, {
+  const permissionContext = {
     role: session?.user?.role,
     isOwner: masjid?.ownerId === session?.user?.id,
     isAdmin: session?.user?.admin,
-  });
+  };
+
+  if(!session) return <>Loading...</>
+
+  const isAllowed = canAccessPath(pathname, permissionContext);
   return (
     <>
       <ProgressProvider
@@ -93,7 +103,6 @@ export default function DashboardLayout({
         <Toaster />
         {masjid ? (
           <Dialog open={showAddMasjidModal} onOpenChange={setShowAddMasjidModal}>
-            <DialogTrigger>Open</DialogTrigger>
             {masjidCreatedStep === 1 && (
               <DialogContent>
                 <CreateMasjidForm
@@ -141,7 +150,6 @@ export default function DashboardLayout({
           </Dialog>
         ) : (
           <AlertDialog open={showAddMasjidModal} onOpenChange={setShowAddMasjidModal}>
-            <AlertDialogTrigger>Open</AlertDialogTrigger>
             {masjidCreatedStep === 1 && (
               <AlertDialogContent className="p-0 border-none">
                 <CreateMasjidForm

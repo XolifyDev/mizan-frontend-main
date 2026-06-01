@@ -131,7 +131,6 @@ function CheckoutForm() {
         const details = await getPaymentAndOrder(paymentIntentId);
         if(!details) return;
         setOrderData(details)
-        console.log(details);
       };
       setTimeout(() => {
         clearCart();

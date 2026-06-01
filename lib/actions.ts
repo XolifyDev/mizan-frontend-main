@@ -14,6 +14,7 @@ export async function loginUser({
     password: string,
     rememberMe: boolean
 }) {
+  void rememberMe;
   try {
     const user = await auth.api.signInEmail({
       body: {
@@ -23,14 +24,23 @@ export async function loginUser({
     });
     revalidatePath("/", "layout");
     revalidatePath("/dashboard", "layout");
-    return user;
-  } catch (err: any) {
-    console.log(err, typeof err); 
     return {
-      statusCode: err.statusCode,
-      status: err.status,
-      message: err.message,
-      error: err.error
+      success: true as const,
+      data: user,
+    };
+  } catch (err: unknown) {
+    const authError = err as {
+      statusCode?: number;
+      status?: number;
+      message?: string;
+      error?: string;
+    };
+    return {
+      success: false as const,
+      statusCode: authError?.statusCode,
+      status: authError?.status,
+      message: authError?.message || "Unable to sign in.",
+      error: authError?.error,
     };
   }
 }
@@ -48,6 +58,8 @@ export async function registerUser({
     confirmPassword: string;
     termsAndConditions: boolean;
 }) {
+  void confirmPassword;
+  void termsAndConditions;
   try {
     const user = await auth.api.signUpEmail({
       body: {

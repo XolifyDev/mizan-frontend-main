@@ -1,37 +1,18 @@
 let userConfig = undefined
 try {
   userConfig = await import('./v0-user-next.config')
-} catch (e) {
+} catch {
   // ignore error
 }
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack: (config, { isServer }) => {
+  reactStrictMode: true,
+  webpack: (config) => {
     // Mark esbuild as an external module, so it's not bundled.
     // This is the correct way to handle packages with native bindings.
     config.externals.push('esbuild');
-    
-    // Optimize bundle splitting
-    if (!isServer) {
-      config.optimization.splitChunks = {
-        chunks: 'all',
-        cacheGroups: {
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendors',
-            chunks: 'all',
-          },
-          common: {
-            name: 'common',
-            minChunks: 2,
-            chunks: 'all',
-            enforce: true,
-          },
-        },
-      };
-    }
-    
+
     return config;
   },
   eslint: {
@@ -41,8 +22,17 @@ const nextConfig = {
     ignoreBuildErrors: true, // Skip type errors during CI builds
   },
   images: {
-    unoptimized: true,
-    domains: ['localhost', 'vercel.app'],
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+      },
+    ],
   },
   experimental: {
     webpackBuildWorker: true,

@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  Users,
-  Search,
-  Filter,
-  Edit,
-  Trash,
-  Eye,
-  Mail,
-  UserPlus,
+  ArrowRight,
   ChevronDown,
+  Filter,
+  Mail,
+  Search,
   UserMinus,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,57 +35,107 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getUsersByMasjid } from "@/lib/actions/user";
 import { useRouter, useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { filterSearchUsers } from "@/lib/actions/user";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { declineMasjidInvite, getPendingInvites, inviteUserToMasjid, removeUserFromMasjid } from "@/lib/actions/masjid";
+import {
+  declineMasjidInvite,
+  getPendingInvites,
+  inviteUserToMasjid,
+  removeUserFromMasjid,
+} from "@/lib/actions/masjid";
 import { toast } from "@/hooks/use-toast";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+type SearchResultUser = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+};
+
+type MasjidInviteRecord = {
+  masjidId: string;
+  joinDate?: Date | string | null;
+};
+
+type MasjidUser = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role?: string | null;
+  admin?: boolean | null;
+  masjidInvites: MasjidInviteRecord[];
+};
+
+type PendingInvite = {
+  id: string;
+  token: string;
+  expiresAt: Date | string;
+  status: string;
+  invitedBy: {
+    name: string;
+  };
+};
+
+const roleLabelMap: Record<string, string> = {
+  mosque_admin: "Mosque Admin",
+  content: "Content",
+  timings: "Timings",
+  donations: "Donations",
+  user: "Member",
+};
+
+const roleToneMap: Record<string, string> = {
+  mosque_admin:
+    "bg-[#550C18] text-white hover:bg-[#550C18]",
+  content:
+    "bg-[#550C18]/10 text-[#550C18] hover:bg-[#550C18]/10",
+  timings:
+    "bg-[#F7EEE5] text-[#8A5A12] hover:bg-[#F7EEE5]",
+  donations:
+    "bg-[#EEF7F2] text-[#0F6A4B] hover:bg-[#EEF7F2]",
+  user:
+    "bg-slate-100 text-slate-700 hover:bg-slate-100",
+};
 
 export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [emailQuery, setEmailQuery] = useState("");
   const masjidId = useSearchParams().get("masjidId");
   const { data: session } = authClient.useSession();
-  const [users, setUsers] = useState<any[]>([]);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [users, setUsers] = useState<MasjidUser[]>([]);
+  const [selectedUser, setSelectedUser] = useState<SearchResultUser | null>(null);
+  const [searchResults, setSearchResults] = useState<SearchResultUser[]>([]);
   const [showUsers, setShowUsers] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [decliningLoading, setDecliningLoading] = useState(false);
   const [removingLoading, setRemovingLoading] = useState(false);
   const router = useRouter();
   const [removeUserModal, setRemoveUserModal] = useState(false);
   const [inviteUserModal, setInviteUserModal] = useState(false);
   const [pendingInvitesModal, setPendingInvitesModal] = useState(false);
-  
-  const fetchUsers = async () => {
-    const users = await getUsersByMasjid(masjidId as string, session.user.id);
-    setUsers(users);
-    console.log(users);
-    const pendingInvites = await getPendingInvites(masjidId as string);
-    setPendingInvites(pendingInvites);
-  }
+
+  const fetchUsers = useCallback(async () => {
+    if (!masjidId || !session?.user?.id) return;
+
+    const users = await getUsersByMasjid(masjidId, session.user.id);
+    setUsers(users as MasjidUser[]);
+    const pendingInvites = await getPendingInvites(masjidId);
+    setPendingInvites(pendingInvites as PendingInvite[]);
+  }, [masjidId, session?.user?.id]);
+
   useEffect(() => {
-    if (!session) return;
     fetchUsers();
-  }, [masjidId, session]);
-
-  // Handle clicks outside the component to close suggestions
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setShowUsers(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
-
+  }, [fetchUsers]);
 
   const handleSearchUsers = async (value: string) => {
     if (!value || value.length < 3) {
@@ -181,163 +228,178 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-[#550C18]">Users</h2>
-          <p className="text-[#3A3A3A]/70">
-            Manage user accounts and permissions
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Dialog open={inviteUserModal} onOpenChange={setInviteUserModal}>
-            <DialogTrigger asChild>
-            <Button
-              variant="outline"
-              className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Invite Users
-            </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[525px]">
-              <DialogHeader>
-                <DialogTitle>Invite User</DialogTitle>
-                <DialogDescription>
-                  Invite a user to join your masjid management
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-2">
-                <Label htmlFor="user-email">Email</Label>
-                <Popover open={showUsers} onOpenChange={setShowUsers}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full">
-                      {selectedUser && <div className="flex flex-row justify-between w-full items-center">
-                        <span>{selectedUser.email}</span>
-
-                        <ChevronDown className="h-4 w-4" />
-                      </div> || (
-                        <div className="flex flex-row w-full justify-between items-center">
-                          Enter email address
-                          <ChevronDown className="h-4 w-4" />
-                        </div>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command>
-                      <CommandInput 
-                        id="user-email"
-                        placeholder="Enter email address"
-                        value={emailQuery}
-                        onValueChange={(value) => {
-                          setEmailQuery(value);
-                          if (!value) {
-                            setShowUsers(false);
-                          } else {
-                            setShowUsers(true);
-                          }
-                          handleSearchUsers(value);
-                        }}
-                        className="h-9"
-                      />
-                      <CommandList>
-                        <CommandEmpty>No users found.</CommandEmpty>
-                        <CommandGroup>
-                          {searchResults.map(user => (
-                            <CommandItem
-                              key={user.id}
-                              value={user.email}
-                              onSelect={() => {
-                                setSelectedUser(user);
-                                setShowUsers(false);
-                              }}
-                            >
-                              <div className="flex items-center">
-                                <span>{user.email}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <DialogFooter>
+      <section className="rounded-[32px] border border-[#550C18]/10 bg-[linear-gradient(135deg,rgba(85,12,24,0.08),rgba(255,255,255,1)_42%,rgba(85,12,24,0.03))] p-6 shadow-[0_30px_80px_-56px_rgba(85,12,24,0.55)] md:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <Badge className="border border-[#550C18]/10 bg-white/80 text-[#550C18] hover:bg-white">
+              User Access
+            </Badge>
+            <h1 className="mt-4 text-3xl font-semibold tracking-tight text-[#2e0c12] md:text-4xl">
+              Keep the team organized without giving everyone the whole dashboard.
+            </h1>
+            <p className="mt-3 text-base text-[#6d5560] md:text-lg">
+              Invite the right people, review pending access, and keep permissions aligned with
+              real responsibilities inside the masjid.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Dialog open={pendingInvitesModal} onOpenChange={setPendingInvitesModal}>
+              <DialogTrigger asChild>
                 <Button
-                  onClick={handleInviteUser}
-                  className="bg-[#550C18] hover:bg-[#78001A] text-white"
+                  variant="outline"
+                  className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
                 >
-                  Invite User
+                  <Mail className="mr-2 h-4 w-4" />
+                  Pending Invites
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog open={pendingInvitesModal} onOpenChange={setPendingInvitesModal}>
-            <DialogTrigger asChild>
-              <Button
-                variant="outline"
-                className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                Pending Invites
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Pending Invites</DialogTitle>
-                <DialogDescription>View all pending invites sent to users</DialogDescription>
-              </DialogHeader>
-              <hr className="border-[#550C18]/40 shadow-sm shadow-[#550C18]/40" />
-              <div className="space-y-4">
-                {pendingInvites.map((invite) => {
-                  const isExpired = new Date(invite.expiresAt) < new Date();
-                  const isDeclined = invite.status === "declined";
-                  const isDisabled = isExpired || isDeclined;
-                  
-                  return (
-                    <div 
-                      key={invite.token}
-                      className={cn(
-                        "p-4 rounded-lg border",
-                        isDisabled ? "opacity-50 bg-gray-100" : "border-[#550C18]/40"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{invite.invitedBy.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {isExpired ? "Expired" : isDeclined ? "Declined" : "Pending"}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-3">
-                          <p className="text-sm text-gray-500">
-                            Expires: {new Date(invite.expiresAt).toLocaleDateString()}
-                          </p>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className={cn(
-                              "h-8 w-8 p-0 ml-auto hover:bg-red-800 hover:text-white border-red-800",
-                              decliningLoading && "opacity-50 cursor-not-allowed"
-                            )}
-                            onClick={() => handleDeclineInvite(invite.id)}
-                            disabled={decliningLoading}
-                          >
-                            <Trash className="h-4 w-4" />
-                          </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Pending Invites</DialogTitle>
+                  <DialogDescription>View all pending invites sent to users</DialogDescription>
+                </DialogHeader>
+                <hr className="border-[#550C18]/40 shadow-sm shadow-[#550C18]/40" />
+                <div className="space-y-4">
+                  {pendingInvites.map((invite) => {
+                    const isExpired = new Date(invite.expiresAt) < new Date();
+                    const isDeclined = invite.status === "declined";
+                    const isDisabled = isExpired || isDeclined;
+
+                    return (
+                      <div
+                        key={invite.token}
+                        className={cn(
+                          "rounded-lg border p-4",
+                          isDisabled ? "bg-gray-100 opacity-50" : "border-[#550C18]/40"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">{invite.invitedBy.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {isExpired ? "Expired" : isDeclined ? "Declined" : "Pending"}
+                            </p>
+                          </div>
+                          <div className="flex flex-col gap-3">
+                            <p className="text-sm text-gray-500">
+                              Expires: {new Date(invite.expiresAt).toLocaleDateString()}
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className={cn(
+                                "ml-auto h-8 w-8 border-red-800 p-0 hover:bg-red-800 hover:text-white",
+                                decliningLoading && "cursor-not-allowed opacity-50"
+                              )}
+                              onClick={() => handleDeclineInvite(invite.id)}
+                              disabled={decliningLoading}
+                            >
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-                {pendingInvites.length === 0 && (
-                  <p className="text-center text-gray-500 mt-3 mb-3">No pending invites</p>
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
+                    );
+                  })}
+                  {pendingInvites.length === 0 && (
+                    <p className="mb-3 mt-3 text-center text-gray-500">No pending invites</p>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog open={inviteUserModal} onOpenChange={setInviteUserModal}>
+              <DialogTrigger asChild>
+                <Button className="bg-[#550C18] text-white hover:bg-[#6a1220]">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Invite User
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[525px]">
+                <DialogHeader>
+                  <DialogTitle>Invite User</DialogTitle>
+                  <DialogDescription>
+                    Invite a user to join your masjid management
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-2">
+                  <Label htmlFor="user-email">Email</Label>
+                  <Popover open={showUsers} onOpenChange={setShowUsers}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        {selectedUser ? (
+                          <div className="flex w-full items-center justify-between">
+                            <span>{selectedUser.email}</span>
+                            <ChevronDown className="h-4 w-4" />
+                          </div>
+                        ) : (
+                          <div className="flex w-full items-center justify-between">
+                            Enter email address
+                            <ChevronDown className="h-4 w-4" />
+                          </div>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                      <Command>
+                        <CommandInput
+                          id="user-email"
+                          placeholder="Enter email address"
+                          value={emailQuery}
+                          onValueChange={(value) => {
+                            setEmailQuery(value);
+                            setShowUsers(Boolean(value));
+                            handleSearchUsers(value);
+                          }}
+                          className="h-9"
+                        />
+                        <CommandList>
+                          <CommandEmpty>No users found.</CommandEmpty>
+                          <CommandGroup>
+                            {searchResults.map((user) => (
+                              <CommandItem
+                                key={user.id}
+                                value={user.email}
+                                onSelect={() => {
+                                  setSelectedUser(user);
+                                  setShowUsers(false);
+                                }}
+                              >
+                                <div className="flex items-center">
+                                  <span>{user.email}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleInviteUser}
+                    className="bg-[#550C18] hover:bg-[#78001A] text-white"
+                  >
+                    Invite User
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+      </section>
+
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-[#550C18]">People & Permissions</h2>
+          <p className="text-[#3A3A3A]/70">
+            Review roles, search members, and keep access scoped correctly.
+          </p>
+        </div>
+        <Badge variant="outline" className="w-fit border-[#550C18]/15 px-3 py-1 text-[#550C18]">
+          Focused roles. Cleaner operations.
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-center">
@@ -371,6 +433,29 @@ export default function UsersPage() {
               {pendingInvites.length}
             </div>
             <p className="text-xs text-[#3A3A3A]/70 mt-1">Number of pending invites</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white border-[#550C18]/10 hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-medium text-[#3A3A3A]">
+              Role Coverage
+            </CardTitle>
+            <CardDescription className="text-[#3A3A3A]/70">
+              Make sure every workflow has a clear owner
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {["mosque_admin", "content", "timings", "donations"].map((role) => (
+                <Badge key={role} className={roleToneMap[role]}>
+                  {roleLabelMap[role]}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-sm text-[#6d5560]">
+              Roles now map directly to operational responsibility instead of broad access.
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -432,15 +517,27 @@ export default function UsersPage() {
                       </p>
                       <p className="text-xs text-[#3A3A3A]/70">
                         Since {user.masjidInvites
-                          .filter((invite: any) => invite.masjidId === masjidId)
-                          .sort((a: any, b: any) => new Date(b.joinDate).getTime() - new Date(a.joinDate).getTime())[0]
+                          .filter((invite: MasjidInviteRecord) => invite.masjidId === masjidId)
+                          .sort(
+                            (a: MasjidInviteRecord, b: MasjidInviteRecord) =>
+                              new Date(b.joinDate || 0).getTime() - new Date(a.joinDate || 0).getTime()
+                          )[0]
                           ?.joinDate.toLocaleDateString() || "N/A"}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-col justify-center">
                     <p className="text-sm text-[#3A3A3A]">{user.email}</p>
-                    <p className="text-xs text-[#3A3A3A]/70">{user.phone}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <Badge className={roleToneMap[user.role] || roleToneMap.user}>
+                        {roleLabelMap[user.role] || "Member"}
+                      </Badge>
+                      {user.admin && (
+                        <Badge variant="outline" className="border-[#550C18]/15 text-[#550C18]">
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Dialog open={removeUserModal} onOpenChange={setRemoveUserModal}>
@@ -501,6 +598,14 @@ export default function UsersPage() {
                   No users match your search criteria. Try adjusting your
                   search.
                 </p>
+                <Button
+                  variant="outline"
+                  className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+                  onClick={() => setSearchQuery("")}
+                >
+                  Reset Search
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </div>
             )}
           </div>

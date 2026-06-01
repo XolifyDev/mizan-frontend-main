@@ -1,6 +1,61 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserMasjid } from "@/lib/actions/masjid";
+import { z } from "zod";
+
+const donationCategorySchema = z.object({
+  masjidId: z.string().min(1),
+  name: z.string().trim().min(1, "Category name is required"),
+  description: z.string().optional().nullable(),
+  subtitle: z.string().optional().nullable(),
+  color: z.string().default("#550C18"),
+  icon: z.string().optional().nullable(),
+  logo: z.string().optional().nullable(),
+  featured: z.boolean().default(false),
+  featuredImage: z.string().optional().nullable(),
+  showOnKiosk: z.boolean().default(true),
+  excludeFromReceipts: z.boolean().default(false),
+  allowPledge: z.boolean().default(false),
+  quickDonate: z.boolean().default(false),
+  hideTitle: z.boolean().default(false),
+  showLogo: z.boolean().default(true),
+  headerBgColor: z.string().optional().nullable(),
+  allowComments: z.boolean().default(false),
+  goalAmount: z.coerce.number().int().nullable().optional(),
+  enableAppleGooglePay: z.boolean().default(false),
+  intervals: z.array(z.string()).default([]),
+  defaultInterval: z.string().optional().nullable(),
+  defaultAmounts: z.string().optional().nullable(),
+  recurringCountOptions: z.array(z.coerce.number().int()).default([]),
+  ctaMessage: z.string().optional().nullable(),
+  designations: z.array(z.string()).default([]),
+  amountsPerInterval: z.record(z.string(), z.array(z.coerce.number())).optional().nullable(),
+  allowCustomAmount: z.boolean().default(true),
+  min: z.coerce.number().int().default(1),
+  max: z.coerce.number().int().default(10000),
+  enforceMax: z.boolean().default(false),
+  coverFee: z.boolean().default(false),
+  coverFeeDefault: z.boolean().default(false),
+  customLabel: z.string().optional().nullable(),
+  complianceText: z.string().optional().nullable(),
+  allowAnonymous: z.boolean().default(false),
+  collectAddress: z.boolean().default(false),
+  collectPhone: z.boolean().default(false),
+  mailingListOptIn: z.boolean().default(false),
+  appreciation: z.string().optional().nullable(),
+  redirectUrl: z.string().optional().nullable(),
+  restricted: z.boolean().default(false),
+  active: z.boolean().default(true),
+  order: z.coerce.number().int().default(0),
+});
+
+const donationCategoryPatchSchema = donationCategorySchema.partial().extend({
+  id: z.string().min(1),
+});
+
+function validationErrorResponse(message: string) {
+  return NextResponse.json({ error: "Validation error", message }, { status: 400 });
+}
 
 export async function GET(req: Request) {
   try {
@@ -49,51 +104,15 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const parsed = donationCategorySchema.safeParse(body);
+    if (!parsed.success) {
+      return validationErrorResponse(parsed.error.issues[0]?.message || "Invalid donation category data");
+    }
+
     const {
       masjidId,
-      name,
-      description,
-      subtitle,
-      color,
-      icon,
-      logo,
-      featured,
-      featuredImage,
-      showOnKiosk,
-      excludeFromReceipts,
-      allowPledge,
-      quickDonate,
-      hideTitle,
-      showLogo,
-      headerBgColor,
-      allowComments,
-      goalAmount,
-      enableAppleGooglePay,
-      intervals,
-      defaultInterval,
-      defaultAmounts,
-      recurringCountOptions,
-      ctaMessage,
-      designations,
-      amountsPerInterval,
-      allowCustomAmount,
-      min,
-      max,
-      enforceMax,
-      coverFee,
-      coverFeeDefault,
-      customLabel,
-      complianceText,
-      allowAnonymous,
-      collectAddress,
-      collectPhone,
-      mailingListOptIn,
-      appreciation,
-      redirectUrl,
-      restricted,
-      active,
-      order
-    } = body;
+      ...categoryData
+    } = parsed.data;
 
     if (!masjidId) {
       return new NextResponse("Missing masjidId", { status: 400 });
@@ -105,48 +124,7 @@ export async function POST(req: Request) {
 
     const category = await prisma.donationCategory.create({
       data: {
-        name,
-        description,
-        subtitle,
-        color,
-        icon,
-        logo,
-        featured,
-        featuredImage,
-        showOnKiosk,
-        excludeFromReceipts,
-        allowPledge,
-        quickDonate,
-        hideTitle,
-        showLogo,
-        headerBgColor,
-        allowComments,
-        goalAmount,
-        enableAppleGooglePay,
-        intervals,
-        defaultInterval,
-        recurringCountOptions,
-        ctaMessage,
-        designations,
-        amountsPerInterval,
-        allowCustomAmount,
-        min,
-        max,
-        enforceMax,
-        coverFee,
-        coverFeeDefault,
-        customLabel,
-        complianceText,
-        allowAnonymous,
-        collectAddress,
-        collectPhone,
-        mailingListOptIn,
-        appreciation,
-        redirectUrl,
-        restricted,
-        active,
-        order,
-        defaultAmounts,
+        ...categoryData,
         masjidId,
       },
     });
@@ -160,7 +138,12 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, ...data } = body;
+    const parsed = donationCategoryPatchSchema.safeParse(body);
+    if (!parsed.success) {
+      return validationErrorResponse(parsed.error.issues[0]?.message || "Invalid donation category update");
+    }
+
+    const { id, ...data } = parsed.data;
     if (!id) return new NextResponse("Missing id", { status: 400 });
 
     const existing = await prisma.donationCategory.findUnique({

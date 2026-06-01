@@ -13,7 +13,9 @@ export function PerformanceMonitor() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || process.env.NODE_ENV !== "development") {
+      return;
+    }
 
     const measurePerformance = () => {
       const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
@@ -22,7 +24,11 @@ export function PerformanceMonitor() {
       const loadTime = navigation.loadEventEnd - navigation.loadEventStart;
       const renderTime = paint.find(entry => entry.name === "first-contentful-paint")?.startTime || 0;
       
-      const memoryInfo = (performance as any).memory;
+      const memoryInfo = (performance as Performance & {
+        memory?: {
+          usedJSHeapSize: number;
+        };
+      }).memory;
       const memoryUsage = memoryInfo ? memoryInfo.usedJSHeapSize / 1024 / 1024 : undefined;
 
       setMetrics({

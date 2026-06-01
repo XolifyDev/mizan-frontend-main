@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { ContentType } from "@prisma/client";
 import { getUserMasjid } from "./masjid";
+import { publishRealtimeUpdate } from "@/lib/realtime/publish";
 
 async function requireMasjidAccess(masjidId?: string) {
   if (!masjidId) return null;
@@ -46,7 +47,13 @@ export const getContentById = async (id: string) => {
 export const createContent = async (data: any) => {
   const access = await requireMasjidAccess(data?.masjidId);
   if (!access) return null;
-  return prisma.content.create({ data });
+  const created = await prisma.content.create({ data });
+  await publishRealtimeUpdate({
+    masjidId: created.masjidId,
+    type: "content_update",
+    reason: "content_created",
+  });
+  return created;
 };
 
 export const updateContent = async (id: string, data: any) => {
@@ -57,7 +64,13 @@ export const updateContent = async (id: string, data: any) => {
   if (!existing) return null;
   const access = await requireMasjidAccess(existing.masjidId);
   if (!access) return null;
-  return prisma.content.update({ where: { id }, data });
+  const updated = await prisma.content.update({ where: { id }, data });
+  await publishRealtimeUpdate({
+    masjidId: existing.masjidId,
+    type: "content_update",
+    reason: "content_updated",
+  });
+  return updated;
 };
 
 export const deleteContent = async (id: string) => {
@@ -68,7 +81,13 @@ export const deleteContent = async (id: string) => {
   if (!existing) return null;
   const access = await requireMasjidAccess(existing.masjidId);
   if (!access) return null;
-  return prisma.content.delete({ where: { id } });
+  const deleted = await prisma.content.delete({ where: { id } });
+  await publishRealtimeUpdate({
+    masjidId: existing.masjidId,
+    type: "content_update",
+    reason: "content_deleted",
+  });
+  return deleted;
 };
 
 export const createAnnouncement = async (data: {
@@ -86,7 +105,7 @@ export const createAnnouncement = async (data: {
 }) => {
   const access = await requireMasjidAccess(data.masjidId);
   if (!access) return null;
-  return prisma.announcement.create({
+  const created = await prisma.announcement.create({
     data: {
       masjidId: data.masjidId,
       title: data.title,
@@ -101,6 +120,12 @@ export const createAnnouncement = async (data: {
       fullscreen: data.fullscreen,
     },
   });
+  await publishRealtimeUpdate({
+    masjidId: created.masjidId,
+    type: "content_update",
+    reason: "announcement_created",
+  });
+  return created;
 };
 
 
@@ -125,7 +150,7 @@ export const createContentWithConfig = async (data: {
 }) => {
   const access = await requireMasjidAccess(data.masjidId);
   if (!access) return null;
-  return prisma.content.create({
+  const created = await prisma.content.create({
     data: {
       masjidId: data.masjidId,
       title: data.title,
@@ -148,4 +173,10 @@ export const createContentWithConfig = async (data: {
       timeType: data.timeType,
     },
   });
+  await publishRealtimeUpdate({
+    masjidId: created.masjidId,
+    type: "content_update",
+    reason: "content_created",
+  });
+  return created;
 }; 
