@@ -266,12 +266,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       name,
       adhan: formatTime(adhanTime, timezone),
       iqamah: iqamahDisplay,
-      current:
-        !!activeTime &&
-        now.getTime() >= new Date(activeTime).getTime() &&
-        (!nextPrayerTime || now.getTime() < new Date(nextPrayerTime).getTime()),
+      activeTime: activeTime ? new Date(activeTime).getTime() : null,
+      nextPrayerTime: nextPrayerTime ? new Date(nextPrayerTime).getTime() : null,
     };
   });
+
+  const activePrayerName =
+    [...prayerItems]
+      .filter((prayer) => prayer.activeTime !== null)
+      .filter((prayer) => now.getTime() >= (prayer.activeTime as number))
+      .sort((a, b) => (b.activeTime as number) - (a.activeTime as number))[0]?.name ?? null;
 
   const donationMap = new Map<string, number>();
   for (let i = 0; i < 7; i += 1) {
@@ -307,8 +311,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: withMasjid("/dashboard/prayer-times", masjidId),
       icon: Clock3,
       tone:
-        "bg-gradient-to-br from-[#550C18] via-[#6d1021] to-[#8a1830] text-white shadow-[0_24px_50px_-24px_rgba(85,12,24,0.8)]",
-      iconTone: "bg-white/10 text-white",
+        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-sm hover:border-[#550C18]/20",
+      iconTone: "bg-[#550C18]/8 text-[#550C18]",
     },
     {
       eyebrow: `${contentCount} active content items`,
@@ -316,7 +320,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: withMasjid("/dashboard/signage", masjidId),
       icon: Megaphone,
       tone:
-        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-[0_20px_45px_-30px_rgba(85,12,24,0.35)]",
+        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-sm hover:border-[#550C18]/20",
       iconTone: "bg-[#550C18]/8 text-[#550C18]",
     },
     {
@@ -325,17 +329,17 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       href: withMasjid("/dashboard/donations/categories", masjidId),
       icon: Wallet,
       tone:
-        "bg-gradient-to-br from-[#7b1528] via-[#8f1930] to-[#a2203a] text-white shadow-[0_24px_50px_-24px_rgba(122,21,40,0.8)]",
-      iconTone: "bg-white/10 text-white",
+        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-sm hover:border-[#550C18]/20",
+      iconTone: "bg-[#550C18]/8 text-[#550C18]",
     },
   ];
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[28px] border border-[#550C18]/10 bg-[linear-gradient(135deg,rgba(255,246,247,1)_0%,rgba(255,255,255,1)_42%,rgba(249,241,243,1)_100%)] p-6 shadow-[0_30px_80px_-55px_rgba(85,12,24,0.45)] md:p-8">
+      <section className="rounded-[28px] border border-[#550C18]/10 bg-white p-6 shadow-sm md:p-8">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <h1 className="text-1xl font-semibold tracking-tight text-[#2e0c12]">
+            <h1 className="text-2xl font-semibold tracking-tight text-[#2e0c12]">
               Dashboard Overview
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-[#6d5560] md:text-base">
@@ -356,7 +360,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         {actionCards.map((action) => (
           <Link key={action.title} href={action.href}>
             <Card
-              className={`overflow-hidden border-none rounded-[26px] ${action.tone} transition duration-200 hover:-translate-y-0.5`}
+              className={`overflow-hidden rounded-[22px] ${action.tone} transition duration-200 hover:-translate-y-0.5`}
             >
               <CardContent className="p-5">
                 <div
@@ -364,14 +368,14 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 >
                   <action.icon className="h-6 w-6" />
                 </div>
-                <p className="mt-6 text-sm font-medium opacity-75">
+                <p className="mt-6 text-sm font-medium text-[#6d5560]">
                   {action.eyebrow}
                 </p>
                 <div className="mt-1 flex items-end justify-between gap-4">
                   <h2 className="text-lg font-semibold leading-tight">
                     {action.title}
                   </h2>
-                  <ArrowUpRight className="h-5 w-5 shrink-0 opacity-70" />
+                  <ArrowUpRight className="h-5 w-5 shrink-0 text-[#8a6b74]" />
                 </div>
               </CardContent>
             </Card>
@@ -380,7 +384,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-sm">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -406,16 +410,16 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                 <div
                   key={prayer.name}
                   className={`rounded-2xl border px-4 py-3 transition ${
-                    prayer.current
-                      ? "border-[#550C18] bg-[#550C18] text-white shadow-[0_18px_40px_-25px_rgba(85,12,24,0.85)]"
-                      : "border-[#550C18]/8 bg-[#faf7f8] text-[#2e0c12]"
+                    prayer.name === activePrayerName
+                      ? "border-[#550C18]/20 bg-[#f7eff1] text-[#2e0c12]"
+                      : "border-[#550C18]/8 bg-[#fcfafb] text-[#2e0c12]"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-semibold">{prayer.name}</span>
-                      {prayer.current ? (
-                        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                      {prayer.name === activePrayerName ? (
+                        <span className="rounded-full bg-[#550C18]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#550C18]">
                           Current
                         </span>
                       ) : null}
@@ -424,7 +428,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                       <p className="text-lg font-semibold">{prayer.adhan}</p>
                       <p
                         className={`text-xs ${
-                          prayer.current ? "text-white/75" : "text-[#8a6b74]"
+                          "text-[#8a6b74]"
                         }`}
                       >
                         Iqamah: {prayer.iqamah}
@@ -437,7 +441,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-sm">
           <CardContent className="p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
@@ -459,7 +463,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
               </Button>
             </div>
 
-            <div className="mt-10 flex h-[320px] items-end justify-between gap-3 rounded-[24px] border border-dashed border-[#550C18]/10 bg-[linear-gradient(180deg,rgba(255,248,249,0.45)_0%,rgba(255,255,255,1)_100%)] px-3 pb-6 pt-10">
+            <div className="mt-10 flex h-[320px] items-end justify-between gap-3 rounded-[24px] border border-dashed border-[#550C18]/10 bg-[#fcfafb] px-3 pb-6 pt-10">
               {donationBars.map((item, index) => (
                 <div
                   key={item.day}
@@ -469,8 +473,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
                     <div
                       className={`mx-auto w-full rounded-full ${
                         index === donationBars.length - 2
-                          ? "bg-gradient-to-t from-[#550C18] to-[#8f1930]"
-                          : "bg-gradient-to-t from-[#7f2233] to-[#cfa1ad]"
+                          ? "bg-[#550C18]"
+                          : "bg-[#c9adb5]"
                       }`}
                       style={{
                         height: `${Math.max(

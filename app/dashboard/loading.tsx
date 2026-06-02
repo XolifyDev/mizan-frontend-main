@@ -1,10 +1,13 @@
 export default function Loading() {
   return (
-    <div className="min-h-screen -mt-16 flex items-center justify-center bg-white">
-      <div className="flex flex-col items-center">
-        <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
+    <div className="space-y-4 p-6 md:p-8">
+      <div className="h-20 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="h-32 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+        <div className="h-32 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+        <div className="h-32 rounded-3xl border border-[#550C18]/10 bg-white/90" />
       </div>
+      <div className="h-[420px] rounded-3xl border border-[#550C18]/10 bg-white/90" />
     </div>
-  ) 
+  )
 }
-

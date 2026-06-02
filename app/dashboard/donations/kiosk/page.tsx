@@ -64,12 +64,6 @@ export default function KioskDashboardPage() {
   const [quickActionsOpen, setQuickActionsOpen] = useState<string | null>(null);
   const [performingAction, setPerformingAction] = useState(false);
 
-  useEffect(() => {
-    if (masjidId) {
-      void fetchData();
-    }
-  }, [fetchData, masjidId]);
-
   // Fetch kiosks with loading skeleton
   const fetchData = useCallback(async () => {
     setLoadingKiosks(true);
@@ -104,6 +98,12 @@ export default function KioskDashboardPage() {
       setLoadingKiosks(false);
     }
   }, [masjidId]);
+
+  useEffect(() => {
+    if (masjidId) {
+      void fetchData();
+    }
+  }, [fetchData, masjidId]);
 
   // Handler to copy config from another kiosk
   const handleCopyConfig = (kioskId: string) => {

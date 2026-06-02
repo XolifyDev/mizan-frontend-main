@@ -24,13 +24,14 @@ export default function PrayerTimesClient() {
   const [iqamahTimings, setIqamahTimings] = useState<IqamahTiming[]>([])
   const [calculationSettings, setCalculationSettings] = useState<PrayerCalculation | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hasLoaded, setHasLoaded] = useState(false)
   const [openAddDialog, setOpenAddDialog] = useState(false)
   const [openBulkDialog, setOpenBulkDialog] = useState(false)
   const { toast } = useToast()
   const [monthlyTimings, setMonthlyTimings] = useState<PrayerTime[]>([])
   const [allPrayerTimings, setAllPrayerTimings] = useState<PrayerTime[]>([])
   const [hasMonthlyTimings, setHasMonthlyTimings] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState<string>(
+  const [currentMonth] = useState<string>(
     new Date().toLocaleString("default", { month: "long", year: "numeric" }),
   )
   const [masjid, setMasjid] = useState<Masjid | null>(null);
@@ -80,7 +81,7 @@ export default function PrayerTimesClient() {
           throw new Error("Failed to load masjid information");
         }
         if (isMounted) setMasjid(data as Masjid);
-      } catch (error) {
+      } catch {
         if (!isMounted) return;
         toast({
           title: "Error",
@@ -95,7 +96,9 @@ export default function PrayerTimesClient() {
 
     const loadData = async () => {
       if (!masjidId) return;
-      setLoading(true);
+      if (!hasLoaded) {
+        setLoading(true);
+      }
       try {
         const [iqamahResult, calculationResult, prayerResults] = await Promise.all([
           fetch(`/api/masjids/${masjidId}/dashboard/iqamah`, { signal: controller.signal }).then((res) => res.json()),
@@ -141,7 +144,8 @@ export default function PrayerTimesClient() {
             variant: "destructive",
           });
         }
-      } catch (error) {
+        if (isMounted) setHasLoaded(true);
+      } catch {
         if (!isMounted) return;
         toast({
           title: "Error",
@@ -160,7 +164,7 @@ export default function PrayerTimesClient() {
       isMounted = false;
       controller.abort();
     };
-  }, [masjidId, router, toast]);
+  }, [hasLoaded, masjidId, router, toast]);
 
   const handleRefresh = async () => {
     setLoading(true)
@@ -210,7 +214,7 @@ export default function PrayerTimesClient() {
             variant: "destructive",
           })
         }
-      } catch (error) {
+      } catch {
         toast({
           title: "Error",
           description: "An unexpected error occurred",
@@ -260,12 +264,11 @@ export default function PrayerTimesClient() {
     return sorted[0];
   }, [iqamahTimings]);
 
-  if(loadingMasjid) return (
+  if (loadingMasjid || (!hasLoaded && loading)) return (
     <div className="h-full flex items-center justify-center">
       <div className="flex flex-col items-center">
         <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
-        <p className="mt-4 text-[#550C18]">Loading masjid information...</p>
-        <p className="mt-2 text-[#3A3A3A]/70 text-sm">masjidId: {masjidId || 'Not provided'}</p>
+        <p className="mt-4 text-[#550C18]">Loading prayer settings...</p>
       </div>
     </div>
   );
@@ -292,7 +295,7 @@ export default function PrayerTimesClient() {
       <div className="h-full flex items-center justify-center">
         <div className="flex flex-col items-center">
           <p className="text-[#550C18] text-lg">Masjid not found</p>
-          <p className="text-[#3A3A3A]/70 mt-2">The masjid with ID "{masjidId}" could not be found</p>
+          <p className="text-[#3A3A3A]/70 mt-2">The masjid with ID &quot;{masjidId}&quot; could not be found</p>
           <Button 
             onClick={() => router.push("/dashboard")}
             className="mt-4 bg-[#550C18] hover:bg-[#78001A] text-white"
@@ -351,6 +354,12 @@ export default function PrayerTimesClient() {
           </div>
         </div>
       </div>
+
+      {loading && hasLoaded ? (
+        <div className="rounded-2xl border border-[#550C18]/10 bg-[#fffaf9] px-4 py-3 text-sm text-[#6d5560]">
+          Refreshing prayer data in the background...
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-[#550C18]/10 bg-white shadow-sm">

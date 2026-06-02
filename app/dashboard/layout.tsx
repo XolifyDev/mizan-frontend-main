@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Building2,
@@ -45,43 +45,46 @@ export default function DashboardLayout({
     if (!session) router.push("/signin?message=You need to login to access this page!");
   }, [isPending, session, router]); 
 
-  const searchParamsString = searchParams.toString();
-
-  const fetchMasjid = useCallback(async () => {
+  useEffect(() => {
     if (isPending || !session) return;
 
-    setLoadingMasjid(true);
-    const userMasjid = await getUserMasjid(masjidId || "");
+    let isMounted = true;
 
-    if (!userMasjid || ("error" in userMasjid && userMasjid.error)) {
-      setMasjid(null);
-      setShowAddMasjidModal(true);
-      setMasjidCreationStep(1);
+    const loadMasjid = async () => {
+      setLoadingMasjid(true);
+      const userMasjid = await getUserMasjid(masjidId || "");
+
+      if (!isMounted) return;
+
+      if (!userMasjid || ("error" in userMasjid && userMasjid.error)) {
+        setMasjid(null);
+        setShowAddMasjidModal(true);
+        setMasjidCreationStep(1);
+        setLoadingMasjid(false);
+        return;
+      }
+
+      setMasjid(userMasjid as Masjid);
+
+      if (userMasjid.id && !masjidId && typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        params.set("masjidId", userMasjid.id);
+        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+      }
+
       setLoadingMasjid(false);
-      return;
-    }
+    };
 
-    setMasjid(userMasjid as Masjid);
-    const params = new URLSearchParams(searchParamsString);
-    if (userMasjid.id && params.get("masjidId") !== userMasjid.id) {
-      params.set("masjidId", userMasjid.id);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    }
-    setLoadingMasjid(false);
-  }, [isPending, session, masjidId, searchParamsString, pathname, router]);
+    void loadMasjid();
 
-  useEffect(() => {
-    void fetchMasjid();
-  }, [fetchMasjid]);
+    return () => {
+      isMounted = false;
+    };
+  }, [isPending, session, masjidId, router]);
 
-  if (isPending || loadingMasjid)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center">
-          <div className="h-12 w-12 rounded-full border-y border-[#550C18] animate-spin"></div>
-        </div>
-      </div>
-    );
+  if (isPending) {
+    return <div className="min-h-screen bg-[#fcfbfa]" />;
+  }
 
   const permissionContext = {
     role: session?.user?.role,
@@ -89,7 +92,7 @@ export default function DashboardLayout({
     isAdmin: session?.user?.admin,
   };
 
-  if(!session) return <>Loading...</>
+  if (!session) return null;
 
   const isAllowed = canAccessPath(pathname, permissionContext);
   return (
@@ -191,10 +194,20 @@ export default function DashboardLayout({
         <DashboardSidebar
           session={session}
           isPending={isPending}
-          masjid={masjid as Masjid}
+          masjid={(masjid || {}) as Masjid}
           setShowAddMasjidModal={setShowAddMasjidModal}
         >
-          {isAllowed ? (
+          {loadingMasjid ? (
+            <div className="space-y-4 p-6 md:p-8">
+              <div className="h-20 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <div className="h-32 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+                <div className="h-32 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+                <div className="h-32 rounded-3xl border border-[#550C18]/10 bg-white/90" />
+              </div>
+              <div className="h-[420px] rounded-3xl border border-[#550C18]/10 bg-white/90" />
+            </div>
+          ) : isAllowed ? (
             children
           ) : (
             <div className="max-w-2xl mx-auto mt-20 bg-white border border-[#550C18]/10 rounded-2xl p-8 text-center shadow-sm">

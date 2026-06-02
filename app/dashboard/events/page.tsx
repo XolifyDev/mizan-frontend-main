@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CalendarIcon,
   Clock,
@@ -52,10 +52,12 @@ export default function EventsPage() {
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const searchParams = useSearchParams();
   const router = useRouter();
   const masjidId = searchParams.get("masjidId") || "";
   const currentTab = searchParams.get("tab") || "list";
+  const [activeTab, setActiveTab] = useState(currentTab);
 
   const withTimeout = async <T,>(promise: Promise<T>, ms = 15000): Promise<T> => {
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -69,19 +71,15 @@ export default function EventsPage() {
     }
   };
 
-  const handleTabChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", value);
-    router.push(`?${params.toString()}`);
-  };
-
-  const loadData = async () => {
+  const loadData = useCallback(async (options?: { background?: boolean }) => {
     if (!masjidId) {
       setEvents([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!options?.background) {
+      setLoading(true);
+    }
     try {
       const [eventsList, masjidRes] = await Promise.all([
         withTimeout(getEvents(masjidId)),
@@ -95,24 +93,41 @@ export default function EventsPage() {
         setMasjid(masjidData.googleCalendarId || "");
         setMasjidPfp(masjidData.googleCalendarPfp || "");
       }
-    } catch (error) {
+      setHasLoaded(true);
+    } catch {
       toast({
         title: "Error",
         description: "Failed to load events",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (!options?.background) {
+        setLoading(false);
+      }
+    }
+  }, [masjidId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    setActiveTab(currentTab);
+  }, [currentTab]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", value);
+    if (typeof window !== "undefined") {
+      const next = `${window.location.pathname}?${params.toString()}`;
+      window.history.replaceState({}, "", next);
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [masjidId]);
-
   const refreshEvents = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadData({ background: true });
     setRefreshing(false);
   };
 
@@ -133,7 +148,7 @@ export default function EventsPage() {
         title: "Success",
         description: "Event deleted successfully",
       });
-    } catch (error) {
+    } catch {
       toast({ 
         title: "Error",
         description: "Failed to delete event",
@@ -209,7 +224,7 @@ export default function EventsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue={currentTab} onValueChange={handleTabChange}>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2 rounded-full bg-[#550C18]/10 p-1 mb-6">
               <TabsTrigger value="list" className="rounded-full data-[state=active]:bg-white data-[state=active]:shadow">
                 List View
@@ -219,7 +234,7 @@ export default function EventsPage() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="list" className="space-y-4">
-              {loading ? (
+              {!hasLoaded && loading ? (
                 <div className="flex items-center justify-center py-12 text-[#3A3A3A]/70">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Loading events...
@@ -322,7 +337,7 @@ export default function EventsPage() {
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the event
-              "{eventToDelete?.title}".
+              &quot;{eventToDelete?.title}&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

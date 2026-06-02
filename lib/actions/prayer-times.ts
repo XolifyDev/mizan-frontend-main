@@ -7,6 +7,7 @@ import { prisma } from "../db"
 import { CalculationMethod, Coordinates, Madhab, PrayerTimes } from "adhan"
 import moment from "moment";
 import { getUserMasjid } from "./masjid";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 
 
 async function savePrayerCalculationSettings(
@@ -224,12 +225,8 @@ function applyOffsets(prayerTimes: PrayerTimes, offsets: Record<string, number>)
 }
 
 // Format time as HH:MM AM/PM
-function formatTime(date: Date) {
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: true,
-  })
+function formatTime(date: Date, timezone: string) {
+  return formatInTimeZone(date, timezone, "hh:mm a").toUpperCase();
 }
 
 // Returns the most recent iqamah timing for a given masjid and date
@@ -263,6 +260,7 @@ export async function generateMonthlyPrayerTimes(
     if (!access) {
       return { success: false, error: "Unauthorized" }
     }
+    const timezone = access.timezone || "America/New_York";
     // Get prayer calculation settings
     const settings = await getPrayerCalculationSettings(masjidId)
 
@@ -292,7 +290,7 @@ export async function generateMonthlyPrayerTimes(
     const monthlyTimes = []
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month - 1, day)
+      const date = new Date(year, month - 1, day, 12, 0, 0)
       const prayerTimes = new PrayerTimes(coordinates, date, calculationMethod)
       const adjustedTimes = applyOffsets(prayerTimes, offsets)
 
@@ -300,23 +298,23 @@ export async function generateMonthlyPrayerTimes(
       const iqamahTiming = await getIqamahTimingForDate(masjidId, date)
 
       monthlyTimes.push({
-        date: date.toISOString().split("T")[0],
-        fajr: formatTime(adjustedTimes.fajr),
-        sunrise: formatTime(adjustedTimes.sunrise),
-        dhuhr: formatTime(adjustedTimes.dhuhr),
-        asr: formatTime(adjustedTimes.asr),
-        maghrib: formatTime(adjustedTimes.maghrib),
-        isha: formatTime(adjustedTimes.isha),
+        date: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        fajr: formatTime(adjustedTimes.fajr, timezone),
+        sunrise: formatTime(adjustedTimes.sunrise, timezone),
+        dhuhr: formatTime(adjustedTimes.dhuhr, timezone),
+        asr: formatTime(adjustedTimes.asr, timezone),
+        maghrib: formatTime(adjustedTimes.maghrib, timezone),
+        isha: formatTime(adjustedTimes.isha, timezone),
         iqamah: iqamahTiming
           ? {
-              fajr: iqamahTiming.fajr && iqamahTiming.fajr instanceof Date && !isNaN(iqamahTiming.fajr.getTime()) ? formatTime(iqamahTiming.fajr) : null,
-              dhuhr: iqamahTiming.dhuhr && iqamahTiming.dhuhr instanceof Date && !isNaN(iqamahTiming.dhuhr.getTime()) ? formatTime(iqamahTiming.dhuhr) : null,
-              asr: iqamahTiming.asr && iqamahTiming.asr instanceof Date && !isNaN(iqamahTiming.asr.getTime()) ? formatTime(iqamahTiming.asr) : null,
-              maghrib: iqamahTiming.maghrib && iqamahTiming.maghrib instanceof Date && !isNaN(iqamahTiming.maghrib.getTime()) ? formatTime(iqamahTiming.maghrib) : null,
-              isha: iqamahTiming.isha && iqamahTiming.isha instanceof Date && !isNaN(iqamahTiming.isha.getTime()) ? formatTime(iqamahTiming.isha) : null,
-              jumuahI: iqamahTiming.jumuahI && iqamahTiming.jumuahI instanceof Date && !isNaN(iqamahTiming.jumuahI.getTime()) ? formatTime(iqamahTiming.jumuahI) : null,
-              jumuahII: iqamahTiming.jumuahII && iqamahTiming.jumuahII instanceof Date && !isNaN(iqamahTiming.jumuahII.getTime()) ? formatTime(iqamahTiming.jumuahII) : null,
-              jumuahIII: iqamahTiming.jumuahIII && iqamahTiming.jumuahIII instanceof Date && !isNaN(iqamahTiming.jumuahIII.getTime()) ? formatTime(iqamahTiming.jumuahIII) : null,
+              fajr: iqamahTiming.fajr && iqamahTiming.fajr instanceof Date && !isNaN(iqamahTiming.fajr.getTime()) ? formatTime(iqamahTiming.fajr, timezone) : null,
+              dhuhr: iqamahTiming.dhuhr && iqamahTiming.dhuhr instanceof Date && !isNaN(iqamahTiming.dhuhr.getTime()) ? formatTime(iqamahTiming.dhuhr, timezone) : null,
+              asr: iqamahTiming.asr && iqamahTiming.asr instanceof Date && !isNaN(iqamahTiming.asr.getTime()) ? formatTime(iqamahTiming.asr, timezone) : null,
+              maghrib: iqamahTiming.maghrib && iqamahTiming.maghrib instanceof Date && !isNaN(iqamahTiming.maghrib.getTime()) ? formatTime(iqamahTiming.maghrib, timezone) : null,
+              isha: iqamahTiming.isha && iqamahTiming.isha instanceof Date && !isNaN(iqamahTiming.isha.getTime()) ? formatTime(iqamahTiming.isha, timezone) : null,
+              jumuahI: iqamahTiming.jumuahI && iqamahTiming.jumuahI instanceof Date && !isNaN(iqamahTiming.jumuahI.getTime()) ? formatTime(iqamahTiming.jumuahI, timezone) : null,
+              jumuahII: iqamahTiming.jumuahII && iqamahTiming.jumuahII instanceof Date && !isNaN(iqamahTiming.jumuahII.getTime()) ? formatTime(iqamahTiming.jumuahII, timezone) : null,
+              jumuahIII: iqamahTiming.jumuahIII && iqamahTiming.jumuahIII instanceof Date && !isNaN(iqamahTiming.jumuahIII.getTime()) ? formatTime(iqamahTiming.jumuahIII, timezone) : null,
             }
           : null,
       })
@@ -329,16 +327,37 @@ export async function generateMonthlyPrayerTimes(
   }
 }
 
+type GeneratedPrayerTime = {
+  date: string;
+  fajr: string;
+  sunrise: string;
+  dhuhr: string;
+  asr: string;
+  maghrib: string;
+  isha: string;
+  iqamah?: {
+    fajr: string | null;
+    dhuhr: string | null;
+    asr: string | null;
+    maghrib: string | null;
+    isha: string | null;
+    jumuahI: string | null;
+    jumuahII: string | null;
+    jumuahIII: string | null;
+  } | null;
+};
+
 // Save generated prayer times to database
-export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[]) {
+export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: GeneratedPrayerTime[]) {
   try {
     const access = await requireMasjidAccess(masjidId);
     if (!access) {
       return { success: false, error: "Unauthorized" }
     }
+    const timezone = access.timezone || "America/New_York";
     // First delete existing prayer times for this month to avoid duplicates
-    const firstDate = new Date(prayerTimes[0].date)
-    const lastDate = new Date(prayerTimes[prayerTimes.length - 1].date)
+    const firstDate = fromZonedTime(`${prayerTimes[0].date}T00:00:00`, timezone)
+    const lastDate = fromZonedTime(`${prayerTimes[prayerTimes.length - 1].date}T23:59:59.999`, timezone)
 
     await prisma.prayerTime.deleteMany({
       where: {
@@ -353,10 +372,10 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
     // Now insert the new prayer times
     const createdTimes = await Promise.all(
       prayerTimes.map(async (pt) => {
-        const date = new Date(pt.date)
+        const date = fromZonedTime(`${pt.date}T00:00:00`, timezone)
 
         // Parse time strings to Date objects
-        const parseTimeString = (timeStr: string, baseDate: Date) => {
+        const parseTimeString = (timeStr: string, baseDateString: string) => {
           if (!timeStr || timeStr.trim() === "" || timeStr === "Invalid Date") {
             throw new Error(`Invalid time string: ${timeStr}`);
           }
@@ -375,17 +394,17 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
           if (period === "PM" && hours < 12) hour += 12
           if (period === "AM" && hours === 12) hour = 0
 
-          const newDate = new Date(baseDate)
-          newDate.setHours(hour, minutes, 0, 0)
-          return newDate
+          const zonedDate = new Date(`${baseDateString}T00:00:00`);
+          zonedDate.setHours(hour, minutes, 0, 0);
+          return fromZonedTime(zonedDate, timezone);
         }
 
         // Parse iqamah times if available
         const parseIqamahTime = (timeStr: string | null) => {
           if (!timeStr || timeStr.trim() === "" || timeStr === "Invalid Date") return null;
           try {
-            return parseTimeString(timeStr, date);
-          } catch (error) {
+            return parseTimeString(timeStr, pt.date);
+          } catch {
             console.warn(`Invalid iqamah time format: ${timeStr}`);
             return null;
           }
@@ -394,8 +413,8 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
         // Validate and parse prayer times
         const parsePrayerTime = (timeStr: string) => {
           try {
-            return parseTimeString(timeStr, date);
-          } catch (error) {
+            return parseTimeString(timeStr, pt.date);
+          } catch {
             console.warn(`Invalid prayer time format: ${timeStr} for date ${pt.date}`);
             throw new Error(`Invalid prayer time: ${timeStr}`);
           }
@@ -411,8 +430,8 @@ export async function saveMonthlyPrayerTimes(masjidId: string, prayerTimes: any[
             maghrib: parsePrayerTime(pt.maghrib),
             isha: parsePrayerTime(pt.isha),
             sunrise: parsePrayerTime(pt.sunrise),
-            month: String(date.getMonth()),
-            year: date.getFullYear(),
+            month: String(Number(pt.date.split("-")[1])),
+            year: Number(pt.date.split("-")[0]),
             // Add iqamah times if available
             ...(pt.iqamah && {
               iqamahFajr: parseIqamahTime(pt.iqamah.fajr),
@@ -506,7 +525,7 @@ export async function updatePrayerTime(
     baseDate.set("hour", parsedTime.hour());
     baseDate.set("minute", parsedTime.minute());
 
-    const update = await prisma.prayerTime.update({
+    await prisma.prayerTime.update({
       where: { id: prayerTimeId },
       data: { [prayer]: baseDate.toDate() }
     });
@@ -606,7 +625,15 @@ export async function duplicateIqamahTiming(id: string) {
     }
 
     // Create a new timing with the same values but a new ID
-    const { id: _, createdAt, updatedAt, ...timingData } = original
+    const timingData = {
+      ...original,
+      id: undefined,
+      createdAt: undefined,
+      updatedAt: undefined,
+    };
+    delete timingData.id;
+    delete timingData.createdAt;
+    delete timingData.updatedAt;
 
     // Set the change date to tomorrow
     const tomorrow = new Date(original.changeDate)
