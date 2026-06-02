@@ -333,14 +333,14 @@ export default function DashboardSidebar({
           </SidebarContent>
         </Sidebar>
 
-        <main className="flex flex-col w-full relative h-full -mt-4 overflow-hidden">
-          <header className="border-b border-[#550C18]/10 bg-white -mt-1 py-9 px-6 flex items-center justify-between h-min top-0 z-10 max-h-12">
+        <main className="flex min-h-screen w-full flex-col overflow-hidden bg-[#fcfbfa]">
+          <header className="sticky top-0 z-10 flex min-h-24 items-center justify-between border-b border-[#550C18]/10 bg-white px-6 py-4">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />
               </SidebarTrigger>
-              <div className="flex flex-col items-start gap-1">
-                <div className="flex flex-row items-center gap">
+              <div className="flex flex-col items-start gap-1 justify-center">
+                <div className="flex flex-row items-center">
                   Welcome,&nbsp;<span className="font-medium text-[#550C18]">{session?.user?.name || "User"}</span>
                 </div>
                 {session?.user && (
@@ -423,7 +423,7 @@ export default function DashboardSidebar({
               </Avatar>
             </div>
           </header>
-          <div className="h-full px-6 py-2 overflow-auto max-h-[calc(100vh-90px)] mb-auto">{children}</div>
+          <div className="flex-1 overflow-auto px-6 py-6">{children}</div>
         </main>
       </div>
     </SidebarProvider>

@@ -46,11 +46,6 @@ export default function KioskDashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [donationCategories, setDonationCategories] = useState<DonationCategory[]>([]);
 
-  useEffect(() => {
-    void getDonationCategories(masjidId).then((categories) => setDonationCategories((categories as DonationCategory[]) || []));
-    void fetchKiosks();
-  }, [fetchKiosks, masjidId]);
-
   // Fetch kiosks with loading skeleton
   const fetchKiosks = useCallback(async () => {
     setLoadingKiosks(true);
@@ -73,6 +68,11 @@ export default function KioskDashboardPage() {
       setLoadingKiosks(false);
     }
   }, [masjidId]);
+
+  useEffect(() => {
+    void getDonationCategories(masjidId).then((categories) => setDonationCategories((categories as DonationCategory[]) || []));
+    void fetchKiosks();
+  }, [fetchKiosks, masjidId]);
 
   // Handler to copy config from another kiosk
   const handleCopyConfig = (kioskId: string) => {

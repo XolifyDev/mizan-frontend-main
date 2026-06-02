@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from 'react';
-import { useHttpConnection } from '@/hooks/useHttpConnection';
 import { useSearchParams } from 'next/navigation';
 import { io, Socket } from 'socket.io-client';
 
@@ -179,17 +178,6 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
     }
   }, []);
 
-  const onError = useCallback((error: unknown) => {
-    console.error('HTTP connection error:', error);
-  }, []);
-
-  const { isConnected, isConnecting, error, sendMessage } = useHttpConnection('/api/ws', {
-    onMessage,
-    onError,
-    autoConnect: true,
-    interval: 5000
-  });
-
   const handleRealtimeMessage = useCallback((message: WebSocketMessage) => {
     onMessage(message);
   }, [onMessage]);
@@ -264,7 +252,7 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
           socket.on(eventName, handleRealtimeMessage);
         });
       } catch (realtimeError) {
-        console.error('Realtime connection failed, falling back to HTTP polling:', realtimeError);
+        console.error('Realtime connection failed:', realtimeError);
         if (!mounted) return;
         setSocketState({
           isConnected: false,
@@ -286,8 +274,7 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
   const sendRealtimeMessage = useCallback(async (message: Record<string, unknown>) => {
     const socket = socketRef.current;
     if (!socket || !socket.connected) {
-      await sendMessage(message);
-      return;
+      throw new Error('Realtime connection is not available');
     }
 
     switch (message.type) {
@@ -302,26 +289,25 @@ export function WebSocketProvider({ children, masjidId: propMasjidId, isAdmin: p
         socket.emit('admin_subscribe', message);
         break;
       default:
-        await sendMessage(message);
-        break;
+        throw new Error(`Unsupported realtime message type: ${String(message.type)}`);
     }
-  }, [sendMessage]);
+  }, []);
 
   // Send admin subscribe when connected
   useEffect(() => {
     const activeRealtime = process.env.NEXT_PUBLIC_REALTIME_URL && socketRef.current?.connected;
-    if ((activeRealtime || isConnected) && isAdminRef.current && masjidIdRef.current) {
+    if (activeRealtime && isAdminRef.current && masjidIdRef.current) {
       sendRealtimeMessage({
         type: 'admin_subscribe',
         masjidId: masjidIdRef.current
       });
     }
-  }, [isConnected, sendRealtimeMessage, socketState.isConnected]);
+  }, [sendRealtimeMessage, socketState.isConnected]);
 
   const contextValue: WebSocketContextType = {
-    isConnected: socketRef.current ? socketState.isConnected : isConnected,
-    isConnecting: socketRef.current ? socketState.isConnecting : isConnecting,
-    error: socketRef.current ? socketState.error : error,
+    isConnected: socketState.isConnected,
+    isConnecting: socketState.isConnecting,
+    error: socketState.error,
     sendMessage: sendRealtimeMessage,
     devices,
     deviceStatus
