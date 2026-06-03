@@ -339,7 +339,7 @@ export default function DashboardSidebar({
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />
               </SidebarTrigger>
-              <div className="flex flex-col items-start gap-1 justify-center">
+              <div className="flex flex-row items-center gap-1 justify-starts">
                 <div className="flex flex-row items-center">
                   Welcome,&nbsp;<span className="font-medium text-[#550C18]">{session?.user?.name || "User"}</span>
                 </div>

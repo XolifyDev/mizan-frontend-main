@@ -312,17 +312,17 @@ export default function PrayerTimesClient() {
       <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
+            {/* <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
               Prayer Times
-            </p>
+            </p> */}
             <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
-              Keep salah and iqamah perfectly aligned.
+              Prayer Times
             </h1>
-            <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
+            {/* <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
               Manage iqamah schedules, calculation settings, and publish monthly prayer times in one place.
-            </p>
+            </p> */}
           </div>
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-row items-center gap-3">
             <Button
               variant="outline"
               className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"

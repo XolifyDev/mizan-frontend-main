@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import type { z } from "zod"
@@ -25,26 +25,47 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
+  const normalizedDefaults = useMemo<PrayerCalculationForm>(() => ({
+    id: initialData.id,
+    masjidId,
+    calculationMethod: initialData.calculationMethod,
+    asrMethod: initialData.asrMethod,
+    higherLatitudeMethod: initialData.higherLatitudeMethod,
+    fajrOffset: Number(initialData.fajrOffset ?? 0),
+    sunriseOffset: Number(initialData.sunriseOffset ?? 0),
+    dhuhrOffset: Number(initialData.dhuhrOffset ?? 0),
+    asrOffset: Number(initialData.asrOffset ?? 0),
+    maghribOffset: Number(initialData.maghribOffset ?? 0),
+    ishaOffset: Number(initialData.ishaOffset ?? 0),
+  }), [initialData, masjidId])
+
   const form = useForm<PrayerCalculationForm>({
     resolver: zodResolver(prayerCalculationSchema),
-    defaultValues: {
-      ...initialData,
-      masjidId,
-    },
+    defaultValues: normalizedDefaults,
   })
 
   useEffect(() => {
-    form.reset({
-      ...initialData,
-      masjidId,
-    });
-  }, [form, initialData, masjidId]);
+    form.reset(normalizedDefaults);
+  }, [form, normalizedDefaults]);
 
   async function onSubmit(values: z.infer<typeof prayerCalculationSchema>) {
     setIsSubmitting(true)
     try {
-      delete values.updatedAt;
-      const result = await updatePrayerCalculationSettings(values)
+      const payload: PrayerCalculationForm = {
+        id: values.id,
+        masjidId,
+        calculationMethod: values.calculationMethod,
+        asrMethod: values.asrMethod,
+        higherLatitudeMethod: values.higherLatitudeMethod,
+        fajrOffset: Number(values.fajrOffset),
+        sunriseOffset: Number(values.sunriseOffset),
+        dhuhrOffset: Number(values.dhuhrOffset),
+        asrOffset: Number(values.asrOffset),
+        maghribOffset: Number(values.maghribOffset),
+        ishaOffset: Number(values.ishaOffset),
+      }
+
+      const result = await updatePrayerCalculationSettings(payload)
 
       if (result.success) {
         toast({
@@ -59,7 +80,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
           variant: "destructive",
         })
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "An unexpected error occurred.",
@@ -80,7 +101,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Calculation Method</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                   <FormControl>
                     <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                       <SelectValue placeholder="Select calculation method" />
@@ -106,7 +127,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Asr Method</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                   <FormControl>
                     <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                       <SelectValue placeholder="Select Asr method" />
@@ -128,7 +149,7 @@ export function PrayerCalculationSettings({ initialData, masjidId, onSuccess }: 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Higher Latitude Calculation</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting}>
+                <Select onValueChange={field.onChange} value={field.value} disabled={isSubmitting}>
                   <FormControl>
                     <SelectTrigger className="border-[#550C18]/20 focus:ring-[#550C18]">
                       <SelectValue placeholder="Select method" />
