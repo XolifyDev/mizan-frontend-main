@@ -3,6 +3,11 @@
 import { prisma } from "../db";
 import { syncEventToGoogleCalendar, deleteEventFromGoogleCalendar } from "./google-calendar";
 import { getUserMasjid } from "./masjid";
+import type { Event } from "@prisma/client";
+
+type EventMutationInput = Partial<Event> & {
+  recurrence?: unknown;
+};
 
 async function requireMasjidAccess(masjidId: string) {
   const masjid = await getUserMasjid(masjidId);
@@ -12,7 +17,7 @@ async function requireMasjidAccess(masjidId: string) {
   return masjid;
 }
 
-export async function createEvent(data: any) {
+export async function createEvent(data: EventMutationInput) {
   if (!data?.masjidId) {
     throw new Error("Missing masjidId");
   }
@@ -48,7 +53,7 @@ export async function createEvent(data: any) {
   return event;
 }
 
-export async function updateEvent(id: string, data: any) {
+export async function updateEvent(id: string, data: EventMutationInput) {
   // First get the existing event to preserve the googleCalendarEventId
   const existingEvent = await prisma.event.findUnique({
     where: { id },
@@ -58,31 +63,27 @@ export async function updateEvent(id: string, data: any) {
   if (!access) {
     throw new Error("Unauthorized");
   }
-  const masjid = await prisma.masjid.findUnique({
-    where: { id: existingEvent?.masjidId },
-    select: { googleCalendarCredentials: true, googleCalendarId: true },
-  });
-
-  if(!masjid) return null;
-
   const event = await prisma.event.update({
     where: { id },
     data: {
       ...data,
-      syncToGoogleCalendar: typeof data.syncToGoogleCalendar !== 'undefined' || undefined ? data.syncToGoogleCalendar : existingEvent.syncToGoogleCalendar,
-      lastSyncedAt: typeof data.lastSyncedAt !== undefined || "undefined" ? data.lastSyncedAt ? existingEvent?.lastSyncedAt : null : existingEvent.lastSyncedAt,
-      syncStatus: typeof data.syncStatus !== undefined || "undefined" ? data.syncStatus ? existingEvent?.syncStatus : null : existingEvent.syncStatus,
+      syncToGoogleCalendar:
+        typeof data.syncToGoogleCalendar === "boolean"
+          ? data.syncToGoogleCalendar
+          : existingEvent.syncToGoogleCalendar,
+      lastSyncedAt: null,
+      syncStatus:
+        (typeof data.syncToGoogleCalendar === "boolean"
+          ? data.syncToGoogleCalendar
+          : existingEvent.syncToGoogleCalendar)
+          ? "pending"
+          : null,
     },
   });
 
   if (event.syncToGoogleCalendar) {
     try { 
-      await syncEventToGoogleCalendar(event.id, {
-        ...data,
-        syncToGoogleCalendar: typeof data.syncToGoogleCalendar !== 'undefined' || undefined ? data.syncToGoogleCalendar : existingEvent.syncToGoogleCalendar,
-        lastSyncedAt: typeof data.lastSyncedAt !== undefined || "undefined" ? data.lastSyncedAt ? existingEvent?.lastSyncedAt : null : existingEvent.lastSyncedAt,
-        syncStatus: typeof data.syncStatus !== undefined || "undefined" ? data.syncStatus ? existingEvent?.syncStatus : null : existingEvent.syncStatus,
-      });
+      await syncEventToGoogleCalendar(event.id);
     } catch (error) {
       console.error('Error syncing event to Google Calendar:', error);
       // Update the event's sync status to failed

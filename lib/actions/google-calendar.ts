@@ -1,7 +1,6 @@
 import { google } from 'googleapis';
 import { prisma } from '../db';
-import { auth } from '../auth';
-import { headers } from 'next/headers';
+import type { Event, Masjid } from '@prisma/client';
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -9,23 +8,10 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-export async function syncEventToGoogleCalendar(eventId: string, data?: any) {
+export async function syncEventToGoogleCalendar(eventId: string, data?: Event & { masjid?: Masjid | null }) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers()
-    });
-    if (!session?.session) {
-      throw new Error('Not authenticated');
-    }
-
-    const event = data || await prisma.event.findUnique({
+    const event = (data as (Event & { masjid?: Masjid | null }) | undefined) || await prisma.event.findUnique({
       where: { id: eventId },
-      include: { masjid: true },
-    });
-
-    const eventGoogleCalendarId = await prisma.event.findUnique({
-      where: { id: eventId },
-      select: { googleCalendarEventId: true },
     });
 
     if (!event || !event.syncToGoogleCalendar) {
@@ -43,9 +29,10 @@ export async function syncEventToGoogleCalendar(eventId: string, data?: any) {
     }
 
     // Set up the Google Calendar client
-    const credentials = masjid.googleCalendarCredentials as any;
+    const credentials = masjid.googleCalendarCredentials as Record<string, unknown>;
     oauth2Client.setCredentials(credentials);
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+    const timezone = event.timezone || event.masjid?.timezone || 'America/New_York';
 
     // Prepare the event data
     const startDateTime = new Date(event.date);
@@ -70,23 +57,24 @@ export async function syncEventToGoogleCalendar(eventId: string, data?: any) {
       location: event.location,
       start: {
         dateTime: startDateTime.toISOString(),
-        timeZone: 'UTC',
+        timeZone: timezone,
       },
       end: {
         dateTime: endDateTime.toISOString(),
-        timeZone: 'UTC',
+        timeZone: timezone,
       },
     };
-    // If the event has a Google Calendar ID, delete the old one and create a new one
-    if (eventGoogleCalendarId) {
-      await deleteEventFromGoogleCalendar(eventId);
-    }
 
-    // Create a new event
-    const response = await calendar.events.insert({
-      calendarId: masjid.googleCalendarId,
-      requestBody: calendarEvent,
-    });
+    const response = event.googleCalendarEventId
+      ? await calendar.events.update({
+          calendarId: masjid.googleCalendarId,
+          eventId: event.googleCalendarEventId,
+          requestBody: calendarEvent,
+        })
+      : await calendar.events.insert({
+          calendarId: masjid.googleCalendarId,
+          requestBody: calendarEvent,
+        });
 
     // Update the event with the new Google Calendar event ID and sync status
     await prisma.event.update({
@@ -135,7 +123,7 @@ export async function deleteEventFromGoogleCalendar(eventId: string) {
       return;
     }
 
-    const credentials = masjid.googleCalendarCredentials as any;
+    const credentials = masjid.googleCalendarCredentials as Record<string, unknown>;
     oauth2Client.setCredentials(credentials);
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
 

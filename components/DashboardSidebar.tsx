@@ -343,6 +343,9 @@ export default function DashboardSidebar({
                 <div className="flex flex-row items-center">
                   Welcome,&nbsp;<span className="font-medium text-[#550C18]">{session?.user?.name || "User"}</span>
                 </div>
+                <div className="text-[#3A3A3A]/70 mx-2">
+                  |
+                </div>
                 {session?.user && (
                   <MasjidSwitcher masjids={session.user.masjids || []} activeMasjid={masjid} setShowAddMasjidModal={setShowAddMasjidModal} />
                 )}

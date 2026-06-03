@@ -315,7 +315,7 @@ export default function PrayerTimesClient() {
             {/* <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
               Prayer Times
             </p> */}
-            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
+            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12]">
               Prayer Times
             </h1>
             {/* <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
