@@ -4,13 +4,25 @@ import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
 
+function getGoogleCallbackUrl() {
+  return process.env.GOOGLE_REDIRECT_URI;
+}
+
 export async function GET(request: Request) {
   try {
+    const callbackUrl = getGoogleCallbackUrl();
+    if (!callbackUrl) {
+      return NextResponse.json(
+        { error: "GOOGLE_REDIRECT_URI is not configured" },
+        { status: 500 }
+      );
+    }
+
     const { google } = await import("googleapis");
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      callbackUrl
     );
     const { searchParams } = new URL(request.url);
     const masjidId = searchParams.get("masjidId");
@@ -33,7 +45,7 @@ export async function GET(request: Request) {
         "https://www.googleapis.com/auth/userinfo.email",
       ],
       state: masjidId, // Store masjidId in state for later use
-      redirect_uri: process.env.GOOGLE_REDIRECT_URI + '/api/google/calendar/callback'
+      redirect_uri: callbackUrl,
     });
 
     return NextResponse.json({ url });
@@ -48,11 +60,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const callbackUrl = getGoogleCallbackUrl();
+    if (!callbackUrl) {
+      return NextResponse.json(
+        { error: "GOOGLE_REDIRECT_URI is not configured" },
+        { status: 500 }
+      );
+    }
+
     const { google } = await import("googleapis");
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      process.env.GOOGLE_REDIRECT_URI
+      callbackUrl
     );
     const { code, state: masjidId } = await request.json();
 
@@ -66,7 +86,7 @@ export async function POST(request: Request) {
     // Exchange code for tokens
     const { tokens } = await oauth2Client.getToken({
       code,
-      redirect_uri: process.env.GOOGLE_REDIRECT_URI + '/api/google/calendar/callback',
+      redirect_uri: callbackUrl,
     });
 
     if (!tokens.refresh_token) {
