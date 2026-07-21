@@ -52,27 +52,34 @@ export default function DashboardLayout({
 
     const loadMasjid = async () => {
       setLoadingMasjid(true);
-      const userMasjid = await getUserMasjid(masjidId || "");
+      try {
+        const userMasjid = await getUserMasjid(masjidId || "");
 
-      if (!isMounted) return;
+        if (!isMounted) return;
 
-      if (!userMasjid || ("error" in userMasjid && userMasjid.error)) {
-        setMasjid(null);
-        setShowAddMasjidModal(true);
-        setMasjidCreationStep(1);
-        setLoadingMasjid(false);
-        return;
+        if (!userMasjid || ("error" in userMasjid && userMasjid.error)) {
+          setMasjid(null);
+          setShowAddMasjidModal(true);
+          setMasjidCreationStep(1);
+          return;
+        }
+
+        setMasjid(userMasjid as Masjid);
+
+        if (userMasjid.id && !masjidId && typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          params.set("masjidId", userMasjid.id);
+          router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
+        }
+      } catch {
+        if (isMounted) {
+          setMasjid(null);
+          setShowAddMasjidModal(true);
+          setMasjidCreationStep(1);
+        }
+      } finally {
+        if (isMounted) setLoadingMasjid(false);
       }
-
-      setMasjid(userMasjid as Masjid);
-
-      if (userMasjid.id && !masjidId && typeof window !== "undefined") {
-        const params = new URLSearchParams(window.location.search);
-        params.set("masjidId", userMasjid.id);
-        router.replace(`${window.location.pathname}?${params.toString()}`, { scroll: false });
-      }
-
-      setLoadingMasjid(false);
     };
 
     void loadMasjid();

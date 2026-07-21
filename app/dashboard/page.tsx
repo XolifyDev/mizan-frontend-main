@@ -115,8 +115,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   if (!masjidId) {
     return (
-      <div className="rounded-[28px] border border-[#550C18]/10 bg-white p-8 shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
-        <h1 className="text-3xl font-semibold text-[#2e0c12]">Dashboard Overview</h1>
+      <div className="rounded-xl border border-[#550C18]/12 bg-white p-8">
+        <h1 className="text-2xl font-semibold text-[#2e0c12]">Dashboard Overview</h1>
         <p className="mt-2 text-[#6d5560]">
           Select a masjid to load live operations and community metrics.
         </p>
@@ -128,8 +128,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   if (!masjid || ("error" in masjid && masjid.error)) {
     return (
-      <div className="rounded-[28px] border border-[#550C18]/10 bg-white p-8 shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
-        <h1 className="text-3xl font-semibold text-[#2e0c12]">Dashboard Overview</h1>
+      <div className="rounded-xl border border-[#550C18]/12 bg-white p-8">
+        <h1 className="text-2xl font-semibold text-[#2e0c12]">Dashboard Overview</h1>
         <p className="mt-2 text-[#6d5560]">
           We couldn&apos;t load this masjid dashboard with your current access.
         </p>
@@ -159,92 +159,40 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     prisma.prayerTime.findFirst({
       where: {
         masjidId,
-        date: {
-          gte: todayStart,
-          lte: todayEnd,
-        },
+        date: { gte: todayStart, lte: todayEnd },
       },
     }),
     prisma.iqamahTiming.findFirst({
-      where: {
-        masjidId,
-        changeDate: {
-          lte: now,
-        },
-      },
-      orderBy: {
-        changeDate: "desc",
-      },
+      where: { masjidId, changeDate: { lte: now } },
+      orderBy: { changeDate: "desc" },
     }),
     prisma.donation.findMany({
       where: {
         masjidId,
-        createdAt: {
-          gte: weekStart,
-        },
-        status: {
-          not: "failed",
-        },
+        createdAt: { gte: weekStart },
+        status: { not: "failed" },
       },
-      orderBy: {
-        createdAt: "asc",
-      },
+      orderBy: { createdAt: "asc" },
     }),
     prisma.tVDisplay.findMany({
       where: { masjidId },
-      select: {
-        id: true,
-        name: true,
-        location: true,
-        status: true,
-        lastSeen: true,
-      },
-      orderBy: {
-        updatedAt: "desc",
-      },
+      select: { id: true, name: true, location: true, status: true, lastSeen: true },
+      orderBy: { updatedAt: "desc" },
     }),
     prisma.event.findMany({
-      where: {
-        masjidId,
-        date: {
-          gte: now,
-        },
-      },
-      select: {
-        id: true,
-        title: true,
-        date: true,
-        flyerUrl: true,
-        tvFlyerUrl: true,
-      },
-      orderBy: {
-        date: "asc",
-      },
+      where: { masjidId, date: { gte: now } },
+      select: { id: true, title: true, date: true, flyerUrl: true, tvFlyerUrl: true },
+      orderBy: { date: "asc" },
       take: 3,
     }),
-    prisma.content.count({
-      where: {
-        masjidId,
-        active: true,
-      },
-    }),
-    prisma.donationCategory.count({
-      where: {
-        masjidId,
-        active: true,
-      },
-    }),
+    prisma.content.count({ where: { masjidId, active: true } }),
+    prisma.donationCategory.count({ where: { masjidId, active: true } }),
   ]);
 
   const prayerItems = prayerOrder.map((name, index) => {
-    const adhanTime =
-      todayPrayerTime?.[prayerTimeFieldMap[name]] ?? null;
-
-    const prayerTimeIqamah =
-      todayPrayerTime?.[prayerIqamahFieldMap[name]] ?? null;
-
-    const scheduleIqamahRaw =
-      latestIqamah?.[iqamahScheduleFieldMap[name]] ?? null;
+    const adhanTime = todayPrayerTime?.[prayerTimeFieldMap[name]] ?? null;
+    const prayerTimeIqamah = todayPrayerTime?.[prayerIqamahFieldMap[name]] ?? null;
+    const scheduleIqamahRaw = latestIqamah?.[iqamahScheduleFieldMap[name]] ?? null;
 
     const iqamahDisplay = prayerTimeIqamah
       ? formatTime(prayerTimeIqamah, timezone)
@@ -273,8 +221,8 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
 
   const activePrayerName =
     [...prayerItems]
-      .filter((prayer) => prayer.activeTime !== null)
-      .filter((prayer) => now.getTime() >= (prayer.activeTime as number))
+      .filter((p) => p.activeTime !== null)
+      .filter((p) => now.getTime() >= (p.activeTime as number))
       .sort((a, b) => (b.activeTime as number) - (a.activeTime as number))[0]?.name ?? null;
 
   const donationMap = new Map<string, number>();
@@ -297,85 +245,67 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   });
 
   const maxDonation = Math.max(...donationBars.map((item) => item.amount), 1);
-  const weeklyTotal = donations.reduce((sum, donation) => sum + donation.amount, 0);
+  const weeklyTotal = donations.reduce((sum, d) => sum + d.amount, 0);
 
-  const onlineDisplays = displays.filter((display) => display.status === "online");
-  const offlineDisplays = displays.filter((display) => display.status !== "online");
+  const onlineDisplays = displays.filter((d) => d.status === "online");
+  const offlineDisplays = displays.filter((d) => d.status !== "online");
 
   const actionCards = [
     {
       eyebrow: latestIqamah
-        ? `Current schedule from ${new Intl.DateTimeFormat("en-US").format(new Date(latestIqamah.changeDate))}`
+        ? `Schedule from ${new Intl.DateTimeFormat("en-US").format(new Date(latestIqamah.changeDate))}`
         : "No iqamah schedule yet",
       title: "Update Iqamah Times",
       href: withMasjid("/dashboard/prayer-times", masjidId),
       icon: Clock3,
-      tone:
-        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-sm hover:border-[#550C18]/20",
-      iconTone: "bg-[#550C18]/8 text-[#550C18]",
     },
     {
       eyebrow: `${contentCount} active content items`,
       title: "New Announcement",
       href: withMasjid("/dashboard/signage", masjidId),
       icon: Megaphone,
-      tone:
-        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-sm hover:border-[#550C18]/20",
-      iconTone: "bg-[#550C18]/8 text-[#550C18]",
     },
     {
-      eyebrow: `${donationCategoryCount} active giving categories`,
+      eyebrow: `${donationCategoryCount} giving categories`,
       title: "Add Donation Category",
       href: withMasjid("/dashboard/donations/categories", masjidId),
       icon: Wallet,
-      tone:
-        "bg-white text-[#2e0c12] border border-[#550C18]/10 shadow-sm hover:border-[#550C18]/20",
-      iconTone: "bg-[#550C18]/8 text-[#550C18]",
     },
   ];
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-[28px] border border-[#550C18]/10 bg-white p-6 shadow-sm md:p-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-[#2e0c12]">
-              Dashboard Overview
-            </h1>
-            <p className="mt-1 max-w-2xl text-sm text-[#6d5560] md:text-base">
-              Live masjid operations and community metrics for {masjid.name}.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            className="border-[#550C18]/15 bg-white/90 text-[#550C18] hover:bg-[#550C18]/5"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Export Report
-          </Button>
+    <div className="space-y-5">
+      {/* Page header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-[#2e0c12]">Dashboard</h1>
+          <p className="mt-0.5 text-sm text-[#8a7074]">
+            {masjid.name} · {new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(now)}
+          </p>
         </div>
-      </section>
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-[#550C18]/15 text-[#550C18] hover:bg-[#550C18]/5 self-start sm:self-auto"
+        >
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Export Report
+        </Button>
+      </div>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      {/* Quick action cards */}
+      <section className="grid gap-3 sm:grid-cols-3">
         {actionCards.map((action) => (
           <Link key={action.title} href={action.href}>
-            <Card
-              className={`overflow-hidden rounded-[22px] ${action.tone} transition duration-200 hover:-translate-y-0.5`}
-            >
+            <Card className="overflow-hidden rounded-xl border border-[#550C18]/10 bg-white hover:border-[#550C18]/25 hover:shadow-sm transition-all duration-150">
               <CardContent className="p-5">
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-2xl ${action.iconTone}`}
-                >
-                  <action.icon className="h-6 w-6" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#550C18]/8 text-[#550C18]">
+                  <action.icon className="h-4.5 w-4.5" />
                 </div>
-                <p className="mt-6 text-sm font-medium text-[#6d5560]">
-                  {action.eyebrow}
-                </p>
-                <div className="mt-1 flex items-end justify-between gap-4">
-                  <h2 className="text-lg font-semibold leading-tight">
-                    {action.title}
-                  </h2>
-                  <ArrowUpRight className="h-5 w-5 shrink-0 text-[#8a6b74]" />
+                <p className="mt-4 text-xs text-[#8a7074]">{action.eyebrow}</p>
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold text-[#2e0c12]">{action.title}</h2>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-[#c9b5bb]" />
                 </div>
               </CardContent>
             </Card>
@@ -383,115 +313,103 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         ))}
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-sm">
+      {/* Prayer times + donations */}
+      <section className="grid gap-5 xl:grid-cols-[300px_1fr]">
+        {/* Prayer times */}
+        <Card className="rounded-xl border border-[#550C18]/10 bg-white">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <div className="rounded-xl bg-[#550C18]/8 p-2 text-[#550C18]">
-                  <Clock3 className="h-5 w-5" />
+                <div className="rounded-lg bg-[#550C18]/8 p-1.5 text-[#550C18]">
+                  <Clock3 className="h-4 w-4" />
                 </div>
-                <div>
-                  <p className="text-lg font-semibold text-[#2e0c12]">
-                    Prayer Times
-                  </p>
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#8a6b74]">
-                    Today
-                  </p>
-                </div>
+                <p className="font-semibold text-[#2e0c12]">Prayer Times</p>
               </div>
-              <Badge className="bg-[#550C18]/8 text-[#550C18] hover:bg-[#550C18]/8">
-                {todayPrayerTime ? "Live" : "Pending"}
+              <Badge className="bg-[#550C18]/8 text-[#550C18] hover:bg-[#550C18]/8 text-xs font-medium">
+                {todayPrayerTime ? "Today" : "No data"}
               </Badge>
             </div>
 
-            <div className="mt-5 space-y-3">
+            <div className="space-y-2">
               {prayerItems.map((prayer) => (
                 <div
                   key={prayer.name}
-                  className={`rounded-2xl border px-4 py-3 transition ${
+                  className={`flex items-center justify-between rounded-lg px-3.5 py-2.5 transition-colors ${
                     prayer.name === activePrayerName
-                      ? "border-[#550C18]/20 bg-[#f7eff1] text-[#2e0c12]"
-                      : "border-[#550C18]/8 bg-[#fcfafb] text-[#2e0c12]"
+                      ? "bg-[#550C18] text-white"
+                      : "bg-[#fdf8f8] text-[#2e0c12] border border-[#550C18]/8"
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-semibold">{prayer.name}</span>
-                      {prayer.name === activePrayerName ? (
-                        <span className="rounded-full bg-[#550C18]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#550C18]">
-                          Current
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-semibold">{prayer.adhan}</p>
-                      <p
-                        className={`text-xs ${
-                          "text-[#8a6b74]"
-                        }`}
-                      >
-                        Iqamah: {prayer.iqamah}
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm font-semibold">{prayer.name}</span>
+                    {prayer.name === activePrayerName && (
+                      <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                        Now
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold">{prayer.adhan}</p>
+                    <p className={`text-[11px] ${prayer.name === activePrayerName ? "text-white/70" : "text-[#8a7074]"}`}>
+                      Iqamah {prayer.iqamah}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
+
+            <Link href={withMasjid("/dashboard/prayer-times", masjidId)}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 w-full border-[#550C18]/15 text-[#550C18] hover:bg-[#550C18]/5 text-xs"
+              >
+                Manage Prayer Times
+              </Button>
+            </Link>
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-sm">
+        {/* Donations chart */}
+        <Card className="rounded-xl border border-[#550C18]/10 bg-white">
           <CardContent className="p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start justify-between mb-1">
               <div>
-                <p className="text-2xl font-semibold text-[#2e0c12]">
-                  Weekly Donations Trend
-                </p>
-                <p className="mt-1 text-sm text-[#8a6b74]">
-                  Total this week:{" "}
+                <p className="font-semibold text-[#2e0c12]">Weekly Donations</p>
+                <p className="text-sm text-[#8a7074] mt-0.5">
+                  Total:{" "}
                   <span className="font-semibold text-[#550C18]">
                     {formatCurrency(weeklyTotal)}
                   </span>
                 </p>
               </div>
-              <Button
-                variant="outline"
-                className="border-[#550C18]/10 bg-[#faf7f8] text-[#6d5560] hover:bg-[#550C18]/5"
-              >
-                Last 7 Days
-              </Button>
+              <span className="text-xs text-[#8a7074] bg-[#fdf8f8] border border-[#550C18]/8 rounded-md px-2.5 py-1">
+                Last 7 days
+              </span>
             </div>
 
-            <div className="mt-10 flex h-[320px] items-end justify-between gap-3 rounded-[24px] border border-dashed border-[#550C18]/10 bg-[#fcfafb] px-3 pb-6 pt-10">
+            <div className="mt-6 flex h-52 items-end gap-2">
               {donationBars.map((item, index) => (
                 <div
                   key={item.day}
-                  className="flex h-full flex-1 flex-col items-center justify-end gap-3"
+                  className="flex h-full flex-1 flex-col items-center justify-end gap-2"
                 >
-                  <div className="w-full rounded-full bg-[#f3eaed]">
+                  <div className="w-full flex flex-col justify-end" style={{ height: "160px" }}>
                     <div
-                      className={`mx-auto w-full rounded-full ${
+                      className={`w-full rounded-t-md ${
                         index === donationBars.length - 2
                           ? "bg-[#550C18]"
-                          : "bg-[#c9adb5]"
+                          : "bg-[#e8d5da]"
                       }`}
                       style={{
-                        height: `${Math.max(
-                          20,
-                          (item.amount / maxDonation) * 220
-                        )}px`,
+                        height: `${Math.max(4, (item.amount / maxDonation) * 160)}px`,
                       }}
                     />
                   </div>
-                  <div className="text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a6b74]">
-                      {item.day}
-                    </p>
-                    <p className="mt-1 text-xs text-[#6d5560]">
-                      {item.amount > 0 ? formatCurrency(item.amount) : "$0.00"}
-                    </p>
-                  </div>
+                  <p className="text-[11px] font-medium text-[#8a7074]">{item.day}</p>
+                  {item.amount > 0 && (
+                    <p className="text-[10px] text-[#6d5560]">{formatCurrency(item.amount)}</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -499,63 +417,51 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </Card>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+      {/* TV displays + events */}
+      <section className="grid gap-5 xl:grid-cols-[300px_1fr]">
+        {/* TV Display status */}
+        <Card className="rounded-xl border border-[#550C18]/10 bg-white">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-[#2e0c12]">
-                  TV Display Status
-                </h2>
-                <p className="mt-1 text-sm text-[#8a6b74]">
-                  Real-time health across connected screens
-                </p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-[#550C18]/8 p-1.5 text-[#550C18]">
+                  <Monitor className="h-4 w-4" />
+                </div>
+                <p className="font-semibold text-[#2e0c12]">TV Displays</p>
               </div>
-              <div className="rounded-xl bg-[#550C18]/8 p-2 text-[#550C18]">
-                <Monitor className="h-5 w-5" />
-              </div>
+              <span className="text-xs text-[#8a7074]">{displays.length} total</span>
             </div>
 
-            <div className="mt-5 space-y-4">
-              <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50 p-4 text-emerald-800">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-600 text-white">
-                    <Monitor className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      {onlineDisplays.length} Online
-                    </p>
-                    <p className="mt-1 text-xs leading-5 opacity-80">
-                      {onlineDisplays.length > 0
-                        ? onlineDisplays
-                            .slice(0, 3)
-                            .map((display) => display.location || display.name)
-                            .join(", ")
-                        : "No active displays reporting in."}
-                    </p>
-                  </div>
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-3 rounded-lg border border-emerald-200/60 bg-emerald-50 p-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                  <Monitor className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-emerald-800">
+                    {onlineDisplays.length} Online
+                  </p>
+                  <p className="text-xs text-emerald-700/70 truncate">
+                    {onlineDisplays.length > 0
+                      ? onlineDisplays.slice(0, 3).map((d) => d.location || d.name).join(", ")
+                      : "No active displays"}
+                  </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-red-200/70 bg-red-50 p-4 text-red-700">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-600 text-white">
-                    <Monitor className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      {offlineDisplays.length} Offline
-                    </p>
-                    <p className="mt-1 text-xs leading-5 opacity-80">
-                      {offlineDisplays.length > 0
-                        ? offlineDisplays
-                            .slice(0, 2)
-                            .map((display) => display.location || display.name)
-                            .join(", ")
-                        : "All displays are currently online."}
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3 rounded-lg border border-red-200/60 bg-red-50 p-3.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-500 text-white">
+                  <Monitor className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-red-700">
+                    {offlineDisplays.length} Offline
+                  </p>
+                  <p className="text-xs text-red-600/70 truncate">
+                    {offlineDisplays.length > 0
+                      ? offlineDisplays.slice(0, 2).map((d) => d.location || d.name).join(", ")
+                      : "All displays are online"}
+                  </p>
                 </div>
               </div>
             </div>
@@ -563,70 +469,62 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             <Link href={withMasjid("/dashboard/signage", masjidId)}>
               <Button
                 variant="outline"
-                className="mt-5 w-full border-dashed border-[#550C18]/25 text-[#550C18] hover:bg-[#550C18]/5"
+                size="sm"
+                className="mt-4 w-full border-[#550C18]/15 text-[#550C18] hover:bg-[#550C18]/5 text-xs"
               >
-                Manage All Displays
+                Manage Displays
               </Button>
             </Link>
           </CardContent>
         </Card>
 
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+        {/* Upcoming events */}
+        <Card className="rounded-xl border border-[#550C18]/10 bg-white">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-semibold text-[#2e0c12]">
-                  Upcoming Events
-                </h2>
-                <p className="mt-1 text-sm text-[#8a6b74]">
-                  What your community will see next
-                </p>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="rounded-lg bg-[#550C18]/8 p-1.5 text-[#550C18]">
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <p className="font-semibold text-[#2e0c12]">Upcoming Events</p>
               </div>
               <Link
                 href={withMasjid("/dashboard/events", masjidId)}
-                className="text-sm font-medium text-[#550C18] hover:text-[#78001A]"
+                className="text-xs font-medium text-[#550C18] hover:text-[#3d0912]"
               >
-                View Calendar
+                View all →
               </Link>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               {events.length > 0 ? (
                 events.map((event) => (
                   <Link
                     key={event.id}
                     href={withMasjid("/dashboard/events", masjidId)}
-                    className="group rounded-[24px] border border-[#550C18]/8 bg-[#fcfafb] p-3 transition hover:-translate-y-0.5 hover:border-[#550C18]/20 hover:shadow-[0_18px_40px_-28px_rgba(85,12,24,0.35)]"
+                    className="group rounded-xl border border-[#550C18]/8 bg-[#fdf8f8] overflow-hidden hover:border-[#550C18]/20 transition-colors"
                   >
                     <div
-                      className="relative h-36 overflow-hidden rounded-2xl bg-cover bg-center"
-                      style={{
-                        backgroundImage: `url(${getEventImage(event)})`,
-                      }}
+                      className="h-28 bg-cover bg-center relative"
+                      style={{ backgroundImage: `url(${getEventImage(event)})` }}
                     >
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent" />
-                      <div className="absolute left-3 top-3 rounded-xl bg-white/90 px-2 py-1 text-xs font-semibold text-[#550C18] shadow-sm">
-                        {new Intl.DateTimeFormat("en-US", {
-                          month: "short",
-                          day: "numeric",
-                        }).format(new Date(event.date))}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      <div className="absolute left-2.5 top-2.5 rounded-md bg-white/90 px-2 py-0.5 text-xs font-semibold text-[#550C18]">
+                        {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(event.date))}
                       </div>
                     </div>
-                    <div className="pt-4">
-                      <h3 className="text-lg font-semibold leading-snug text-[#2e0c12]">
-                        {event.title}
-                      </h3>
-                      <div className="mt-2 flex items-center gap-2 text-sm text-[#8a6b74]">
-                        <Calendar className="h-4 w-4" />
-                        <span>{formatTime(event.date, timezone)}</span>
+                    <div className="p-3">
+                      <h3 className="text-sm font-semibold text-[#2e0c12] line-clamp-1">{event.title}</h3>
+                      <div className="mt-1.5 flex items-center gap-1.5 text-xs text-[#8a7074]">
+                        <Calendar className="h-3 w-3" />
+                        {formatTime(event.date, timezone)}
                       </div>
                     </div>
                   </Link>
                 ))
               ) : (
-                <div className="rounded-[24px] border border-dashed border-[#550C18]/15 bg-[#fcfafb] p-8 text-sm text-[#8a6b74] md:col-span-3">
-                  No upcoming events yet. Add the next community program to make
-                  it visible here.
+                <div className="col-span-3 rounded-xl border border-dashed border-[#550C18]/15 bg-[#fdf8f8] p-8 text-center text-sm text-[#8a7074]">
+                  No upcoming events. Add the next community program.
                 </div>
               )}
             </div>

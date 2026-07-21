@@ -107,33 +107,27 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-3xl border border-[#550C18]/10 bg-gradient-to-br from-[#fff5f5] via-white to-white p-6 md:p-8 shadow-sm">
-        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
-              Analytics
-            </p>
-            <h1 className="text-3xl md:text-4xl font-semibold text-[#2e0c12] mt-2">
-              Track growth across donations, events, and engagement.
-            </h1>
-            <p className="text-[#3A3A3A]/70 mt-2 max-w-xl">
-              Measure the impact of your masjid programs and campaigns over time.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-[#2e0c12]">Analytics</h1>
+          <p className="mt-0.5 text-sm text-[#8a7074]">
+            Donations, kiosk activity, and content performance.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"
+                  size="sm"
+                  className="border-[#550C18]/15 text-[#550C18] hover:bg-[#550C18]/5"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
                   {date.from ? (
                     date.to ? (
                       <>
-                        {format(date.from, "LLL dd, y")} -{" "}
-                        {format(date.to, "LLL dd, y")}
+                        {format(date.from, "LLL dd")} – {format(date.to, "LLL dd, y")}
                       </>
                     ) : (
                       format(date.from, "LLL dd, y")
@@ -158,11 +152,10 @@ export default function AnalyticsPage() {
                 />
               </PopoverContent>
             </Popover>
-            <Button variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5" onClick={fetchAnalytics}>
-              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+            <Button variant="outline" size="sm" className="border-[#550C18]/15 text-[#550C18] hover:bg-[#550C18]/5" onClick={fetchAnalytics}>
+              {loading ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
               Refresh
             </Button>
-          </div>
         </div>
       </div>
 

@@ -495,312 +495,58 @@ export default function SignagePage() {
   }
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-[28px] border border-[#550C18]/10 bg-[linear-gradient(135deg,rgba(255,246,247,1)_0%,rgba(255,255,255,1)_42%,rgba(249,241,243,1)_100%)] p-6 shadow-[0_30px_80px_-55px_rgba(85,12,24,0.45)] md:p-8">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#550C18]/60">
-              Signage
-            </p>
-            <h1 className="mt-2 text-1xl font-semibold tracking-tight text-[#2e0c12] md:text-4xl">
-              One place to manage every screen and slide.
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-[#6d5560] md:text-base">
-              Control TV displays, launch content, and keep live signage smooth across your masjid.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            className="border-[#550C18]/15 bg-white/90 text-[#550C18] hover:bg-[#550C18]/5"
-            onClick={fetchData}
-            disabled={loading}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh Signage
-          </Button>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-[#2e0c12]">Signage</h1>
+          <p className="mt-0.5 text-sm text-[#8a7074]">
+            Manage TV displays, content slides, and announcements.
+          </p>
         </div>
-      </section>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="rounded-[24px] border-[#550C18]/10 bg-gradient-to-br from-[#550C18] to-[#7a162c] text-white shadow-[0_20px_45px_-30px_rgba(85,12,24,0.8)]">
-          <CardContent className="p-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10">
-              <Monitor className="h-6 w-6" />
-            </div>
-            <p className="mt-6 text-sm text-white/75">Displays</p>
-            <p className="mt-1 text-lg font-semibold">Managed by Mizan Admin</p>
-            <p className="mt-3 text-sm text-white/75">
-              New display devices are assigned to masjids from the admin app before deployment.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Link
-          href={`/dashboard/content-library?masjidId=${masjidId}`}
-          className="block"
+        <Button
+          variant="outline"
+          size="sm"
+          className="border-[#550C18]/15 text-[#550C18] hover:bg-[#550C18]/5 self-start sm:self-auto"
+          onClick={fetchData}
+          disabled={loading}
         >
-          <Card className="h-full rounded-[24px] border-[#550C18]/10 bg-white shadow-[0_18px_40px_-32px_rgba(85,12,24,0.35)] transition hover:-translate-y-0.5">
-            <CardContent className="flex h-full items-center gap-4 p-6">
-              <div className="rounded-2xl bg-[#550C18]/8 p-3 text-[#550C18]">
-                <FileText className="h-5 w-5" />
+          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/*<div className="flex gap-3">
+        <Link href={`/dashboard/content-library?masjidId=${masjidId}`} className="block">
+          <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#550C18]/25">
+            <CardContent className="flex items-center gap-3 px-4 py-3">
+              <div className="rounded-lg bg-[#550C18]/8 p-2 text-[#550C18]">
+                <FileText className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm text-[#8a6b74]">Content</p>
-                <p className="text-lg font-semibold text-[#2e0c12]">
-                  Create Content Slide
-                </p>
+                <p className="text-xs text-[#8a6b74]">Content</p>
+                <p className="text-sm font-semibold text-[#2e0c12]">Create Content Slide</p>
               </div>
             </CardContent>
           </Card>
         </Link>
 
-        <Link
-          href={`/dashboard/content-library/create/announcement?masjidId=${masjidId}`}
-          className="block"
-        >
-          <Card className="h-full rounded-[24px] border-none bg-gradient-to-br from-[#a67a08] to-[#d4ab25] text-[#2e2400] shadow-[0_20px_45px_-30px_rgba(166,122,8,0.65)] transition hover:-translate-y-0.5">
-            <CardContent className="flex h-full items-center gap-4 p-6">
-              <div className="rounded-2xl bg-white/25 p-3">
-                <Megaphone className="h-5 w-5" />
+        <Link href={`/dashboard/content-library/create/announcement?masjidId=${masjidId}`} className="block">
+          <Card className="rounded-xl border-none bg-gradient-to-br from-[#a67a08] to-[#d4ab25] text-[#2e2400] shadow-sm transition hover:-translate-y-0.5">
+            <CardContent className="flex items-center gap-3 px-4 py-3">
+              <div className="rounded-lg bg-white/25 p-2">
+                <Megaphone className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-sm text-[#2e2400]/70">Broadcast</p>
-                <p className="text-lg font-semibold">Quick Announcement</p>
+                <p className="text-xs text-[#2e2400]/70">Broadcast</p>
+                <p className="text-sm font-semibold">Quick Announcement</p>
               </div>
             </CardContent>
           </Card>
         </Link>
-      </section>
+      </div>*/}
 
-      <section className="space-y-4">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-1xl font-semibold tracking-tight text-[#2e0c12]">
-              Active TV Displays
-            </h2>
-            <p className="mt-1 text-lg text-[#6d5560]">
-              Real-time status of sanctuary digital signage
-            </p>
-          </div>
-          <a
-            href="#display-management"
-            className="text-base font-semibold text-[#0f5c4d] hover:text-[#0b4a3e]"
-          >
-            View All Locations
-          </a>
-        </div>
-
-        <div className="grid gap-5 xl:grid-cols-3">
-          {displays.slice(0, 2).map((display) => {
-            const assigned = contentItems.find(
-              (item) => item.id === display.assignedContentId
-            );
-
-            return (
-              <Card
-                key={display.id}
-                className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]"
-              >
-                <CardContent className="p-7">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-900">
-                      <Monitor className="h-7 w-7" />
-                    </div>
-                    <Badge
-                      className={
-                        display.status === "online"
-                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-100"
-                      }
-                    >
-                      <span className="mr-2 h-2 w-2 rounded-full bg-current opacity-70" />
-                      {display.status === "online" ? "ONLINE" : "OFFLINE"}
-                    </Badge>
-                  </div>
-
-                  <h3 className="mt-8 text-lg font-semibold tracking-tight text-[#2e0c12]">
-                    {display.name}
-                  </h3>
-                  <p className="mt-2 text-md text-[#5f646d]">
-                    Current:{" "}
-                    <span className="font-medium text-[#173f36]">
-                      {assigned?.title || "No assigned content"}
-                    </span>
-                  </p>
-
-                  <div className="mt-6 border-t border-[#550C18]/10 pt-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-normal uppercase tracking-[0.18em] text-[#8ca0bc]">
-                        {display.lastSeen
-                          ? `Last seen ${new Date(display.lastSeen).toLocaleDateString()}`
-                          : "Awaiting heartbeat"}
-                      </p>
-                      <Link
-                        href={`/dashboard/tv-displays/signage-config?masjidId=${masjidId}&displayId=${display.id}`}
-                      >
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-[#7182a0] hover:bg-[#550C18]/5 hover:text-[#550C18]"
-                        >
-                          <Settings className="h-5 w-5" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-
-          <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#cad3df] bg-[#f8fafc] px-8 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#b9c2d3] shadow-sm">
-              <Plus className="h-8 w-8" />
-            </div>
-            <p className="mt-8 text-lg font-semibold text-[#9aa9c0]">
-              Displays Added Separately
-            </p>
-            <p className="mt-2 max-w-xs text-sm text-[#b7c2d5]">
-              Ask Mizan admin to assign a new device to this masjid before shipping it out.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-4" id="create-content">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-1xl font-semibold tracking-tight text-[#2e0c12]">
-              Content Library
-            </h2>
-            <div className="flex rounded-2xl bg-[#eef0f4] p-1">
-              {[
-                { key: "all", label: "All" },
-                { key: "slides", label: "Slides" },
-                { key: "videos", label: "Videos" },
-                { key: "widgets", label: "Widgets" },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() =>
-                    setAssetFilter(item.key as "all" | "slides" | "videos" | "widgets")
-                  }
-                  className={`rounded-xl px-5 py-3 text-lg font-medium transition ${
-                    assetFilter === item.key
-                      ? "bg-white text-[#173f36] shadow-sm"
-                      : "text-[#6d5560] hover:text-[#2e0c12]"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {filteredCardItems.slice(0, 6).map((item) => {
-            const meta = getTypeMeta(item.type);
-            const Icon = meta.icon;
-            const isAssigned = activeAssignments.has(item.id);
-
-            return (
-              <Link
-                key={item.id}
-                href={`/dashboard/content-library/${item.type}/edit/${item.id}?masjidId=${masjidId}`}
-                className="group"
-              >
-                <Card className="overflow-hidden rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)] transition hover:-translate-y-0.5">
-                  <CardContent className="p-0">
-                    <div className={`flex min-h-[220px] flex-col justify-between bg-gradient-to-br ${meta.tone} p-6`}>
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
-                          <Icon className="h-6 w-6" />
-                        </div>
-                        {isAssigned ? (
-                          <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">
-                            Currently Showing
-                          </Badge>
-                        ) : item.active ? (
-                          <Badge className="bg-[#550C18]/10 text-[#550C18] hover:bg-[#550C18]/10">
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-gray-200 text-gray-700 hover:bg-gray-200">
-                            Hidden
-                          </Badge>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium opacity-70">{meta.label}</p>
-                        <h3 className="mt-2 text-3xl font-semibold leading-tight">
-                          {item.title}
-                        </h3>
-                        <p className="mt-3 line-clamp-2 text-base opacity-75">
-                          {item.description || "Ready for your display rotation."}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between px-6 py-5">
-                      <div>
-                        <p className="text-2xl font-semibold text-[#2e0c12]">
-                          {item.title}
-                        </p>
-                        <p className="text-base text-[#8a6b74]">
-                          {item.type.replace(/_/g, " ")}
-                        </p>
-                      </div>
-                      <ArrowUpRight className="h-5 w-5 text-[#550C18]/60 transition group-hover:text-[#550C18]" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-
-          <Link
-            href={`/dashboard/content-library?masjidId=${masjidId}`}
-            className="group"
-          >
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[28px] border border-dashed border-[#cad3df] bg-[#fbfcfd] px-8 text-center transition hover:border-[#550C18]/30 hover:bg-white">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#b9c2d3] shadow-sm">
-                <Plus className="h-8 w-8" />
-              </div>
-              <p className="mt-8 text-2xl font-semibold text-[#9aa9c0]">
-                New Asset
-              </p>
-            </div>
-          </Link>
-        </div>
-      </section>
-
-      <section className="rounded-[28px] border border-[#d6bc60]/50 bg-white p-6 shadow-[0_24px_60px_-45px_rgba(85,12,24,0.3)]">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f5efe0] text-[#8d6e00]">
-              <Sparkles className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-2xl font-semibold text-[#2e0c12]">
-                Digital Signage Best Practice
-              </h3>
-              <p className="mt-1 max-w-3xl text-lg text-[#6d5560]">
-                Research shows that adding 15-second spiritual break slides between scheduled content can increase community engagement and readability.
-              </p>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            className="text-base font-semibold text-[#0f5c4d] hover:bg-[#0f5c4d]/5 hover:text-[#0f5c4d]"
-          >
-            Apply Suggestion
-          </Button>
-        </div>
-      </section>
-
-      <section id="display-management" className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+<section id="display-management" className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm">
           <CardHeader>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -945,7 +691,7 @@ export default function SignagePage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+          <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="text-2xl text-[#2e0c12]">
                 Display Summary
@@ -974,7 +720,7 @@ export default function SignagePage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+          <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm">
             <CardHeader>
               <CardTitle className="text-2xl text-[#2e0c12]">
                 Template Toggles
@@ -1016,8 +762,140 @@ export default function SignagePage() {
         </div>
       </section>
 
+      {/* <section className="space-y-4" id="create-content">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-4">
+            <h2 className="text-1xl font-semibold tracking-tight text-[#2e0c12]">
+              Content Library
+            </h2>
+            <div className="flex rounded-2xl bg-[#eef0f4] p-1">
+              {[
+                { key: "all", label: "All" },
+                { key: "slides", label: "Slides" },
+                { key: "videos", label: "Videos" },
+                { key: "widgets", label: "Widgets" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() =>
+                    setAssetFilter(item.key as "all" | "slides" | "videos" | "widgets")
+                  }
+                  className={`rounded-xl px-5 py-3 text-lg font-medium transition ${
+                    assetFilter === item.key
+                      ? "bg-white text-[#173f36] shadow-sm"
+                      : "text-[#6d5560] hover:text-[#2e0c12]"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {filteredCardItems.slice(0, 6).map((item) => {
+            const meta = getTypeMeta(item.type);
+            const Icon = meta.icon;
+            const isAssigned = activeAssignments.has(item.id);
+
+            return (
+              <Link
+                key={item.id}
+                href={`/dashboard/content-library/${item.type}/edit/${item.id}?masjidId=${masjidId}`}
+                className="group"
+              >
+                <Card className="overflow-hidden rounded-xl border-[#550C18]/10 bg-white shadow-sm transition hover:-translate-y-0.5">
+                  <CardContent className="p-0">
+                    <div className={`flex min-h-[220px] flex-col justify-between bg-gradient-to-br ${meta.tone} p-6`}>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 backdrop-blur-sm">
+                          <Icon className="h-6 w-6" />
+                        </div>
+                        {isAssigned ? (
+                          <Badge className="bg-emerald-500 text-white hover:bg-emerald-500">
+                            Currently Showing
+                          </Badge>
+                        ) : item.active ? (
+                          <Badge className="bg-[#550C18]/10 text-[#550C18] hover:bg-[#550C18]/10">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gray-200 text-gray-700 hover:bg-gray-200">
+                            Hidden
+                          </Badge>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium opacity-70">{meta.label}</p>
+                        <h3 className="mt-2 text-3xl font-semibold leading-tight">
+                          {item.title}
+                        </h3>
+                        <p className="mt-3 line-clamp-2 text-base opacity-75">
+                          {item.description || "Ready for your display rotation."}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between px-6 py-5">
+                      <div>
+                        <p className="text-2xl font-semibold text-[#2e0c12]">
+                          {item.title}
+                        </p>
+                        <p className="text-base text-[#8a6b74]">
+                          {item.type.replace(/_/g, " ")}
+                        </p>
+                      </div>
+                      <ArrowUpRight className="h-5 w-5 text-[#550C18]/60 transition group-hover:text-[#550C18]" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+
+          <Link
+            href={`/dashboard/content-library?masjidId=${masjidId}`}
+            className="group"
+          >
+            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-dashed border-[#cad3df] bg-[#fbfcfd] px-8 text-center transition hover:border-[#550C18]/30 hover:bg-white">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-[#b9c2d3] shadow-sm">
+                <Plus className="h-8 w-8" />
+              </div>
+              <p className="mt-8 text-2xl font-semibold text-[#9aa9c0]">
+                New Asset
+              </p>
+            </div>
+          </Link>
+        </div>
+      </section> */}
+
+      {/* <section className="rounded-xl border border-[#d6bc60]/50 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#f5efe0] text-[#8d6e00]">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-semibold text-[#2e0c12]">
+                Digital Signage Best Practice
+              </h3>
+              <p className="mt-1 max-w-3xl text-lg text-[#6d5560]">
+                Research shows that adding 15-second spiritual break slides between scheduled content can increase community engagement and readability.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            className="text-base font-semibold text-[#0f5c4d] hover:bg-[#0f5c4d]/5 hover:text-[#0f5c4d]"
+          >
+            Apply Suggestion
+          </Button>
+        </div>
+      </section> */}
+
       <section className="space-y-6">
-        <Card className="rounded-[28px] border-[#550C18]/10 bg-white shadow-[0_24px_60px_-45px_rgba(85,12,24,0.45)]">
+        <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm">
           <CardHeader>
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>

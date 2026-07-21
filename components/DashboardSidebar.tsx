@@ -144,7 +144,7 @@ export default function DashboardSidebar({
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen bg-white w-full">
         <Sidebar className="border-r border-[#550C18]/10 bg-white z-20">
-          <SidebarHeader className="border-b border-[#550C18]/10 px-6 py-3.5">
+          <SidebarHeader className="border-b border-[#550C18]/8 px-5 py-4">
             <Link
               href="/"
               className="flex items-center justify-center gap-2 !m-0"
@@ -333,8 +333,8 @@ export default function DashboardSidebar({
           </SidebarContent>
         </Sidebar>
 
-        <main className="flex min-h-screen w-full flex-col overflow-hidden bg-[#fcfbfa]">
-          <header className="sticky top-0 z-10 flex min-h-24 items-center justify-between border-b border-[#550C18]/10 bg-white px-6 py-4">
+        <main className="flex min-h-screen w-full flex-col overflow-hidden bg-[#faf7f5]">
+          <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[#550C18]/8 bg-white px-6">
             <div className="flex items-center gap-2">
               <SidebarTrigger className="md:hidden text-[#3A3A3A]">
                 <Menu className="h-6 w-6" />
