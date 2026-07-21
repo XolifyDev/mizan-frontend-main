@@ -4,7 +4,7 @@ import { CartItem } from "../cartItemSchema";
 import { prisma } from "../db";
 import { stripeClient } from "../stripe";
 import { Discount } from "../useCartStore";
-import { getUser } from "./user";
+import { getFullUser as getUser } from "./user";
 
 type CreateCheckoutSessionProps = {
   cart: CartItem[];

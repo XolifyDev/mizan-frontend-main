@@ -133,14 +133,7 @@ export default function SignInForm() {
         setButtonState("success");
 
         setTimeout(() => {
-          setButtonState("default");
-          toast({
-            title: "Welcome Back!",
-            description: "Welcome back to Mizan!",
-            variant: "default",
-          });
-          router.push("/dashboard");
-          router.refresh();
+          window.location.href = "/dashboard";
         }, 800)
       }
     } catch {

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { auth } from "./auth";
 import { prisma } from "./db";
 
@@ -17,10 +18,8 @@ export async function loginUser({
   void rememberMe;
   try {
     const user = await auth.api.signInEmail({
-      body: {
-        email,
-        password
-      },
+      body: { email, password },
+      headers: await headers(),
     });
     revalidatePath("/", "layout");
     revalidatePath("/dashboard", "layout");
@@ -62,11 +61,8 @@ export async function registerUser({
   void termsAndConditions;
   try {
     const user = await auth.api.signUpEmail({
-      body: {
-        email,
-        name,
-        password,
-      },
+      body: { email, name, password },
+      headers: await headers(),
     });
 
     return user;
