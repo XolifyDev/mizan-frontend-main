@@ -12,6 +12,7 @@ import CreateRamadanCountdownForm from "./forms/CreateRamadanCountdownForm";
 import CreateEidCountdownForm from "./forms/CreateEidCountdownForm";
 import CreateDaysCountdownForm from "./forms/CreateDaysCountdownForm";
 import CreateTaraweehTimingsForm from "./forms/CreateTaraweehTimingsForm";
+import CreateVideoForm from "./forms/CreateVideoForm";
 
 export default function CreateContentPage() {
   const { type } = useParams();
@@ -40,6 +41,8 @@ export default function CreateContentPage() {
       return <CreateDaysCountdownForm />;
     case "taraweeh_timings":
       return <CreateTaraweehTimingsForm />;
+    case "video":
+      return <CreateVideoForm />;
     default:
       return <div className="p-8 text-center text-red-600">Invalid content type</div>;
   }

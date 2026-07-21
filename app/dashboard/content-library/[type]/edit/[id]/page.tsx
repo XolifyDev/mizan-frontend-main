@@ -12,6 +12,7 @@ import EditDailyDuaForm from "../../../create/[type]/forms/EditDailyDuaForm";
 import EditEidCountdownForm from "../../../create/[type]/forms/EditEidCountdownForm";
 import EditDaysCountdownForm from "../../../create/[type]/forms/EditDaysCountdownForm";
 import EditTaraweehTimingsForm from "../../../create/[type]/forms/EditTaraweehTimingsForm";
+import EditVideoForm from "../../../create/[type]/forms/EditVideoForm";
 
 export default function EditContentPage() {
   const { type, id } = useParams();
@@ -44,6 +45,8 @@ export default function EditContentPage() {
       return <EditDaysCountdownForm id={id as string} />;
     case "taraweeh_timings":
       return <EditTaraweehTimingsForm contentId={id as string} />;
+    case "video":
+      return <EditVideoForm id={id as string} />;
     default:
       return <div className="p-8 text-center text-red-600">Invalid content type</div>;
   }

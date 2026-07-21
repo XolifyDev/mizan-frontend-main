@@ -17,6 +17,7 @@ import {
   Trash,
   Clock,
   BookOpen,
+  Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -108,6 +109,12 @@ const CONTENT_TYPES = [
     icon: <Clock className="h-5 w-5" />,
     title: "Taraweeh Timings",
     description: "Display taraweeh timings on the screen.",
+  },
+  {
+    type: "video",
+    icon: <Video className="h-5 w-5" />,
+    title: "Video",
+    description: "Upload a video file or embed a YouTube/Vimeo link.",
   },
 ];
 
