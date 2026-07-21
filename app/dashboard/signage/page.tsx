@@ -515,35 +515,32 @@ export default function SignagePage() {
         </Button>
       </div>
 
-      {/*<div className="flex gap-3">
-        <Link href={`/dashboard/content-library?masjidId=${masjidId}`} className="block">
-          <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#550C18]/25">
-            <CardContent className="flex items-center gap-3 px-4 py-3">
-              <div className="rounded-lg bg-[#550C18]/8 p-2 text-[#550C18]">
-                <FileText className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-[#8a6b74]">Content</p>
-                <p className="text-sm font-semibold text-[#2e0c12]">Create Content Slide</p>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="flex flex-wrap gap-3">
+        <Link href={`/dashboard/content-library?masjidId=${masjidId}`}>
+          <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
+            <Plus className="mr-1.5 h-4 w-4" />
+            New Content
+          </Button>
         </Link>
-
-        <Link href={`/dashboard/content-library/create/announcement?masjidId=${masjidId}`} className="block">
-          <Card className="rounded-xl border-none bg-gradient-to-br from-[#a67a08] to-[#d4ab25] text-[#2e2400] shadow-sm transition hover:-translate-y-0.5">
-            <CardContent className="flex items-center gap-3 px-4 py-3">
-              <div className="rounded-lg bg-white/25 p-2">
-                <Megaphone className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-xs text-[#2e2400]/70">Broadcast</p>
-                <p className="text-sm font-semibold">Quick Announcement</p>
-              </div>
-            </CardContent>
-          </Card>
+        <Link href={`/dashboard/content-library/create/announcement?masjidId=${masjidId}`}>
+          <Button variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5">
+            <Megaphone className="mr-1.5 h-4 w-4" />
+            Quick Announcement
+          </Button>
         </Link>
-      </div>*/}
+        <Link href={`/dashboard/content-library/create/image?masjidId=${masjidId}`}>
+          <Button variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5">
+            <FileText className="mr-1.5 h-4 w-4" />
+            Upload Image
+          </Button>
+        </Link>
+        <Link href={`/dashboard/content-library/create/video?masjidId=${masjidId}`}>
+          <Button variant="outline" className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5">
+            <Monitor className="mr-1.5 h-4 w-4" />
+            Add Video
+          </Button>
+        </Link>
+      </div>
 
 <section id="display-management" className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <Card className="rounded-xl border-[#550C18]/10 bg-white shadow-sm">
