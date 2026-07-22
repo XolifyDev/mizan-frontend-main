@@ -326,12 +326,12 @@ export default function ContentLibraryPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link href={`/dashboard/content-library/create/announcement?masjidId=${masjidId}`}>
+            {/* <Link href={`/dashboard/content-library/create/announcement?masjidId=${masjidId}`}>
               <Button className="bg-[#550C18] hover:bg-[#78001A] text-white">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 New Announcement
               </Button>
-            </Link>
+            </Link> */}
             <Button
               variant="outline"
               className="border-[#550C18]/20 text-[#550C18] hover:bg-[#550C18]/5"

@@ -103,7 +103,7 @@ export default function CreateImageForm() {
 
   const onSubmit = async (values: FormValues) => {
     const formData = new FormData();
-    const file = values.file;
+    const { file, ...rest } = values;
     formData.append("files", file)
     const res = await fetch("/api/uploadthing", {
       method: "POST",
@@ -113,7 +113,7 @@ export default function CreateImageForm() {
     const uploaded = await res.json();
     await createContentWithConfig({
       masjidId,
-      ...values,
+      ...rest,
       type: "image",
       url: uploaded[0].data.ufsUrl,
       data: { description: values.description },
