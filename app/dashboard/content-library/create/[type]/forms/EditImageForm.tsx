@@ -102,6 +102,7 @@ export default function EditImageForm({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [existingImage, setExistingImage] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
@@ -110,6 +111,7 @@ export default function EditImageForm({ id }: { id: string }) {
         const data = await getContentById(id);
         if (!data) throw new Error("Content not found");
         setExistingImage(data.url || null);
+        setPreview(data.url || null);
         form.reset({
           title: data.title || "",
           description: data.data?.description || data.description || "",
@@ -248,25 +250,16 @@ export default function EditImageForm({ id }: { id: string }) {
           control={form.control}
           name="file"
           render={({ field }) => {
-            const file = field.value;
-            const [preview, setPreview] = React.useState<string | null>(null);
-            React.useEffect(() => {
-              if (file instanceof File) {
-                const reader = new FileReader();
-                reader.onloadend = () => setPreview(reader.result as string);
-                reader.readAsDataURL(file);
-              } else if (existingImage) {
-                setPreview(existingImage);
-              } else {
-                setPreview(null);
-              }
-            }, [file, existingImage]);
+            const handleFileChange = (file: File) => {
+              field.onChange(file);
+              const reader = new FileReader();
+              reader.onloadend = () => setPreview(reader.result as string);
+              reader.readAsDataURL(file);
+            };
             const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
               e.preventDefault();
-              const file = e.dataTransfer.files[0];
-              if (file) {
-                field.onChange(file);
-              }
+              const f = e.dataTransfer.files[0];
+              if (f) handleFileChange(f);
             };
             const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
               e.preventDefault();
@@ -297,7 +290,7 @@ export default function EditImageForm({ id }: { id: string }) {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={e => field.onChange(e.target.files?.[0])}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleFileChange(f); }}
                     />
                     <Button 
                       type="button" 

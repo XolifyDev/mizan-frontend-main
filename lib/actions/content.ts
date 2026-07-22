@@ -64,7 +64,19 @@ export const updateContent = async (id: string, data: any) => {
   if (!existing) return null;
   const access = await requireMasjidAccess(existing.masjidId);
   if (!access) return null;
-  const updated = await prisma.content.update({ where: { id }, data });
+
+  // Strip form-only fields; map status → active
+  const { status, file, masjidId: _mid, ...rest } = data;
+  const prismaData: Record<string, unknown> = { ...rest };
+  if (status !== undefined) {
+    prismaData.active = status === "Active";
+  }
+  // Ensure zones is always stored as a comma-joined string
+  if (Array.isArray(prismaData.zones)) {
+    prismaData.zones = (prismaData.zones as string[]).join(",");
+  }
+
+  const updated = await prisma.content.update({ where: { id }, data: prismaData });
   await publishRealtimeUpdate({
     masjidId: existing.masjidId,
     type: "content_update",
