@@ -144,7 +144,7 @@ export default function DashboardSidebar({
     <SidebarProvider defaultOpen={true}>
       <div className="flex min-h-screen bg-white w-full">
         <Sidebar className="border-r border-[#550C18]/10 bg-white z-20">
-          <SidebarHeader className="border-b border-[#550C18]/8 px-5 py-4">
+          <SidebarHeader className="border-b border-[#550C18]/8 px-5 h-16 flex justify-center">
             <Link
               href="/"
               className="flex items-center justify-center gap-2 !m-0"

@@ -54,7 +54,8 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.BETTER_AUTH_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://mizanmanagement.com";
+      "https://mizan-frontend.vercel.app"
+      // "https://mizanmanagement.com";
 
     return NextResponse.json({
       code: session.code,
