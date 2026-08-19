@@ -60,13 +60,13 @@ export async function buildMasjidSlidesResponse(
   let signageConfig;
 
   if (displayId) {
+    // Try exact match first, fall back to any config for this masjid
     signageConfig = await prisma.signageConfig.findFirst({
-      where: {
-        masjidId,
-        displayId,
-      },
+      where: { masjidId, displayId },
     });
-  } else {
+  }
+
+  if (!signageConfig) {
     signageConfig = await prisma.signageConfig.findFirst({
       where: { masjidId },
     });
@@ -127,14 +127,17 @@ export async function buildMasjidSlidesResponse(
     }
 
     if (slide.content) {
-      const startDate = slide.content.startDate ? new Date(slide.content.startDate) : null;
-      const endDate = slide.content.endDate ? new Date(slide.content.endDate) : null;
+      if (slide.content.active !== true) return false;
+      const startDate = slide.content.startDate ? new Date(slide.content.startDate as string) : null;
+      const endDate = slide.content.endDate ? new Date(slide.content.endDate as string) : null;
+      // Only enforce date bounds if both are set — a missing endDate means "show indefinitely"
       const afterStart = !startDate || now >= startDate;
       const beforeEnd = !endDate || now <= endDate;
-      return slide.content.active === true && afterStart && beforeEnd;
+      return afterStart && beforeEnd;
     }
 
-    return false;
+    // Slides with no content record (inline slides) always show
+    return true;
   });
 
   const version = createVersionHash({
