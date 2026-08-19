@@ -460,8 +460,6 @@ model TVDisplay {
   Orders            Orders?        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   announcements     Announcement[] @relation("AnnouncementToTVDisplay")
   displayedContent  Content[]      @relation("DisplayContent")
-  pairingSessions   DevicePairingSession[]
-  
   @@index([status])
   @@index([lastSeen])
   @@index([masjidId])
@@ -477,8 +475,6 @@ model DevicePairingSession {
   createdAt        DateTime  @default(now())
   expiresAt        DateTime
   verifiedAt       DateTime?
-
-  device           TVDisplay @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 
   @@index([deviceId])
   @@index([status])

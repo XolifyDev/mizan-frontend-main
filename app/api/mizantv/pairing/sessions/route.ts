@@ -15,19 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "deviceId is required" }, { status: 400 });
     }
 
-    const display = await prisma.tVDisplay.findUnique({
-      where: { id: deviceId },
-      select: {
-        id: true,
-        name: true,
-        masjidId: true,
-      },
-    });
-
-    if (!display) {
-      return NextResponse.json({ error: "Display not found" }, { status: 404 });
-    }
-
+    // Expire any existing pending sessions for this device
     await prisma.devicePairingSession.updateMany({
       where: {
         deviceId,
@@ -54,8 +42,7 @@ export async function POST(request: Request) {
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.BETTER_AUTH_URL ||
       process.env.NEXT_PUBLIC_SITE_URL ||
-      "https://mizan-frontend.vercel.app"
-      // "https://mizanmanagement.com";
+      "https://mizan-frontend.vercel.app";
 
     return NextResponse.json({
       code: session.code,
