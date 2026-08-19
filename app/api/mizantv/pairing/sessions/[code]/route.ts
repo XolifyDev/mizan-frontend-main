@@ -5,22 +5,6 @@ import { getUser } from "@/lib/actions/user";
 async function getPairingSession(code: string) {
   return prisma.devicePairingSession.findUnique({
     where: { code },
-    include: {
-      device: {
-        select: {
-          id: true,
-          name: true,
-          masjidId: true,
-          masjid: {
-            select: {
-              id: true,
-              name: true,
-              logo: true,
-            },
-          },
-        },
-      },
-    },
   });
 }
 
@@ -44,16 +28,26 @@ export async function GET(
       session.status = "expired";
     }
 
+    // Look up device and masjid separately (no FK relation)
+    const device = await prisma.tVDisplay.findUnique({
+      where: { id: session.deviceId },
+      select: {
+        id: true,
+        name: true,
+        masjidId: true,
+        masjid: {
+          select: { id: true, name: true, logo: true },
+        },
+      },
+    });
+
     return NextResponse.json({
       code: session.code,
       status: session.status,
       expiresAt: session.expiresAt,
       verifiedAt: session.verifiedAt,
-      device: {
-        id: session.device.id,
-        name: session.device.name,
-      },
-      masjid: session.status === "verified" ? session.device.masjid : null,
+      device: device ? { id: device.id, name: device.name } : null,
+      masjid: session.status === "verified" && device ? device.masjid : null,
     });
   } catch (error) {
     console.error("Failed to fetch device pairing session:", error);
@@ -99,12 +93,31 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (session.device.masjidId !== masjidId) {
-      return NextResponse.json(
-        { error: "This device is not assigned to that masjid yet. Add it from the admin app first." },
-        { status: 409 }
-      );
-    }
+    // Upsert the TVDisplay row, assigning it to the verified masjid
+    const device = await prisma.tVDisplay.upsert({
+      where: { id: session.deviceId },
+      create: {
+        id: session.deviceId,
+        name: `MizanTV ${session.deviceId.slice(0, 8)}`,
+        masjidId,
+        status: "online",
+        isActive: true,
+        location: "Main Hall",
+        config: {},
+        registeredAt: new Date(),
+      },
+      update: {
+        masjidId,
+        status: "online",
+        isActive: true,
+        lastSeen: new Date(),
+      },
+      select: {
+        id: true,
+        name: true,
+        masjid: { select: { id: true, name: true, logo: true } },
+      },
+    });
 
     const updated = await prisma.devicePairingSession.update({
       where: { id: session.id },
@@ -114,28 +127,13 @@ export async function POST(
         requestedByUserId: user.id,
         verifiedAt: new Date(),
       },
-      include: {
-        device: {
-          select: {
-            id: true,
-            name: true,
-            masjid: {
-              select: {
-                id: true,
-                name: true,
-                logo: true,
-              },
-            },
-          },
-        },
-      },
     });
 
     return NextResponse.json({
       success: true,
       status: updated.status,
-      device: updated.device,
-      masjid: updated.device.masjid,
+      device,
+      masjid: device.masjid,
     });
   } catch (error) {
     console.error("Failed to verify device pairing session:", error);
