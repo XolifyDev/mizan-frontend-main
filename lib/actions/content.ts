@@ -75,6 +75,16 @@ export const updateContent = async (id: string, data: any) => {
   if (Array.isArray(prismaData.zones)) {
     prismaData.zones = (prismaData.zones as string[]).join(",");
   }
+  // Safely coerce date fields — Prisma requires Date objects or ISO strings with T separator
+  for (const field of ["startDate", "endDate"] as const) {
+    const val = prismaData[field];
+    if (val === null || val === undefined || val === "") {
+      prismaData[field] = null;
+    } else {
+      const d = new Date(String(val).replace(" ", "T"));
+      prismaData[field] = isNaN(d.getTime()) ? null : d;
+    }
+  }
 
   const updated = await prisma.content.update({ where: { id }, data: prismaData });
   await publishRealtimeUpdate({
