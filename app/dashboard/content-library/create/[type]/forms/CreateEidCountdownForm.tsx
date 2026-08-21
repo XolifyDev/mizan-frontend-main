@@ -119,14 +119,15 @@ export default function CreateEidCountdownForm() {
   const [dayssTillEid, setDayssTillEid] = useState<number>(30);
 
   const onSubmit = async (values: FormValues) => {
+    const { layout, ...rest } = values;
     await createContentWithConfig({
       masjidId,
-      ...values,
+      ...rest,
       type: "eid_countdown",
       startDate: format(values.startDate, "yyyy-MM-dd HH:mm:ss"),
       endDate: format(values.endDate, "yyyy-MM-dd HH:mm:ss"),
       description: "Eid Countdown",
-      data: { layout: values.layout },
+      data: { layout },
     });
     toast({
       title: "Eid Countdown Created",

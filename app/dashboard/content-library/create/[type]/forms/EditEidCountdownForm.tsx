@@ -164,14 +164,15 @@ export default function EditEidCountdownForm({ id }: { id: string }) {
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
     try {
+      const { layout, ...rest } = values;
       await updateContent(id, {
-        ...values,
+        ...rest,
         masjidId,
         type: "eid_countdown",
         startDate: values.startDate.toISOString(),
         endDate: values.endDate.toISOString(),
         description: "Eid Countdown",
-        data: { layout: values.layout },
+        data: { layout },
       });
       toast({
         title: "Eid Countdown updated!",
