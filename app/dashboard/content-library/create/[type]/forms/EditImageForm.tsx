@@ -152,7 +152,8 @@ export default function EditImageForm({ id }: { id: string }) {
         });
         if (!res.ok) throw new Error("Failed to upload images");
         const uploaded = await res.json();
-        url = uploaded[0].data.ufsUrl;
+        const fileData = uploaded[0]?.data ?? uploaded[0];
+        url = fileData?.ufsUrl || fileData?.url || null;
       }
       delete values.file;
       console.log(values, "AWDINAWDIAOWDJAWOIJD");

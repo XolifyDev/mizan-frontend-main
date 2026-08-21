@@ -111,11 +111,12 @@ export default function CreateImageForm() {
     })
     if (!res.ok) throw new Error("Failed to upload images")
     const uploaded = await res.json();
+    const fileData = uploaded[0]?.data ?? uploaded[0];
     await createContentWithConfig({
       masjidId,
       ...rest,
       type: "image",
-      url: uploaded[0].data.ufsUrl,
+      url: fileData?.ufsUrl || fileData?.url || null,
       data: { description: values.description },
       startDate: format(values.startDate, "yyyy-MM-dd HH:mm:ss"),
       endDate: format(values.endDate, "yyyy-MM-dd HH:mm:ss"),
