@@ -71,8 +71,15 @@ const dayTypeOptions = [
   "Sunday"
 ];
 
+const LAYOUTS = [
+  { id: "split", name: "Split Panel", desc: "Decorative column left, countdown rows right" },
+  { id: "giant", name: "Giant Days", desc: "One massive number dominates the screen" },
+  { id: "arch", name: "Arch Frame", desc: "Mosque arch frames the countdown" },
+] as const;
+
 const schema = z.object({
   title: z.string().min(2, "Title is required"),
+  layout: z.string().default("split"),
   displayLocations: z.array(z.string()).min(1, "Select at least one location"),
   fullscreen: z.boolean().optional(),
   zones: z.string().optional(),
@@ -92,6 +99,7 @@ export default function CreateEidCountdownForm() {
     resolver: zodResolver(schema),
     defaultValues: {
       title: "Eid Al Fitr",
+      layout: "split",
       displayLocations: [],
       fullscreen: true,
       zones: "All",
@@ -118,6 +126,7 @@ export default function CreateEidCountdownForm() {
       startDate: format(values.startDate, "yyyy-MM-dd HH:mm:ss"),
       endDate: format(values.endDate, "yyyy-MM-dd HH:mm:ss"),
       description: "Eid Countdown",
+      data: { layout: values.layout },
     });
     toast({
       title: "Eid Countdown Created",
@@ -173,6 +182,38 @@ export default function CreateEidCountdownForm() {
             </FormItem>
           )}
         />
+
+        {/* Layout picker */}
+        <FormField
+          control={form.control}
+          name="layout"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Display Layout</FormLabel>
+              <div className="grid grid-cols-3 gap-3 mt-1">
+                {LAYOUTS.map((l) => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => field.onChange(l.id)}
+                    className={`text-left p-3 rounded-lg border-2 transition-all ${
+                      field.value === l.id
+                        ? "border-[#550C18] bg-[#550C18]/5"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div className={`text-sm font-semibold mb-1 ${field.value === l.id ? "text-[#550C18]" : "text-gray-800"}`}>
+                      {l.name}
+                    </div>
+                    <div className="text-xs text-gray-500 leading-tight">{l.desc}</div>
+                  </button>
+                ))}
+              </div>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2">
           <div className="flex flex-col gap-5 mt-auto">
             <FormField
