@@ -5,6 +5,7 @@ import Image from "next/image";
 import { updateMasjid } from "@/lib/actions/masjid";
 import { useToast } from "@/hooks/use-toast";
 import { Camera, Loader2 } from "lucide-react";
+import { ImageCropModal } from "@/components/ImageCropModal";
 
 interface Masjid {
   id: string;
@@ -29,6 +30,7 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoPreview, setLogoPreview] = useState(masjid.logo);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: masjid.name || "",
     description: masjid.description || "",
@@ -47,23 +49,30 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
 
-  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result as string);
+    reader.readAsDataURL(file);
+    // reset so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const handleCropDone = async (blob: Blob) => {
+    setCropSrc(null);
     setUploadingLogo(true);
     try {
       const fd = new FormData();
-      fd.append("files", file);
+      fd.append("files", new File([blob], "logo.png", { type: "image/png" }));
       const res = await fetch("/api/uploadthing", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
-      // UTApi returns array of { data: { url, ufsUrl }, error }
       const first = Array.isArray(data) ? data[0] : data;
       const url = first?.data?.ufsUrl || first?.data?.url || first?.url || first?.ufsUrl;
       if (!url) throw new Error("No URL returned");
       setLogoPreview(url);
       setForm((prev) => ({ ...prev, logo: url }));
-      // Auto-save logo immediately
       await updateMasjid(masjid.id, { logo: url });
       toast({ title: "Logo saved" });
     } catch {
@@ -89,6 +98,15 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
   };
 
   return (
+    <>
+    {cropSrc && (
+      <ImageCropModal
+        imageSrc={cropSrc}
+        onCancel={() => setCropSrc(null)}
+        onCrop={handleCropDone}
+        aspect={1}
+      />
+    )}
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Logo */}
       <div className="flex items-center gap-6">
@@ -186,6 +204,7 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
         </button>
       </div>
     </form>
+    </>
   );
 }
 

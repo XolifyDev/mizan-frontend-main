@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, MapPin, Plus } from "lucide-react"
+import { ChevronsUpDown, Plus } from "lucide-react"
 
 import {
   DropdownMenu,
@@ -33,9 +33,12 @@ export function MasjidSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div className="flex flex-row items-center gap-2 cursor-pointer hover:text-sidebar-primary">
-          <div className="text-sidebar-primary">
-            <MapPin className="size-4" />
-          </div>
+          <Avatar className="h-7 w-7 rounded-lg shrink-0">
+            <AvatarImage src={activeMasjid.logo || undefined} className="object-contain p-0.5" />
+            <AvatarFallback className="rounded-lg bg-[#550C18] text-[#FDF0D5] text-xs font-bold">
+              {activeMasjid.name?.[0] ?? "M"}
+            </AvatarFallback>
+          </Avatar>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-medium text-lg">{activeMasjid.name}</span>
           </div>
@@ -55,6 +58,12 @@ export function MasjidSwitcher({
             disabled={true}
             className="flex flex-row items-center gap-2 p-1 bg-[#550C18]/10 hover:bg-[#550C18]/10"
           >
+            <Avatar className="h-6 w-6 rounded-md shrink-0">
+              <AvatarImage src={activeMasjid.logo || undefined} className="object-contain p-0.5" />
+              <AvatarFallback className="rounded-md bg-[#550C18] text-[#FDF0D5] text-xs font-bold">
+                {activeMasjid.name?.[0] ?? "M"}
+              </AvatarFallback>
+            </Avatar>
             <span className="font-medium text-gray-500">{activeMasjid.name}</span>
             <span className="text-primary/60 text-xs ml-auto">Current</span>
         </DropdownMenuItem> 
