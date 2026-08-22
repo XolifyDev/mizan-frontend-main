@@ -246,3 +246,28 @@ export async function removeUserFromMasjid(masjidId: string, userId: string) {
   }
 }
 
+
+export async function updateMasjid(masjidId: string, data: {
+  name?: string;
+  description?: string;
+  address?: string;
+  city?: string;
+  postal?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  websiteUrl?: string;
+  logo?: string;
+  timezone?: string;
+}) {
+  const user = await getUser();
+  if (!user) return { error: true, message: "Please Login!" };
+
+  const masjid = await prisma.masjid.findFirst({
+    where: { id: masjidId, users: { some: { id: user.id } } },
+  });
+  if (!masjid) return { error: true, message: "Masjid not found!" };
+
+  await prisma.masjid.update({ where: { id: masjidId }, data });
+  return { error: false, message: "Organization updated successfully!" };
+}
