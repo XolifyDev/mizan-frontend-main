@@ -27,7 +27,7 @@ const links = [
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
   const { masjidId } = await searchParams;
-  const masjidResult = masjidId ? await getUserMasjid(masjidId) : null;
+  const masjidResult = await getUserMasjid(masjidId);
   const masjid = masjidResult && "id" in masjidResult ? masjidResult : null;
 
   return (

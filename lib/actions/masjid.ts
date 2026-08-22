@@ -247,6 +247,8 @@ export async function removeUserFromMasjid(masjidId: string, userId: string) {
 }
 
 
+import { revalidatePath } from "next/cache";
+
 export async function updateMasjid(masjidId: string, data: {
   name?: string;
   description?: string;
@@ -269,5 +271,6 @@ export async function updateMasjid(masjidId: string, data: {
   if (!masjid) return { error: true, message: "Masjid not found!" };
 
   await prisma.masjid.update({ where: { id: masjidId }, data });
+  revalidatePath("/dashboard/settings");
   return { error: false, message: "Organization updated successfully!" };
 }
