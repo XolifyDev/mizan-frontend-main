@@ -19,6 +19,7 @@ interface Masjid {
   websiteUrl: string;
   logo: string;
   timezone: string;
+  taxId?: string | null;
 }
 
 export function OrganizationForm({ masjid }: { masjid: Masjid }) {
@@ -40,6 +41,7 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
     country: masjid.country || "",
     timezone: masjid.timezone || "",
     logo: masjid.logo || "",
+    taxId: masjid.taxId || "",
   });
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -51,11 +53,13 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
     setUploadingLogo(true);
     try {
       const fd = new FormData();
-      fd.append("file", file);
+      fd.append("files", file);
       const res = await fetch("/api/uploadthing", { method: "POST", body: fd });
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
-      const url = data.url || data.ufsUrl || data.fileUrl;
+      // UTApi returns array of { data: { url, ufsUrl }, error }
+      const first = Array.isArray(data) ? data[0] : data;
+      const url = first?.data?.ufsUrl || first?.data?.url || first?.url || first?.ufsUrl;
       if (!url) throw new Error("No URL returned");
       setLogoPreview(url);
       setForm((prev) => ({ ...prev, logo: url }));
@@ -134,8 +138,11 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
         <Field label="Website">
           <input value={form.websiteUrl} onChange={set("websiteUrl")} className={inputCls} placeholder="https://yourmasjid.org" />
         </Field>
-        <Field label="Timezone" className="sm:col-span-2">
+        <Field label="Timezone">
           <input value={form.timezone} onChange={set("timezone")} className={inputCls} placeholder="America/New_York" />
+        </Field>
+        <Field label="Tax ID / EIN / ABN">
+          <input value={form.taxId} onChange={set("taxId")} className={inputCls} placeholder="12-3456789" />
         </Field>
         <Field label="Description" className="sm:col-span-2">
           <textarea

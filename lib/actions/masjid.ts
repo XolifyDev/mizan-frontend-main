@@ -261,6 +261,7 @@ export async function updateMasjid(masjidId: string, data: {
   websiteUrl?: string;
   logo?: string;
   timezone?: string;
+  taxId?: string;
 }) {
   const user = await getUser();
   if (!user) return { error: true, message: "Please Login!" };

@@ -26,6 +26,11 @@ model Masjid {
   locationAddress           String
   logo                      String              @default("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIC25nqru3yN9lhtoTwdBWt_u0QlOcPzw3Bw&s")
   timezone                  String
+  taxId                     String?
+  stripeFlatFee             Float               @default(0.30)
+  stripePercentageFee       Float               @default(2.90)
+  stripeAccountId           String?
+  stripeAccountStatus       String?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
   ownerId                   String

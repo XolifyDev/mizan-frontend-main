@@ -38,7 +38,6 @@ import {
   FileText,
   Clock,
   DollarSign,
-  ShoppingBag,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -71,11 +70,6 @@ const mainNavItems = [
     icon: BarChart3,
     path: "/dashboard/analytics",
   },
-  {
-    title: "Orders",
-    icon: ShoppingBag,
-    path: "/dashboard/orders",
-  },
 ];
 
 const contentNavItems = [
@@ -93,9 +87,9 @@ const managementNavItems = [
     path: "/dashboard/users",
   },
   {
-    title: "Products",
-    icon: ShoppingBag,
-    path: "/dashboard/products",
+    title: "Billing",
+    icon: CreditCard,
+    path: "/dashboard/billing",
   },
   {
     title: "Settings",
@@ -294,36 +288,6 @@ export default function DashboardSidebar({
                             <span>{item.title}</span>
                           </SidebarMenuButton>
                         </Link>
-                        {item.path === "/dashboard/products" && (
-                          <SidebarMenuSub>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton
-                                isActive={
-                                  pathname ===
-                                  "/dashboard/products/mizan-donations"
-                                }
-                                className="text-[#3A3A3A] cursor-default hover:cursor-pointer hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                              >
-                                <DollarSign className="h-4 w-4" />
-                                <span>MizanDonations Kiosk</span>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                            <SidebarMenuSubItem>
-                              <SidebarMenuSubButton
-                                isActive={
-                                  pathname === "/dashboard/products/manage"
-                                }
-                                href={
-                                  `/dashboard/products/manage${masjidQuery}`
-                                }
-                                className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                              >
-                                <Settings className="h-4 w-4" />
-                                <span>Manage Products</span>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          </SidebarMenuSub>
-                        )}
                       </SidebarMenuItem>
                     ))}
                   </SidebarMenu>

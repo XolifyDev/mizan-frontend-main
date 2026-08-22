@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import { getUserMasjid } from "@/lib/actions/masjid";
 import { OrganizationForm } from "./OrganizationForm";
+import { StripeConnectCard } from "./StripeConnectCard";
+import { StripeFeesForm } from "./StripeFeesForm";
+import { Suspense } from "react";
 
 type SettingsPageProps = {
   searchParams: Promise<{ masjidId?: string }>;
@@ -23,6 +26,7 @@ const links = [
   { href: "/dashboard/donations/settings", icon: CreditCard, label: "Donation Settings", desc: "Categories, kiosk config, payment rules" },
   { href: "/dashboard/users", icon: Users, label: "Users & Roles", desc: "Invite staff, manage access levels" },
   { href: "/dashboard/events", icon: CalendarDays, label: "Events", desc: "Calendar, signage sync, recurring events" },
+  { href: "/dashboard/billing", icon: CreditCard, label: "Billing", desc: "Subscriptions, orders, invoices" },
 ];
 
 export default async function SettingsPage({ searchParams }: SettingsPageProps) {
@@ -67,6 +71,26 @@ export default async function SettingsPage({ searchParams }: SettingsPageProps) 
               </div>
             )}
           </section>
+
+          {/* Stripe Connect */}
+          {masjid && (
+            <Suspense fallback={null}>
+              <StripeConnectCard
+                masjidId={masjid.id}
+                stripeAccountId={(masjid as any).stripeAccountId ?? null}
+                stripeAccountStatus={(masjid as any).stripeAccountStatus ?? null}
+              />
+            </Suspense>
+          )}
+
+          {/* Stripe Fees */}
+          {masjid && (
+            <StripeFeesForm
+              masjidId={masjid.id}
+              stripeFlatFee={(masjid as any).stripeFlatFee ?? 0.30}
+              stripePercentageFee={(masjid as any).stripePercentageFee ?? 2.90}
+            />
+          )}
         </div>
 
         {/* RIGHT — quick links */}
