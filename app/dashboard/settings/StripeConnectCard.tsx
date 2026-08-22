@@ -74,7 +74,7 @@ export function StripeConnectCard({ masjidId, stripeAccountId, stripeAccountStat
         toast({ title: "Error", description: result.message, variant: "destructive" });
         return;
       }
-      window.open(result.url, "_blank");
+      window.location.href = result.url;
     } finally {
       setLoading(false);
     }

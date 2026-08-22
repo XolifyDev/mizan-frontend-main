@@ -63,7 +63,9 @@ export function OrganizationForm({ masjid }: { masjid: Masjid }) {
       if (!url) throw new Error("No URL returned");
       setLogoPreview(url);
       setForm((prev) => ({ ...prev, logo: url }));
-      toast({ title: "Logo uploaded" });
+      // Auto-save logo immediately
+      await updateMasjid(masjid.id, { logo: url });
+      toast({ title: "Logo saved" });
     } catch {
       toast({ title: "Logo upload failed", variant: "destructive" });
     } finally {
