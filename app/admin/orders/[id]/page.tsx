@@ -1,9 +1,9 @@
 "use client";
 
 import { type MouseEvent, useCallback, useEffect, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
-  updateOrder,
+  adminUpdateOrder,
   getSessionAndOrder,
   getPaymentAndOrder,
 } from "@/lib/actions/order";
@@ -76,7 +76,7 @@ export default function OrderDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
-  const masjidId = useSearchParams().get("masjidId") || "";
+  const masjidId = "";
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -84,9 +84,9 @@ export default function OrderDetailPage() {
       if (!id) {
         return router.push(`/admin/orders?masjidId=${masjidId}`);
       }
-      const orderData = await fetch(`/api/orders/${id}`).then(async (res) => {
+      const orderData = await fetch(`/api/admin/orders/${id}`).then(async (res) => {
         if (!res.ok) {
-          return router.push(`/admin/orders?masjidId=${masjidId}`);
+          return router.push(`/admin/orders`);
         }
         return res.json();
       });
@@ -138,7 +138,7 @@ export default function OrderDetailPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await updateOrder(order.id, { status, trackingNumber: tracking });
+      await adminUpdateOrder(order.id, { status, trackingNumber: tracking });
       toast({
         title: "Order updated",
         description: "Fulfillment details were saved successfully.",

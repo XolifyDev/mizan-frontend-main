@@ -78,7 +78,8 @@ export const getPaymentAndOrder = async (sessionId: string) => {
 export const getAllOrders = async () => {
   const o = await prisma.orders.findMany({
     include: {
-      user: true
+      user: true,
+      masjid: true,
     },
     orderBy: {
       createdAt: 'desc'
@@ -86,6 +87,19 @@ export const getAllOrders = async () => {
   });
   return o;
 };
+
+// Admin: get any order without masjid access check
+export async function adminGetOrderById(id: string) {
+  return prisma.orders.findFirst({
+    where: { id },
+    include: { masjid: true, user: true },
+  });
+}
+
+// Admin: update any order without masjid access check
+export async function adminUpdateOrder(id: string, data: { status?: string; trackingNumber?: string }) {
+  return prisma.orders.update({ where: { id }, data });
+}
 
 export async function getOrderById(id: string) {
   try {

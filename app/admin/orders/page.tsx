@@ -21,7 +21,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Edit, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 
 type OrderCartItem = {
   id?: string;
@@ -41,37 +40,25 @@ type DashboardOrder = {
   } | null;
 };
 
+async function fetchAll() {
+  const res = await fetch("/api/admin/orders");
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<DashboardOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshing, setRefreshing] = useState(false);
-  const masjidId = useSearchParams().get("masjidId") || "";
 
   useEffect(() => {
-    async function fetchOrders() {
-      setIsLoading(true);
-      const data = await fetch(`/api/orders?masjidId=${masjidId}`).then(async (res) => {
-        if(!res.ok) {
-          return [];
-        }
-        return res.json();
-      });
-      setOrders(data);
-      setIsLoading(false);
-    }
-    fetchOrders();
-  }, [masjidId]);
+    fetchAll().then((data) => { setOrders(data); setIsLoading(false); });
+  }, []);
 
   const refreshOrders = async () => {
     setRefreshing(true);
-    const data = await fetch(`/api/orders?masjidId=${masjidId}`).then(async (res) => {
-      if(!res.ok) {
-        return [];
-      }
-      return res.json();
-    });
-    setOrders(data);
+    setOrders(await fetchAll());
     setRefreshing(false);
   };
 
@@ -176,7 +163,7 @@ export default function OrdersPage() {
                     <TableCell>{order.trackingNumber || <span className="text-gray-400">—</span>}</TableCell>
                     <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/admin/orders/${order.id}?masjidId=${masjidId}`}>
+                      <Link href={`/admin/orders/${order.id}`}>
                         <Button variant="ghost" size="icon">
                           <Edit className="h-4 w-4" />
                           <span className="sr-only">View/Edit</span>
