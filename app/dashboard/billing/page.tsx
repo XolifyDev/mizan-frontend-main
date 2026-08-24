@@ -44,6 +44,7 @@ export default async function BillingPage() {
         stripeSessionId: o.stripeSessionId ?? null,
         trackingNumber: o.trackingNumber ?? null,
         cart: o.cart,
+        metaData: o.meta_data ?? null,
       }))}
       subscriptions={subscriptions.map((s) => ({
         id: s.id,

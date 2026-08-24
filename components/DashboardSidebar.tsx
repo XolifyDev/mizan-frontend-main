@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import {
   SidebarProvider,
   Sidebar,
@@ -128,6 +129,14 @@ export default function DashboardSidebar({
   const masjidId = searchParams.get("masjidId");
   const user = session?.user;
   const masjidQuery = masjidId ? `?masjidId=${masjidId}` : "";
+  const [hasPendingOrder, setHasPendingOrder] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/orders/pending")
+      .then((r) => r.ok ? r.json() : { pending: false })
+      .then((d) => setHasPendingOrder(Boolean(d.pending)))
+      .catch(() => {});
+  }, []);
   const effectiveRole = getEffectiveRole({
     role: user?.role,
     isOwner: masjid?.ownerId === user?.id,
@@ -286,6 +295,9 @@ export default function DashboardSidebar({
                           >
                             <item.icon className="h-5 w-5" />
                             <span>{item.title}</span>
+                            {item.path === "/dashboard/billing" && hasPendingOrder && (
+                              <span className="ml-auto flex h-2 w-2 rounded-full bg-amber-500" />
+                            )}
                           </SidebarMenuButton>
                         </Link>
                       </SidebarMenuItem>
