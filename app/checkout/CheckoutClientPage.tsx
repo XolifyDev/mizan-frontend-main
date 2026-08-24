@@ -23,7 +23,7 @@ import { Philosopher } from "next/font/google"
 import useCart from "@/lib/useCart"
 
 import { loadStripe } from "@stripe/stripe-js"
-import { createPaymentIntent } from "@/lib/actions/payment"
+import { createPaymentIntent, createOrderFromPaymentIntent } from "@/lib/actions/payment"
 import { Elements, useStripe, useElements, PaymentElement, AddressElement } from "@stripe/react-stripe-js"
 import Navbar from "@/components/Navbar"
 import { Masjid, Orders } from "@prisma/client"
@@ -127,15 +127,12 @@ function CheckoutForm() {
 
       fetchPaymentIntent()
     } else if(step === "confirmation" && paymentIntentId) {
-      const fetchOrderDetails = async () => {
-        const details = await getPaymentAndOrder(paymentIntentId);
-        if(!details) return;
-        setOrderData(details)
-      };
-      setTimeout(() => {
+      const handleConfirmation = async () => {
+        await createOrderFromPaymentIntent(paymentIntentId);
         clearCart();
         router.push(`/order-confirmation?session_id=${paymentIntentId}`);
-      }, 500)
+      };
+      handleConfirmation();
     }
   }, [step, cart, discount])
 

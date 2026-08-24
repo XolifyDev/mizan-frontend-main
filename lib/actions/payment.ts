@@ -6,6 +6,46 @@ import { stripeClient } from "../stripe";
 import { Discount } from "../useCartStore";
 import { getFullUser as getUser } from "./user";
 
+/** Called client-side right after Stripe confirms payment — creates the order immediately without waiting for webhook */
+export async function createOrderFromPaymentIntent(paymentIntentId: string) {
+  const user = await getUser();
+  if (!user) return { error: true };
+
+  // Idempotent — don't double-create
+  const existing = await prisma.orders.findFirst({ where: { stripeSessionId: paymentIntentId } });
+  if (existing) return { error: false, orderId: existing.id };
+
+  const session = await prisma.checkoutSessions.findFirst({ where: { sessionId: paymentIntentId } });
+  if (!session) return { error: true };
+
+  const shippingData = (session.shippingData as Record<string, any>) ?? {};
+  const id = `mizan_${v4()}`;
+
+  await prisma.orders.create({
+    data: {
+      id,
+      cart: session.cart,
+      status: "processing",
+      stripeSessionId: paymentIntentId,
+      userId: session.userId,
+      masjidId: shippingData?.masjid || null,
+      meta_data: {
+        items: JSON.parse(session.cart).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          size: item.size,
+        })),
+      },
+    },
+  });
+
+  await prisma.checkoutSessions.update({ where: { id: session.id }, data: { completed: "paid" } });
+
+  return { error: false, orderId: id };
+}
+
 type CreateCheckoutSessionProps = {
   cart: CartItem[];
   discount: Discount | null;
