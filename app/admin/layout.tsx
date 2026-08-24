@@ -11,18 +11,43 @@ import {
   LayoutDashboard,
   BarChart3,
   Users,
-  Settings,
   ChevronRight,
   Shield,
+  Building2,
+  CreditCard,
+  Tv,
+  MonitorSpeaker,
 } from "lucide-react";
 import { ProgressProvider } from "@bprogress/next/app";
 
 const adminNav = [
   {
+    group: "Overview",
+    items: [
+      { label: "Dashboard", href: "/admin", icon: BarChart3 },
+    ],
+  },
+  {
     group: "Operations",
     items: [
       { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
       { label: "Products", href: "/admin/products", icon: Package },
+    ],
+  },
+  {
+    group: "People",
+    items: [
+      { label: "Users", href: "/admin/users", icon: Users },
+      { label: "Organizations", href: "/admin/orgs", icon: Building2 },
+      { label: "Orgs Stripe", href: "/admin/orgs/stripe", icon: CreditCard },
+    ],
+  },
+  {
+    group: "Platform",
+    items: [
+      { label: "Mizan Stripe", href: "/admin/stripe", icon: CreditCard },
+      { label: "Kiosks", href: "/admin/kiosks", icon: MonitorSpeaker },
+      { label: "MizanTVs", href: "/admin/mizantvs", icon: Tv },
     ],
   },
 ];
@@ -68,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </p>
                 <div className="space-y-0.5">
                   {group.items.map((item) => {
-                    const active = pathname.startsWith(item.href);
+                    const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
                     return (
                       <Link
                         key={item.href}
