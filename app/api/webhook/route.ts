@@ -1,131 +1,92 @@
 import { prisma } from "@/lib/db"
 import { NextResponse } from "next/server"
 import { v4 } from "uuid"
+import { stripeClient } from "@/lib/stripe"
 
 interface ShippingData {
   masjid?: string;
   [key: string]: any;
 }
 
+async function createOrderFromSession(session: any) {
+  const shippingData = session.shippingData as ShippingData;
+
+  // Idempotent — skip if order already exists (e.g. client-side already created it)
+  const existing = await prisma.orders.findFirst({ where: { stripeSessionId: session.sessionId } });
+  if (existing) return;
+
+  await prisma.orders.create({
+    data: {
+      cart: session.cart,
+      id: `mizan_${v4()}`,
+      status: "processing",
+      stripeSessionId: session.sessionId,
+      userId: session.userId,
+      masjidId: shippingData?.masjid || null,
+      meta_data: {
+        items: JSON.parse(session.cart).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          size: item.size,
+        })),
+      },
+    },
+  });
+
+  await prisma.checkoutSessions.update({
+    where: { id: session.id },
+    data: { completed: "paid" },
+  });
+}
+
 export async function POST(request: Request) {
   const body = await request.text()
   const signature = request.headers.get("stripe-signature") as string
 
+  let event: any;
   try {
-    // In a real implementation, you would verify the webhook signature
-    // const event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET)
+    event = stripeClient.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET!
+    );
+  } catch (err: any) {
+    console.error("Webhook signature verification failed:", err.message)
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
+  }
 
-    // For now, we'll just parse the JSON
-    const event = JSON.parse(body)
+  try {
+    const object = event.data.object as any;
 
-    // Handle different event types
     switch (event.type) {
-      case "checkout.session.completed":
-        const checkoutSession = await prisma.checkoutSessions.findFirst({
-          where: {
-            sessionId: event.data.id
-          }
+      case "checkout.session.completed": {
+        const session = await prisma.checkoutSessions.findFirst({
+          where: { sessionId: object.id },
         });
-        if(!checkoutSession) return;
-        // 1. Update your database with the order status
-        await prisma.checkoutSessions.update({
-          where: {
-            id: checkoutSession.id
-          },
-          data: {
-            completed: "paid",
-          }
+        if (session) await createOrderFromSession(session);
+        break;
+      }
+
+      case "payment_intent.succeeded": {
+        const session = await prisma.checkoutSessions.findFirst({
+          where: { sessionId: object.id },
         });
-
-        const shippingData = checkoutSession.shippingData as ShippingData;
-
-        await prisma.orders.create({
-          data: {
-            cart: checkoutSession.cart,
-            id: `mizan_${v4()}_${new Date().getMilliseconds()}`,
-            status: "processing",
-            stripeSessionId: checkoutSession.sessionId,
-            userId: checkoutSession.userId,
-            masjidId: shippingData?.masjid,
-            meta_data: {
-              items: JSON.parse(checkoutSession.cart).map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                size: item.size
-              }))
-            }
-          }
-        });
-        // 2. Send confirmation emails
-        // 3. Provision access to purchased products
-        break
-
-      case "payment_intent.succeeded":
-        const paymentIntent = await prisma.checkoutSessions.findFirst({
-          where: {
-            sessionId: event.data.id
-          }
-        });
-      
-        if(!paymentIntent) return;
-        // 1. Update your database with the order status
-        await prisma.checkoutSessions.update({
-          where: {
-            id: paymentIntent.id
-          },
-          data: {
-            completed: "paid",
-          }
-        });
-
-        console.log(paymentIntent)
-
-        const paymentShippingData = paymentIntent.shippingData as ShippingData;
-
-        await prisma.orders.create({
-          data: {
-            cart: paymentIntent.cart,
-            id: `mizan_${v4()}_${new Date().getMilliseconds()}`,
-            status: "processing",
-            stripeSessionId: paymentIntent.sessionId,
-            userId: paymentIntent.userId,
-            masjidId: paymentShippingData?.masjid,
-            meta_data: {
-              items: JSON.parse(paymentIntent.cart).map((item: any) => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                size: item.size
-              }))
-            }
-          }
-        });
-      break
+        if (session) await createOrderFromSession(session);
+        break;
+      }
 
       case "invoice.payment_succeeded":
-        // Continue to provision the subscription as payments continue to be made
-        // Store the status in your database and check when a user accesses your service
-        break
+        break;
 
       default:
-        // Unexpected event type
-        console.log(`Unhandled event type ${event.type}`)
+        console.log(`Unhandled webhook event: ${event.type}`);
     }
 
     return NextResponse.json({ received: true })
   } catch (err) {
-    console.error("Webhook error:", err)
+    console.error("Webhook handler error:", err)
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 400 })
   }
 }
-
-// This is needed to disable the default body parsing
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
-
