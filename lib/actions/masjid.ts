@@ -88,6 +88,26 @@ export async function createMasjid({
     }
   });
 
+  // Seed default signage: prayer times slide
+  await prisma.signageConfig.create({
+    data: {
+      masjidId: masjid.id,
+      config: {
+        slides: [
+          {
+            id: `default-prayer-${masjid.id}`,
+            type: "prayer",
+            order: 0,
+            layout: "default",
+            theme: "default",
+            contentId: null,
+            content: null,
+          },
+        ],
+      },
+    },
+  });
+
   return {
     error: false,
     message: "Masjid Created!",

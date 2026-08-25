@@ -1472,6 +1472,46 @@ function EditSlideModal({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Style / Template Selection (for prayerTimes slides) */}
+          {editedSlide.type === "prayerTimes" && (
+            <div>
+              <Label className="text-[#550C18] mb-2 block">Style</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { value: "classic", label: "Classic", desc: "Light background, card layout" },
+                  { value: "dark", label: "Dark", desc: "Dark elegant look" },
+                  { value: "modern", label: "Modern", desc: "Dark grid cards" },
+                ].map((opt) => (
+                  <div
+                    key={opt.value}
+                    className={cn(
+                      "border-2 rounded-lg p-3 cursor-pointer hover:border-[#550C18] transition-colors",
+                      (editedSlide.template || "classic") === opt.value
+                        ? "border-[#550C18] bg-[#550C18]/5"
+                        : "border-gray-200"
+                    )}
+                    onClick={() => setEditedSlide((prev) => ({ ...prev, template: opt.value }))}
+                  >
+                    <div className={cn(
+                      "aspect-video rounded mb-2",
+                      opt.value === "classic" ? "bg-gray-100" : opt.value === "dark" ? "bg-gray-800" : "bg-gray-900"
+                    )}>
+                      <div className={cn("h-full rounded flex items-center justify-center",
+                        opt.value === "classic" ? "bg-white/60" : "bg-transparent"
+                      )}>
+                        <span className={cn("text-xs font-bold", opt.value === "classic" ? "text-[#550C18]" : "text-white/60")}>
+                          {opt.label}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium block">{opt.label}</span>
+                    <span className="text-xs text-gray-500">{opt.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Layout Selection */}
           <div>
             <Label className="text-[#550C18] mb-2 block">Layout</Label>
@@ -1764,6 +1804,23 @@ export default function SignageDisplay({
     });
     setIsDirty(true);
   }
+  function handleAddPrayerSlide() {
+    setSlides((prev) => {
+      const newSlides = [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          type: "prayerTimes" as const,
+          template: "modern",
+          theme: { ...defaultTheme },
+          layout: "full",
+        },
+      ];
+      setSelectedIndex(newSlides.length - 1);
+      return newSlides;
+    });
+    setIsDirty(true);
+  }
   function handleAddCustomSlide(url: string) {
     setSlides((prev) => {
       const newSlides = [
@@ -2011,6 +2068,13 @@ export default function SignageDisplay({
               <PopoverContent className="w-52 p-0">
                 <div className="p-2">
                   <div className="font-semibold mb-2 px-2">Add Slide</div>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={handleAddPrayerSlide}
+                  >
+                    Prayer Times
+                  </Button>
                   <Button
                     variant="ghost"
                     className="w-full justify-start"

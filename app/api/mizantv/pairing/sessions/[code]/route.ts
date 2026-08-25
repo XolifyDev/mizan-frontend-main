@@ -71,6 +71,7 @@ export async function POST(
     const { code } = await params;
     const body = await request.json();
     const masjidId = typeof body.masjidId === "string" ? body.masjidId.trim() : "";
+    const deviceName = typeof body.deviceName === "string" && body.deviceName.trim() ? body.deviceName.trim() : null;
 
     if (!masjidId) {
       return NextResponse.json({ error: "masjidId is required" }, { status: 400 });
@@ -98,7 +99,7 @@ export async function POST(
       where: { id: session.deviceId },
       create: {
         id: session.deviceId,
-        name: `MizanTV ${session.deviceId.slice(0, 8)}`,
+        name: deviceName ?? `MizanTV ${session.deviceId.slice(0, 8)}`,
         masjidId,
         status: "online",
         isActive: true,
@@ -108,6 +109,7 @@ export async function POST(
       },
       update: {
         masjidId,
+        ...(deviceName ? { name: deviceName } : {}),
         status: "online",
         isActive: true,
         lastSeen: new Date(),

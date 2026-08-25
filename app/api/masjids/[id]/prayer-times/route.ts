@@ -72,23 +72,16 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (prayerTimes && todayIqamah) {
       // Helper function to convert time string to Date object
       function convertTimeStringToDate(timeStr: string, baseDate: Date) {
-        if (!timeStr) return null;
-        // Normalize: "5:50am" -> "5:50 am"
-        const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])$/) ||
-                      timeStr.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])/) ||
-                      timeStr.match(/^(\d{1,2}):(\d{2})\s*([aApP][mM])?$/);
-      
+        if (!timeStr || typeof timeStr !== 'string') return null;
+        const cleaned = timeStr.trim();
+        // Handles: "5:50am", "5:50 AM", "05:50", "17:50", "5:50:00"
+        const match = cleaned.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([aApP][mM])?$/);
         if (!match) return null;
-        let [, hourStr, minStr, period] = match;
-        let hour = parseInt(hourStr, 10);
-        const minute = parseInt(minStr, 10);
-      
-        if (period) {
-          period = period.toLowerCase();
-          if (period === 'pm' && hour < 12) hour += 12;
-          if (period === 'am' && hour === 12) hour = 0;
-        }
-      
+        let hour = parseInt(match[1], 10);
+        const minute = parseInt(match[2], 10);
+        const period = match[3]?.toLowerCase();
+        if (period === 'pm' && hour < 12) hour += 12;
+        if (period === 'am' && hour === 12) hour = 0;
         const date = new Date(baseDate);
         date.setHours(hour, minute, 0, 0);
         return date;

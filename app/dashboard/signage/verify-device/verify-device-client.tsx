@@ -48,7 +48,7 @@ export default function VerifyDeviceClient({
           return;
         }
 
-        setDeviceName(data.device?.name || data.device?.id || "MizanTV Device");
+        setDeviceName(data.device?.name || "");
         setStatus("idle");
       } catch {
         setStatus("error");
@@ -77,6 +77,7 @@ export default function VerifyDeviceClient({
         },
         body: JSON.stringify({
           masjidId: selectedMasjidId,
+          deviceName: deviceName.trim() || "MizanTV Display",
         }),
       });
 
@@ -120,11 +121,15 @@ export default function VerifyDeviceClient({
 
             <div className="mt-6">
               <label className="mb-2 block text-sm font-medium text-[#2e0c12]">
-                Device
+                Device name
               </label>
-              <div className="rounded-2xl border border-[#550C18]/10 bg-white px-4 py-3 text-[#2e0c12]">
-                {deviceName || "Loading device..."}
-              </div>
+              <input
+                type="text"
+                value={deviceName}
+                onChange={(e) => setDeviceName(e.target.value)}
+                placeholder={status === "loading" ? "Loading…" : "e.g. Main Hall Display"}
+                className="w-full rounded-2xl border border-[#550C18]/15 bg-white px-4 py-3 text-[#2e0c12] outline-none transition focus:border-[#550C18] placeholder:text-[#2e0c12]/30"
+              />
             </div>
 
             <div className="mt-6">
