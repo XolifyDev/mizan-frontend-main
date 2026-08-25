@@ -96,7 +96,7 @@ export async function createMasjid({
         slides: [
           {
             id: `default-prayer-${masjid.id}`,
-            type: "prayer",
+            type: "prayerTimes",
             order: 0,
             layout: "default",
             theme: "default",

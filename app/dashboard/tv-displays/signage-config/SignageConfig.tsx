@@ -262,10 +262,11 @@ function SlidePreview({
           fontFamily: (slideTheme as any).fontBody || slideTheme.font || defaultTheme.font,
         }}
       >
-        {slideData.type === "prayerTimes" && (
-          <div className="text-center p-4 ">
-            <div className="text-lg font-bold mb-2" style={{fontFamily: (slideTheme as any).fontHeading || slideTheme.font }}>Prayer Times</div>
-            <div className="text-sm opacity-70">(Preview)</div>
+        {(slideData.type === "prayerTimes" || slideData.type === "prayer") && (
+          <div className="flex flex-col items-center justify-center p-6 h-full min-h-[200px]">
+            <div className="text-3xl mb-3">🕌</div>
+            <div className="text-lg font-bold mb-1" style={{fontFamily: (slideTheme as any).fontHeading || slideTheme.font, color: slideTheme.primary || defaultTheme.primary }}>Prayer Times</div>
+            <div className="text-sm opacity-60">Style: {slideData.template || 'classic'}</div>
           </div>
         )}
         {slideData.type === "announcements" && (
@@ -1472,8 +1473,8 @@ function EditSlideModal({
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Style / Template Selection (for prayerTimes slides) */}
-          {editedSlide.type === "prayerTimes" && (
+          {/* Style / Template Selection (for prayerTimes slides and any L-shape layout) */}
+          {(editedSlide.type === "prayerTimes" || editedSlide.type === "prayer" || editedSlide.layout === "l-shape" || editedSlide.layout === "reverse-l-shape") && (
             <div>
               <Label className="text-[#550C18] mb-2 block">Style</Label>
               <div className="grid grid-cols-3 gap-3">

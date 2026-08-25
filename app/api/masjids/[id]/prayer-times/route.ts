@@ -9,30 +9,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const masjid = await getMasjidById(id);
 
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
-    // Use a wide window to find iqamah timing: up to 2 days ahead to handle
-    // timezones where the stored changeDate midnight may be ahead of server UTC midnight
     const twoDaysAhead = new Date(today);
     twoDaysAhead.setDate(twoDaysAhead.getDate() + 2);
 
     const prayerTimes = await prisma.prayerTime.findFirst({
-      where: {
-        masjidId: id,
-        date: { gte: today, lt: tomorrow },
-      },
+      where: { masjidId: id, date: { gte: today, lt: tomorrow } },
     });
 
-    // Find the most recent iqamah timing that applies today.
-    // Query up to 2 days ahead so timezone offsets don't miss today's record.
+    // Query up to 2 days ahead so timezone offsets don't miss today's record
     const todayIqamah = await prisma.iqamahTiming.findFirst({
-      where: {
-        masjidId: id,
-        changeDate: { lte: twoDaysAhead },
-      },
+      where: { masjidId: id, changeDate: { lte: twoDaysAhead } },
       orderBy: { changeDate: "desc" },
     });
 
@@ -50,32 +41,45 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       });
     }
 
-    // Converts stored time strings ("05:30am", "5:30 AM", "17:30") to ISO on today's date.
-    function convertTimeStringToDate(timeStr: string, baseDate: Date): Date | null {
+    // Convert a "05:50am" / "5:50 AM" / "17:50" string to a UTC ISO datetime,
+    // interpreting the time in the masjid's local timezone.
+    function iqamahStringToUTC(timeStr: string, tz: string): string | null {
       if (!timeStr || typeof timeStr !== 'string') return null;
-      const cleaned = timeStr.trim();
-      const match = cleaned.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([aApP][mM])?$/);
+      const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*([aApP][mM])?$/);
       if (!match) return null;
       let hour = parseInt(match[1], 10);
       const minute = parseInt(match[2], 10);
       const period = match[3]?.toLowerCase();
       if (period === 'pm' && hour < 12) hour += 12;
       if (period === 'am' && hour === 12) hour = 0;
-      const date = new Date(baseDate);
-      date.setHours(hour, minute, 0, 0);
-      return date;
-    }
 
-    const toIso = (date: Date | null): string | null =>
-      date instanceof Date && !isNaN(date.getTime()) ? date.toISOString() : null;
+      // Get today's date string in the masjid timezone (YYYY-MM-DD)
+      const todayStr = new Intl.DateTimeFormat('sv', { timeZone: tz }).format(now);
+
+      // Construct a naïve UTC timestamp (hour:minute treated as UTC)
+      const naiveUTC = new Date(
+        `${todayStr}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`
+      );
+
+      // Find what local time naiveUTC shows in the masjid timezone
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false,
+      }).formatToParts(naiveUTC);
+      const shownHour = parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10);
+      const shownMin  = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10);
+
+      // Adjust so that naiveUTC maps to the correct UTC moment for the local time
+      const diffMs = ((hour - shownHour) * 60 + (minute - shownMin)) * 60_000;
+      return new Date(naiveUTC.getTime() + diffMs).toISOString();
+    }
 
     let finalPrayerTimes: any = prayerTimes;
 
     if (prayerTimes && todayIqamah) {
-      const conv = (s: string) => toIso(convertTimeStringToDate(s, today));
+      const tz = (masjid as any)?.timezone || 'UTC';
+      const conv = (s: string) => iqamahStringToUTC(s, tz);
       finalPrayerTimes = {
         ...prayerTimes,
-        // Use converted iqamah time; fall back to adhan time so client always gets a valid ISO string
         iqamahFajr:    conv(todayIqamah.fajr)    || (prayerTimes as any).fajr,
         iqamahDhuhr:   conv(todayIqamah.dhuhr)   || (prayerTimes as any).dhuhr,
         iqamahAsr:     conv(todayIqamah.asr)      || (prayerTimes as any).asr,
@@ -84,12 +88,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         iqamahJumuahI:   todayIqamah.jumuahI   ? conv(todayIqamah.jumuahI)   : null,
         iqamahJumuahII:  todayIqamah.jumuahII  ? conv(todayIqamah.jumuahII)  : null,
         iqamahJumuahIII: todayIqamah.jumuahIII ? conv(todayIqamah.jumuahIII) : null,
-        // Expose raw strings for debugging
-        _debug: {
-          rawFajr: todayIqamah.fajr, rawDhuhr: todayIqamah.dhuhr,
-          rawAsr: todayIqamah.asr, rawMaghrib: todayIqamah.maghrib, rawIsha: todayIqamah.isha,
-          changeDate: todayIqamah.changeDate,
-        },
       };
     }
 
