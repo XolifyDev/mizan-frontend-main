@@ -245,9 +245,11 @@ function SlidePreview({
     slideData: SlideConfig,
     isSplitScreen = false
   ) => {
+    const isPrayerType = slideData.type === "prayerTimes" || slideData.type === "prayer";
     const containerClasses = cn(
-      "rounded-2xl border flex flex-col items-center justify-center",
-      isSplitScreen ? "h-full" : "min-h-[180px]"
+      "rounded-2xl overflow-hidden flex flex-col",
+      isPrayerType ? "" : "items-center justify-center border",
+      isSplitScreen ? "h-full" : "min-h-[200px]"
     );
 
     const slideTheme =
@@ -256,19 +258,108 @@ function SlidePreview({
     return (
       <div
         className={containerClasses}
-        style={{
+        style={isPrayerType ? {} : {
           background: slideTheme.background || defaultTheme.background,
           color: slideTheme.primary || defaultTheme.primary,
           fontFamily: (slideTheme as any).fontBody || slideTheme.font || defaultTheme.font,
         }}
       >
-        {(slideData.type === "prayerTimes" || slideData.type === "prayer") && (
-          <div className="flex flex-col items-center justify-center p-6 h-full min-h-[200px]">
-            <div className="text-3xl mb-3">🕌</div>
-            <div className="text-lg font-bold mb-1" style={{fontFamily: (slideTheme as any).fontHeading || slideTheme.font, color: slideTheme.primary || defaultTheme.primary }}>Prayer Times</div>
-            <div className="text-sm opacity-60">Style: {slideData.template || 'classic'}</div>
-          </div>
-        )}
+        {(slideData.type === "prayerTimes" || slideData.type === "prayer") && (() => {
+          const tpl = slideData.template || 'classic';
+          const prayers = [
+            { name: 'FAJR',    adhan: '5:12 AM',  iqamah: '5:25 AM' },
+            { name: 'DHUHR',   adhan: '1:18 PM',  iqamah: '1:30 PM' },
+            { name: 'ASR',     adhan: '4:45 PM',  iqamah: '5:00 PM' },
+            { name: 'MAGHRIB', adhan: '7:52 PM',  iqamah: '7:55 PM' },
+            { name: 'ISHA',    adhan: '9:20 PM',  iqamah: '9:35 PM' },
+          ];
+
+          if (tpl === 'geometric') {
+            // Navy + gold star tile
+            const starSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28'><polygon points='14,1.5 15.8,10.2 24,8 18,15.5 24,23 15.8,20.8 14,29.5 12.2,20.8 4,23 10,15.5 4,8 12.2,10.2' fill='none' stroke='rgba(201,168,64,0.18)' stroke-width='0.7'/></svg>`;
+            const starUrl = `url("data:image/svg+xml,${encodeURIComponent(starSvg)}")`;
+            return (
+              <div style={{ width: '100%', height: '100%', minHeight: 200, backgroundColor: '#0b1825', backgroundImage: starUrl, backgroundRepeat: 'repeat', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ borderTop: '1px solid rgba(201,168,64,0.3)', position: 'absolute', top: 0, left: 0, right: 0 }} />
+                {/* Header */}
+                <div style={{ textAlign: 'center', padding: '8px 0 4px', borderBottom: '1px solid rgba(201,168,64,0.15)' }}>
+                  <div style={{ fontSize: 10, color: 'rgba(201,168,64,0.5)', letterSpacing: 3, fontWeight: 800 }}>PRAYER TIMES</div>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: '#e8dcc8', letterSpacing: 1 }}>12:34 PM</div>
+                  <div style={{ fontSize: 9, color: 'rgba(201,168,64,0.45)', letterSpacing: 1 }}>1 Rabi al-Awwal 1447</div>
+                </div>
+                {/* Prayers */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, padding: '4px 6px' }}>
+                  {prayers.map((p, i) => (
+                    <div key={p.name} style={{ display: 'flex', alignItems: 'center', backgroundColor: i === 1 ? 'rgba(201,168,64,0.12)' : 'transparent', borderRadius: 3, padding: '2px 6px', borderLeft: i === 1 ? '2px solid #c9a840' : '2px solid transparent' }}>
+                      <span style={{ flex: 1, fontSize: 8, color: i === 1 ? '#c9a840' : 'rgba(201,168,64,0.5)', letterSpacing: 1.5, fontWeight: 800 }}>{p.name}</span>
+                      <span style={{ fontSize: 10, color: '#e8dcc8', fontWeight: 700, marginRight: 8 }}>{p.adhan}</span>
+                      <span style={{ fontSize: 11, color: i === 1 ? '#c9a840' : '#e8dcc8', fontWeight: 900 }}>{p.iqamah}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          if (tpl === 'mihrab') {
+            // Burgundy + cream, arch header
+            const archSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 50'><path d='M0,50 L0,35 Q150,0 300,35 L300,50 Z' fill='none' stroke='rgba(212,168,67,0.3)' stroke-width='1'/><path d='M120,50 L120,32 Q150,18 180,32 L180,50' fill='none' stroke='rgba(212,168,67,0.4)' stroke-width='0.8'/><line x1='0' y1='1' x2='300' y2='1' stroke='rgba(212,168,67,0.25)' stroke-width='1'/></svg>`;
+            const archUrl = `url("data:image/svg+xml,${encodeURIComponent(archSvg)}")`;
+            return (
+              <div style={{ width: '100%', height: '100%', minHeight: 200, backgroundColor: '#1c0508', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                {/* Arch header */}
+                <div style={{ height: 50, backgroundImage: archUrl, backgroundRepeat: 'no-repeat', backgroundSize: '100% 50px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(212,168,67,0.2)' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 9, color: 'rgba(212,168,67,0.5)', letterSpacing: 3, fontWeight: 800 }}>PRAYER TIMES</div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: '#f2e8d5' }}>12:34 PM</div>
+                  </div>
+                </div>
+                {/* Prayers */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, padding: '4px 8px' }}>
+                  {prayers.map((p, i) => (
+                    <div key={p.name} style={{ display: 'flex', alignItems: 'center', backgroundColor: i === 1 ? 'rgba(212,168,67,0.1)' : 'transparent', borderRadius: 3, padding: '2px 6px', borderLeft: i === 1 ? '2px solid #d4a843' : '2px solid transparent' }}>
+                      <span style={{ flex: 1, fontSize: 8, color: i === 1 ? '#d4a843' : 'rgba(212,168,67,0.4)', letterSpacing: 1.5, fontWeight: 800 }}>{p.name}</span>
+                      <span style={{ fontSize: 10, color: '#f2e8d5', fontWeight: 700, marginRight: 8 }}>{p.adhan}</span>
+                      <span style={{ fontSize: 11, color: i === 1 ? '#d4a843' : '#f2e8d5', fontWeight: 900 }}>{p.iqamah}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Side dot accents */}
+                <div style={{ position: 'absolute', top: 0, left: 2, bottom: 0, width: 3, backgroundImage: 'radial-gradient(circle, rgba(212,168,67,0.4) 1px, transparent 1px)', backgroundSize: '3px 6px' }} />
+                <div style={{ position: 'absolute', top: 0, right: 2, bottom: 0, width: 3, backgroundImage: 'radial-gradient(circle, rgba(212,168,67,0.4) 1px, transparent 1px)', backgroundSize: '3px 6px' }} />
+              </div>
+            );
+          }
+
+          // Classic
+          const primary = slideTheme.primary || '#550C18';
+          const bg = slideTheme.background || '#ffffff';
+          return (
+            <div style={{ width: '100%', height: '100%', minHeight: 200, backgroundColor: bg, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {/* Header bar */}
+              <div style={{ backgroundColor: primary, padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, fontWeight: 700 }}>PRAYER TIMES</div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: '#ffffff' }}>12:34 PM</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)' }}>1 Rabi al-Awwal 1447</div>
+                  <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.7)' }}>Next: Asr at 5:00 PM</div>
+                </div>
+              </div>
+              {/* Prayer rows */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {prayers.map((p, i) => (
+                  <div key={p.name} style={{ flex: 1, display: 'flex', alignItems: 'center', padding: '0 10px', backgroundColor: i === 2 ? `${primary}12` : 'transparent', borderBottom: '1px solid rgba(0,0,0,0.05)', borderLeft: i === 2 ? `3px solid ${primary}` : '3px solid transparent' }}>
+                    <span style={{ flex: 1, fontSize: 9, color: i === 2 ? primary : '#6b7280', letterSpacing: 1.5, fontWeight: 800 }}>{p.name}</span>
+                    <span style={{ fontSize: 10, color: '#374151', fontWeight: 600, marginRight: 10 }}>{p.adhan}</span>
+                    <span style={{ fontSize: 11, color: i === 2 ? primary : '#374151', fontWeight: 900 }}>{p.iqamah}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
         {slideData.type === "announcements" && (
           <div className="text-center p-4 min-h-[350px] flex flex-col justify-center">
             <div className="text-lg font-bold mb-2" style={{fontFamily: (slideTheme as any).fontHeading || slideTheme.font }}>
@@ -412,16 +503,12 @@ function SlidePreview({
         }}
       >
         {/* Left prayer times panel */}
-        <div className="row-span-2 bg-[#1a1f2e] rounded-l-lg h-full">
+        <div className="row-span-2 rounded-l-lg h-full overflow-hidden">
           {renderSlideContent(
             {
               type: "prayerTimes",
-              template: "modern",
-              theme: {
-                ...theme,
-                background: "#1a1f2e",
-                text: "#ffffff",
-              },
+              template: slide.template || 'classic',
+              theme: flatCurrentTheme,
             },
             true
           )}
@@ -459,7 +546,7 @@ function SlidePreview({
             {renderSlideContent(
               {
                 type: "prayerTimes",
-                template: "modern",
+                template: slide.template || 'classic',
                 theme: flatCurrentTheme,
               },
               true
@@ -476,7 +563,7 @@ function SlidePreview({
             {renderSlideContent(
               {
                 type: "prayerTimes",
-                template: "modern",
+                template: slide.template || 'classic',
                 theme: flatCurrentTheme,
               },
               true
@@ -504,7 +591,7 @@ function SlidePreview({
             {renderSlideContent(
               {
                 type: "prayerTimes",
-                template: "modern",
+                template: slide.template || 'classic',
                 theme: flatCurrentTheme,
               },
               true
@@ -516,7 +603,7 @@ function SlidePreview({
             {renderSlideContent(
               {
                 type: "prayerTimes",
-                template: "modern",
+                template: slide.template || 'classic',
                 theme: flatCurrentTheme,
               },
               true
@@ -1858,7 +1945,7 @@ export default function SignageDisplay({
           item.source === "announcement"
             ? ("announcements" as const)
             : ("content" as const),
-        template: "modern",
+        template: slide.template || 'classic',
         contentId: item.id,
         theme: { ...defaultTheme },
         content: item,
@@ -1879,7 +1966,7 @@ export default function SignageDisplay({
         {
           id: crypto.randomUUID(),
           type: "prayerTimes" as const,
-          template: "modern",
+          template: slide.template || 'classic',
           theme: { ...defaultTheme },
           layout: "full",
         },
@@ -1896,7 +1983,7 @@ export default function SignageDisplay({
         {
           id: crypto.randomUUID(),
           type: "custom" as const,
-          template: "modern",
+          template: slide.template || 'classic',
           customComponentUrl: url,
           theme: { ...defaultTheme },
         },
@@ -1916,7 +2003,7 @@ export default function SignageDisplay({
         {
           id: crypto.randomUUID(),
           type: "split" as const,
-          template: "modern",
+          template: slide.template || 'classic',
           splitConfig: split,
           theme: { ...defaultTheme },
         },
