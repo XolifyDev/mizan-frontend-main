@@ -544,6 +544,7 @@ export async function updateIqamahTiming(rawData: z.infer<typeof iqamahTimingSch
   const data = {
     ...rawData,
     masjidId: rawData.masjidId as string,
+    maghribOffset: String(rawData.maghribOffset),
     changeDate: new Date(rawData.changeDate.to),
   }
   try {

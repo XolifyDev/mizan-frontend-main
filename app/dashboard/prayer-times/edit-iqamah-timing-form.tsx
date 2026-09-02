@@ -27,6 +27,7 @@ export function EditIqamahTimingForm({ timing, onSuccess }: EditIqamahTimingForm
     resolver: zodResolver(iqamahTimingSchema),
     defaultValues: {
       ...timing,
+      maghribOffset: Number(timing.maghribOffset) || 0,
       changeDate: {
         from: new Date(timing.changeDate),
         to: new Date(timing.changeDate)
