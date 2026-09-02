@@ -1465,14 +1465,14 @@ function EditSlideModal({
                 <Settings className="h-4 w-4 text-[#550C18]" />
             </Button>
         </DialogTrigger>
-      <DialogContent className="max-w-5xl">
-        <DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-2xl font-bold text-[#550C18]">
             Edit Slide
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="overflow-y-auto flex-1 space-y-6 pr-1">
           {/* Style / Template Selection (for prayerTimes slides and any L-shape layout) */}
           {(editedSlide.type === "prayerTimes" || editedSlide.type === "prayer" || editedSlide.layout === "l-shape" || editedSlide.layout === "reverse-l-shape") && (
             <div>
@@ -1646,7 +1646,7 @@ function EditSlideModal({
           </div>
         </div>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="flex-shrink-0 mt-4 pt-4 border-t">
           <Button
             variant="destructive"
             onClick={onDelete}
