@@ -1477,11 +1477,127 @@ function EditSlideModal({
           {(editedSlide.type === "prayerTimes" || editedSlide.type === "prayer" || editedSlide.layout === "l-shape" || editedSlide.layout === "reverse-l-shape") && (
             <div>
               <Label className="text-[#550C18] mb-2 block">Style</Label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-5 gap-3">
                 {[
-                  { value: "classic", label: "Classic", desc: "Light background, card layout" },
-                  { value: "dark", label: "Dark", desc: "Dark elegant look" },
-                  { value: "modern", label: "Modern", desc: "Dark grid cards" },
+                  {
+                    value: "classic",
+                    label: "Classic",
+                    desc: "White bg, maroon accents",
+                    preview: (
+                      <div className="h-full rounded flex flex-col overflow-hidden bg-white">
+                        <div className="h-1 bg-[#550C18]" />
+                        <div className="flex-1 flex flex-col items-center justify-center gap-1 p-1">
+                          <div className="w-10 h-1.5 rounded bg-[#550C18]/30" />
+                          <div className="text-[10px] font-bold text-[#550C18]">11:39 PM</div>
+                          <div className="w-8 h-1 rounded bg-gray-200" />
+                          <div className="flex gap-1 w-full px-1">
+                            {["F","D","A","M","I"].map(l => (
+                              <div key={l} className="flex-1 flex flex-col items-center">
+                                <div className="text-[5px] text-gray-400">{l}</div>
+                                <div className="w-full h-1 rounded bg-[#550C18]/20 mt-0.5" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    value: "dark",
+                    label: "Dark",
+                    desc: "Dark elegant rows",
+                    preview: (
+                      <div className="h-full rounded flex flex-col overflow-hidden bg-gray-900">
+                        <div className="flex-1 flex flex-col items-center justify-center gap-1 p-1">
+                          <div className="text-[10px] font-bold text-white">11:39</div>
+                          <div className="text-[5px] text-gray-400 tracking-widest">PM</div>
+                          <div className="w-full space-y-0.5 px-1 mt-1">
+                            {["Fajr","Dhuhr","Asr"].map(p => (
+                              <div key={p} className="flex justify-between items-center bg-white/5 rounded px-1 py-0.5">
+                                <span className="text-[5px] text-white/70">{p}</span>
+                                <span className="text-[5px] text-[#550C18]">5:30</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    value: "modern",
+                    label: "Modern",
+                    desc: "Dark grid cards",
+                    preview: (
+                      <div className="h-full rounded flex flex-col overflow-hidden bg-gray-900 p-1 gap-0.5">
+                        <div className="flex justify-between items-center px-0.5">
+                          <span className="text-[5px] text-gray-400">11:39 PM</span>
+                          <span className="text-[5px] text-[#550C18]">5 MIN</span>
+                        </div>
+                        <div className="flex-1 grid grid-cols-3 gap-0.5">
+                          {["F","D","A","M","I","SR"].map((l, i) => (
+                            <div key={l} className={cn("rounded flex flex-col items-center justify-center py-0.5", i === 0 ? "bg-[#550C18]/40 border border-[#550C18]" : "bg-white/5")}>
+                              <span className="text-[5px] text-white/60">{l}</span>
+                              <span className="text-[5px] text-white font-bold">5:30</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    value: "geometric",
+                    label: "Geometric",
+                    desc: "Navy, Islamic star pattern, gold",
+                    preview: (
+                      <div className="h-full rounded flex flex-col overflow-hidden relative" style={{ background: "#0b1825" }}>
+                        {/* Star tile hint */}
+                        <svg className="absolute inset-0 w-full h-full opacity-20" xmlns="http://www.w3.org/2000/svg">
+                          <defs>
+                            <pattern id="prev-star" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+                              <polygon points="6,0.5 7,4 11,4 8,6.5 9,10 6,7.5 3,10 4,6.5 1,4 5,4" fill="none" stroke="#c9a840" strokeWidth="0.4" />
+                            </pattern>
+                          </defs>
+                          <rect width="100%" height="100%" fill="url(#prev-star)" />
+                        </svg>
+                        <div className="relative flex-1 flex flex-col items-center justify-center gap-1 p-1">
+                          <div className="w-8 h-8 rounded border border-yellow-500/40 flex items-center justify-center" style={{ background: "rgba(201,168,64,0.1)" }}>
+                            <span className="text-[9px] font-bold" style={{ color: "#e8dcc8" }}>11:39</span>
+                          </div>
+                          <div className="text-[5px] tracking-widest" style={{ color: "#c9a840" }}>PM</div>
+                          <div className="w-full h-px" style={{ background: "rgba(201,168,64,0.3)" }} />
+                          <div className="text-[5px] font-bold" style={{ color: "#c9a840" }}>8:45 · FAJR</div>
+                        </div>
+                      </div>
+                    ),
+                  },
+                  {
+                    value: "mihrab",
+                    label: "Mihrab",
+                    desc: "Burgundy, arch ornament, cream",
+                    preview: (
+                      <div className="h-full rounded flex flex-col overflow-hidden relative" style={{ background: "#1c0508" }}>
+                        {/* Arch SVG header */}
+                        <svg viewBox="0 0 60 18" className="w-full flex-shrink-0" style={{ height: 18 }}>
+                          <path d="M4,18 L4,12 Q4,1 30,0.5 Q56,1 56,12 L56,18" fill="none" stroke="rgba(212,168,67,0.6)" strokeWidth="0.6" />
+                          <circle cx="30" cy="1.5" r="1.5" fill="none" stroke="rgba(212,168,67,0.6)" strokeWidth="0.5" />
+                          <circle cx="30" cy="1.5" r="0.6" fill="rgba(212,168,67,0.8)" />
+                        </svg>
+                        <div className="flex-1 flex flex-col items-center justify-center gap-1 p-1">
+                          <div className="text-[10px] font-bold" style={{ color: "#f2e8d5" }}>11:39</div>
+                          <div className="text-[5px] tracking-widest" style={{ color: "#d4a843" }}>PM</div>
+                          <div className="w-full h-px" style={{ background: "rgba(212,168,67,0.2)" }} />
+                          <div className="text-[5px] font-bold" style={{ color: "#d4a843" }}>8:45 · FAJR</div>
+                        </div>
+                        {/* Side dots */}
+                        <div className="absolute left-1 inset-y-0 flex flex-col justify-around">
+                          {[0,1,2,3,4].map(i => <div key={i} className="w-0.5 h-0.5 rounded-full" style={{ background: `rgba(212,168,67,${i%2===0?0.5:0.15})` }} />)}
+                        </div>
+                        <div className="absolute right-1 inset-y-0 flex flex-col justify-around">
+                          {[0,1,2,3,4].map(i => <div key={i} className="w-0.5 h-0.5 rounded-full" style={{ background: `rgba(212,168,67,${i%2===0?0.5:0.15})` }} />)}
+                        </div>
+                      </div>
+                    ),
+                  },
                 ].map((opt) => (
                   <div
                     key={opt.value}
@@ -1493,17 +1609,8 @@ function EditSlideModal({
                     )}
                     onClick={() => setEditedSlide((prev) => ({ ...prev, template: opt.value }))}
                   >
-                    <div className={cn(
-                      "aspect-video rounded mb-2",
-                      opt.value === "classic" ? "bg-gray-100" : opt.value === "dark" ? "bg-gray-800" : "bg-gray-900"
-                    )}>
-                      <div className={cn("h-full rounded flex items-center justify-center",
-                        opt.value === "classic" ? "bg-white/60" : "bg-transparent"
-                      )}>
-                        <span className={cn("text-xs font-bold", opt.value === "classic" ? "text-[#550C18]" : "text-white/60")}>
-                          {opt.label}
-                        </span>
-                      </div>
+                    <div className="aspect-video rounded mb-2 overflow-hidden">
+                      {opt.preview}
                     </div>
                     <span className="text-sm font-medium block">{opt.label}</span>
                     <span className="text-xs text-gray-500">{opt.desc}</span>
