@@ -1477,7 +1477,7 @@ function EditSlideModal({
           {(editedSlide.type === "prayerTimes" || editedSlide.type === "prayer" || editedSlide.layout === "l-shape" || editedSlide.layout === "reverse-l-shape") && (
             <div>
               <Label className="text-[#550C18] mb-2 block">Style</Label>
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {[
                   {
                     value: "classic",
@@ -1498,48 +1498,6 @@ function EditSlideModal({
                               </div>
                             ))}
                           </div>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    value: "dark",
-                    label: "Dark",
-                    desc: "Dark elegant rows",
-                    preview: (
-                      <div className="h-full rounded flex flex-col overflow-hidden bg-gray-900">
-                        <div className="flex-1 flex flex-col items-center justify-center gap-1 p-1">
-                          <div className="text-[10px] font-bold text-white">11:39</div>
-                          <div className="text-[5px] text-gray-400 tracking-widest">PM</div>
-                          <div className="w-full space-y-0.5 px-1 mt-1">
-                            {["Fajr","Dhuhr","Asr"].map(p => (
-                              <div key={p} className="flex justify-between items-center bg-white/5 rounded px-1 py-0.5">
-                                <span className="text-[5px] text-white/70">{p}</span>
-                                <span className="text-[5px] text-[#550C18]">5:30</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    ),
-                  },
-                  {
-                    value: "modern",
-                    label: "Modern",
-                    desc: "Dark grid cards",
-                    preview: (
-                      <div className="h-full rounded flex flex-col overflow-hidden bg-gray-900 p-1 gap-0.5">
-                        <div className="flex justify-between items-center px-0.5">
-                          <span className="text-[5px] text-gray-400">11:39 PM</span>
-                          <span className="text-[5px] text-[#550C18]">5 MIN</span>
-                        </div>
-                        <div className="flex-1 grid grid-cols-3 gap-0.5">
-                          {["F","D","A","M","I","SR"].map((l, i) => (
-                            <div key={l} className={cn("rounded flex flex-col items-center justify-center py-0.5", i === 0 ? "bg-[#550C18]/40 border border-[#550C18]" : "bg-white/5")}>
-                              <span className="text-[5px] text-white/60">{l}</span>
-                              <span className="text-[5px] text-white font-bold">5:30</span>
-                            </div>
-                          ))}
                         </div>
                       </div>
                     ),
