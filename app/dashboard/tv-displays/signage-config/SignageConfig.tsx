@@ -1687,7 +1687,8 @@ function EditSlideModal({
             </div>
           </div>
 
-          {/* Content Selection */}
+          {/* Content Selection — hidden for prayer times slides */}
+          {editedSlide.type !== "prayerTimes" && editedSlide.type !== "prayer" && (
           <div>
             <Label className="text-[#550C18] mb-2 block">Content</Label>
             <div className="border rounded-lg p-4">
@@ -1738,6 +1739,7 @@ function EditSlideModal({
               )}
             </div>
           </div>
+          )}
 
           {/* Preview */}
           <div>
