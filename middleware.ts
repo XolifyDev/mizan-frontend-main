@@ -1,4 +1,3 @@
-"use server"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
@@ -68,9 +67,18 @@ export async function middleware(request: NextRequest) {
     )
   }
 
-  return NextResponse.next()
+  // Forward the active masjid and pathname as headers. Next.js layouts do not
+  // receive searchParams, and the plan gate has to run in a layout because most
+  // dashboard pages are client components. Reading these back via headers() is
+  // the supported way to get at them server-side.
+  const requestHeaders = new Headers(request.headers)
+  const masjidId = request.nextUrl.searchParams.get("masjidId")
+  if (masjidId) requestHeaders.set("x-masjid-id", masjidId)
+  requestHeaders.set("x-pathname", request.nextUrl.pathname)
+
+  return NextResponse.next({ request: { headers: requestHeaders } })
 }
 
 export const config = {
-  matcher: []
+  matcher: ["/dashboard/:path*"],
 } 

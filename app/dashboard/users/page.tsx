@@ -44,6 +44,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { filterSearchUsers } from "@/lib/actions/user";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -52,6 +53,18 @@ import {
   inviteUserToMasjid,
   removeUserFromMasjid,
 } from "@/lib/actions/masjid";
+import {
+  getSeatUsage,
+  listMembers,
+  setMemberRole,
+} from "@/lib/actions/members";
+import {
+  ASSIGNABLE_ROLES,
+  MASJID_ROLE,
+  ROLE_DESCRIPTIONS,
+  ROLE_LABELS,
+  type MasjidRoleKey,
+} from "@/lib/masjid-roles";
 import { toast } from "@/hooks/use-toast";
 
 type SearchResultUser = {
@@ -84,6 +97,17 @@ type PendingInvite = {
   invitedBy: {
     name: string;
   };
+};
+
+// Per-masjid role presentation. The legacy global-role maps below are kept for
+// members who predate MasjidMember and still resolve to the old strings.
+const masjidRoleTone: Record<string, string> = {
+  OWNER: "bg-[#550C18] text-white hover:bg-[#550C18]",
+  ADMIN: "bg-[#550C18]/10 text-[#550C18] hover:bg-[#550C18]/10",
+  CONTENT_EDITOR: "bg-[#EEF2FF] text-[#3730A3] hover:bg-[#EEF2FF]",
+  PRAYER_TIMES: "bg-[#F7EEE5] text-[#8A5A12] hover:bg-[#F7EEE5]",
+  FINANCE: "bg-[#EEF7F2] text-[#0F6A4B] hover:bg-[#EEF7F2]",
+  VIEWER: "bg-slate-100 text-slate-700 hover:bg-slate-100",
 };
 
 const roleLabelMap: Record<string, string> = {
@@ -122,6 +146,11 @@ export default function UsersPage() {
   const router = useRouter();
   const [removeUserModal, setRemoveUserModal] = useState(false);
   const [inviteUserModal, setInviteUserModal] = useState(false);
+  // Per-masjid roles
+  const [inviteRole, setInviteRole] = useState<MasjidRoleKey>(MASJID_ROLE.VIEWER);
+  const [memberRoles, setMemberRoles] = useState<Record<string, MasjidRoleKey>>({});
+  const [seats, setSeats] = useState<{ used: number; limit: number; hasRoom: boolean } | null>(null);
+  const [savingRole, setSavingRole] = useState<string | null>(null);
   const [pendingInvitesModal, setPendingInvitesModal] = useState(false);
 
   const fetchUsers = useCallback(async () => {
@@ -159,9 +188,51 @@ export default function UsersPage() {
       user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Seat usage + current roles, refreshed alongside the member list.
+  const loadRoles = useCallback(async () => {
+    if (!masjidId) return;
+    try {
+      const [usage, members] = await Promise.all([
+        getSeatUsage(masjidId as string),
+        listMembers(masjidId as string),
+      ]);
+      setSeats(usage);
+      setMemberRoles(
+        Object.fromEntries(members.map((m: any) => [m.id, m.role as MasjidRoleKey]))
+      );
+    } catch {
+      // Non-fatal: the page still lists members without role controls.
+    }
+  }, [masjidId]);
+
+  useEffect(() => {
+    loadRoles();
+  }, [loadRoles]);
+
+  const handleRoleChange = async (userId: string, role: MasjidRoleKey) => {
+    setSavingRole(userId);
+    const previous = memberRoles[userId];
+    setMemberRoles((prev) => ({ ...prev, [userId]: role }));
+
+    const res = await setMemberRole(masjidId as string, userId, role);
+    if (res.error) {
+      // Roll back the optimistic update.
+      setMemberRoles((prev) => ({ ...prev, [userId]: previous }));
+      toast({ title: "Error", description: res.message, variant: "destructive" });
+    } else {
+      toast({ title: "Role updated", description: res.message });
+    }
+    setSavingRole(null);
+  };
+
   const handleInviteUser = async () => {
     if (!selectedUser) return;
-    const invite = await inviteUserToMasjid(masjidId as string, selectedUser.id, session?.user.id as string);
+    const invite = await inviteUserToMasjid(
+      masjidId as string,
+      selectedUser.id,
+      session?.user.id as string,
+      inviteRole
+    );
     if (invite.error) {
       toast({
         title: "Error",
@@ -179,7 +250,9 @@ export default function UsersPage() {
       setSearchQuery("");
       setSearchResults([]);
       setShowUsers(false);
+      setInviteRole(MASJID_ROLE.VIEWER);
       fetchUsers();
+      loadRoles();
     }
   }
 
@@ -308,6 +381,19 @@ export default function UsersPage() {
               </DialogContent>
             </Dialog>
 
+            {seats && (
+              <span className="mr-3 self-center text-sm text-[#6b7280]">
+                {seats.used} of {seats.limit} seat{seats.limit === 1 ? "" : "s"} used
+                {!seats.hasRoom && (
+                  <Link
+                    href={`/dashboard/billing?masjidId=${masjidId ?? ""}`}
+                    className="ml-2 font-medium text-[#550C18] underline"
+                  >
+                    Upgrade
+                  </Link>
+                )}
+              </span>
+            )}
             <Dialog open={inviteUserModal} onOpenChange={setInviteUserModal}>
               <DialogTrigger asChild>
                 <Button className="bg-[#550C18] text-white hover:bg-[#6a1220]">
@@ -376,9 +462,47 @@ export default function UsersPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
+
+                {/* Role selection — determines what the invitee can reach. */}
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-[#3A3A3A]">
+                    Role
+                  </label>
+                  <div className="grid gap-2">
+                    {ASSIGNABLE_ROLES.map((role) => (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => setInviteRole(role)}
+                        className={cn(
+                          "rounded-lg border-2 p-3 text-left transition-colors",
+                          inviteRole === role
+                            ? "border-[#550C18] bg-[#550C18]/5"
+                            : "border-gray-200 hover:border-[#550C18]/40"
+                        )}
+                      >
+                        <span className="block text-sm font-medium text-[#1f2937]">
+                          {ROLE_LABELS[role]}
+                        </span>
+                        <span className="block text-xs text-gray-500">
+                          {ROLE_DESCRIPTIONS[role]}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {seats && !seats.hasRoom && (
+                  <p className="mt-3 text-sm text-amber-600">
+                    All {seats.limit} seats are in use. Upgrade to Pro or remove a
+                    member to invite someone else.
+                  </p>
+                )}
+
                 <DialogFooter>
                   <Button
                     onClick={handleInviteUser}
+                    disabled={!selectedUser || (seats ? !seats.hasRoom : false)}
                     className="bg-[#550C18] hover:bg-[#78001A] text-white"
                   >
                     Invite User
@@ -529,9 +653,34 @@ export default function UsersPage() {
                   <div className="flex flex-col justify-center">
                     <p className="text-sm text-[#3A3A3A]">{user.email}</p>
                     <div className="mt-1 flex items-center gap-2">
-                      <Badge className={roleToneMap[user.role] || roleToneMap.user}>
-                        {roleLabelMap[user.role] || "Member"}
-                      </Badge>
+                      {memberRoles[user.id] === MASJID_ROLE.OWNER ? (
+                        <Badge className={masjidRoleTone.OWNER}>
+                          {ROLE_LABELS.OWNER}
+                        </Badge>
+                      ) : memberRoles[user.id] ? (
+                        <select
+                          value={memberRoles[user.id]}
+                          disabled={savingRole === user.id}
+                          onChange={(e) =>
+                            handleRoleChange(user.id, e.target.value as MasjidRoleKey)
+                          }
+                          aria-label={`Role for ${user.name}`}
+                          className={cn(
+                            "rounded-full border-0 px-2.5 py-1 text-xs font-medium outline-none ring-1 ring-inset ring-black/5 disabled:opacity-60",
+                            masjidRoleTone[memberRoles[user.id]] ?? masjidRoleTone.VIEWER
+                          )}
+                        >
+                          {ASSIGNABLE_ROLES.map((role) => (
+                            <option key={role} value={role}>
+                              {ROLE_LABELS[role]}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <Badge className={roleToneMap[user.role ?? "user"] || roleToneMap.user}>
+                          {roleLabelMap[user.role ?? "user"] || "Member"}
+                        </Badge>
+                      )}
                       {user.admin && (
                         <Badge variant="outline" className="border-[#550C18]/15 text-[#550C18]">
                           Admin

@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { prisma } from "@/lib/db";
+import { downgradeSlidesForPlan } from "@/lib/plan-slides";
+import { getMasjidPlan } from "@/lib/plan-guard";
 
 type SlideContentRecord = {
   updatedAt?: string | Date | null;
@@ -56,6 +58,10 @@ export async function buildMasjidSlidesResponse(
   if (!masjid) {
     return null;
   }
+
+  // Read the plan separately and defensively: getMasjidPlan short-circuits to
+  // PRO when gating is off, so this query never runs before billing is live.
+  const plan = await getMasjidPlan(masjidId);
 
   let signageConfig;
 
@@ -157,10 +163,15 @@ export async function buildMasjidSlidesResponse(
     })),
   });
 
-  return {
-    masjid,
-    slides: activeSlides,
-    version,
-    generatedAt: new Date().toISOString(),
-  };
+  // Enforce the plan before the payload leaves the server — the TV app is a
+  // public build, so client-side gating there is not a boundary.
+  return downgradeSlidesForPlan(
+    {
+      masjid,
+      slides: activeSlides,
+      version,
+      generatedAt: new Date().toISOString(),
+    },
+    plan
+  );
 }

@@ -24,18 +24,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ masj
     return NextResponse.redirect(new URL(`/error?message=Invalid masjid`, request.url))
   }
 
+  // Scope the lookup to this masjid AND this user: a token alone must not be
+  // enough to join, or anyone holding a link could accept someone else's
+  // invite, at a masjid the invite was never issued for.
   const invite = await prisma.masjidInvite.findFirst({
     where: {
       token: token,
+      masjidId: masjidId,
+      userId: session.user.id,
     },
   });
 
-  if (invite?.expiresAt && new Date(invite.expiresAt) < new Date()) {
-    return NextResponse.redirect(new URL(`/error?message=Invite has expired`, request.url))
-  }
-
   if (!invite) {
     return NextResponse.redirect(new URL(`/error?message=Invalid invite`, request.url))
+  }
+
+  // Single use — an accepted or declined invite must not be replayable.
+  if (invite.status !== "pending") {
+    return NextResponse.redirect(new URL(`/error?message=Invite has already been used`, request.url))
+  }
+
+  if (invite.expiresAt && new Date(invite.expiresAt) < new Date()) {
+    return NextResponse.redirect(new URL(`/error?message=Invite has expired`, request.url))
   }
 
   const updatedMasjid = await prisma.masjid.update({
@@ -51,17 +61,17 @@ export async function GET(request: Request, { params }: { params: Promise<{ masj
     },
   });
 
-  await prisma.user.update({
+  // Membership row carries the role the inviter chose.
+  await prisma.masjidMember.upsert({
     where: {
-      id: session.user.id,
+      masjidId_userId: { masjidId, userId: session.user.id },
     },
-    data: {
-      masjids: {
-        connect: {
-          id: masjidId,
-        },
-      },
+    create: {
+      masjidId,
+      userId: session.user.id,
+      role: invite.role,
     },
+    update: { role: invite.role },
   });
 
   await prisma.masjidInvite.update({
@@ -73,6 +83,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ masj
       joinDate: new Date(),
     },
   });
-  
+
   return NextResponse.redirect(new URL(`/dashboard?masjidId=${updatedMasjid.id}`, request.url))
 }

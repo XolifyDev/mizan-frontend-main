@@ -45,8 +45,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Image from "next/image";
+import Link from "next/link";
 import { Masjid } from "@prisma/client";
-import { getMasjidById } from "@/lib/actions/masjids";
+import { getMasjidById, getMasjidPlanForEditor } from "@/lib/actions/masjids";
+import { canUseLayout, canUseTemplate, slideLimit } from "@/lib/plan";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CustomComponentLoader from "./CustomComponentLoader";
@@ -58,7 +60,8 @@ const MonacoEditor = dynamic(() => import("react-monaco-editor"), { ssr: false }
 
 export type SlideConfig = {
   id?: string;
-  type: "prayerTimes" | "announcements" | "custom" | "content" | "split";
+  // "prayer" is the legacy alias for "prayerTimes"; the device renders both.
+  type: "prayerTimes" | "prayer" | "announcements" | "custom" | "content" | "split";
   template: string;
   layout?: "full" | "l-shape" | "reverse-l-shape";
   theme?: {
@@ -222,7 +225,8 @@ function SlidePreview({
   cacheKey,
 }: {
   slide: SlideConfig;
-  masjid: Masjid | null;
+  // Narrowed selection from getMasjidById, not the full Masjid row.
+  masjid: Awaited<ReturnType<typeof getMasjidById>>;
   currentTheme?: ThemeConfig;
   allSlides: SlideConfig[];
   cacheKey?: string | number;
@@ -1513,18 +1517,22 @@ function EditSlideModal({
   onDelete,
   masjidId,
   items,
+  plan,
 }: {
   slide: SlideConfig;
   onUpdate: (updatedSlide: SlideConfig) => void;
   onDelete: () => void;
   masjidId: string;
   items: any[];
+  plan?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   const [editedSlide, setEditedSlide] = useState<SlideConfig>(slide);
   const [showContentModal, setShowContentModal] = useState(false);
 
   const handleLayoutChange = (layout: SlideConfig["layout"]) => {
+    // Split layouts are Pro; the device ignores them on Free anyway.
+    if (!canUseLayout(layout, plan)) return;
     setEditedSlide((prev) => ({
       ...prev,
       layout,
@@ -1643,24 +1651,39 @@ function EditSlideModal({
                       </div>
                     ),
                   },
-                ].map((opt) => (
+                ].map((opt) => {
+                  const locked = !canUseTemplate(opt.value, plan);
+                  return (
                   <div
                     key={opt.value}
                     className={cn(
-                      "border-2 rounded-lg p-3 cursor-pointer hover:border-[#550C18] transition-colors",
-                      (editedSlide.template || "classic") === opt.value
+                      "relative border-2 rounded-lg p-3 transition-colors",
+                      locked
+                        ? "cursor-not-allowed border-gray-200 opacity-60"
+                        : "cursor-pointer hover:border-[#550C18]",
+                      !locked && (editedSlide.template || "classic") === opt.value
                         ? "border-[#550C18] bg-[#550C18]/5"
                         : "border-gray-200"
                     )}
-                    onClick={() => setEditedSlide((prev) => ({ ...prev, template: opt.value }))}
+                    title={locked ? `${opt.label} is available on the Pro plan` : undefined}
+                    onClick={() => {
+                      if (locked) return;
+                      setEditedSlide((prev) => ({ ...prev, template: opt.value }));
+                    }}
                   >
+                    {locked && (
+                      <span className="absolute right-2 top-2 z-10 rounded-full bg-gradient-to-r from-[#550C18] to-[#78001A] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-white">
+                        Pro
+                      </span>
+                    )}
                     <div className="aspect-video rounded mb-2 overflow-hidden">
                       {opt.preview}
                     </div>
                     <span className="text-sm font-medium block">{opt.label}</span>
                     <span className="text-xs text-gray-500">{opt.desc}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1681,54 +1704,66 @@ function EditSlideModal({
                 <div className="aspect-video bg-gray-100 rounded mb-2" />
                 <span className="text-sm font-medium">Full Screen</span>
               </div>
-              <div
-                className={cn(
-                  "border-2 rounded-lg p-4 cursor-pointer hover:border-[#550C18] transition-colors",
-                  editedSlide.layout === "l-shape"
-                    ? "border-[#550C18]"
-                    : "border-gray-200"
-                )}
-                onClick={() => handleLayoutChange("l-shape")}
-              >
-                <div
-                  className="aspect-video bg-gray-100 rounded mb-2 grid"
-                  style={{
-                    gridTemplateColumns: "1fr 2fr",
-                    gridTemplateRows: "2fr 1fr",
-                    gap: "2px",
-                  }}
-                >
-                  <div className="row-span-2 bg-[#550C18]/20 rounded" />
-                  <div className="bg-gray-200 rounded" />
-                  <div className="bg-[#550C18]/20 rounded" />
-                </div>
-                <span className="text-sm font-medium">
-                  L-Shape Prayer Times
-                </span>
-              </div>
-              <div
-                className={cn(
-                  "border-2 rounded-lg p-4 cursor-pointer hover:border-[#550C18] transition-colors",
-                  editedSlide.layout === "reverse-l-shape"
-                    ? "border-[#550C18]"
-                    : "border-gray-200"
-                )}
-                onClick={() => handleLayoutChange("reverse-l-shape")}
-              >
-                <div
-                  className="aspect-video bg-gray-100 rounded mb-2 grid"
-                  style={{
-                    gridTemplateColumns: "2fr 1fr",
-                    gridTemplateRows: "2fr 1fr",
-                    gap: "2px",
-                  }}
-                >
-                  <div className="bg-gray-200 rounded" />
-                  <div className="row-span-2 bg-[#550C18]/20 rounded" />
-                  <div className="bg-[#550C18]/20 rounded" />
-                </div>
-                <span className="text-sm font-medium">Reverse L-Shape</span>
-              </div>
+              {([
+                {
+                  value: "l-shape" as const,
+                  label: "L-Shape Prayer Times",
+                  cols: "1fr 2fr",
+                  reverse: false,
+                },
+                {
+                  value: "reverse-l-shape" as const,
+                  label: "Reverse L-Shape",
+                  cols: "2fr 1fr",
+                  reverse: true,
+                },
+              ]).map((opt) => {
+                const locked = !canUseLayout(opt.value, plan);
+                return (
+                  <div
+                    key={opt.value}
+                    className={cn(
+                      "relative border-2 rounded-lg p-4 transition-colors",
+                      locked
+                        ? "cursor-not-allowed border-gray-200 opacity-60"
+                        : "cursor-pointer hover:border-[#550C18]",
+                      !locked && editedSlide.layout === opt.value
+                        ? "border-[#550C18]"
+                        : "border-gray-200"
+                    )}
+                    title={locked ? `${opt.label} is available on the Pro plan` : undefined}
+                    onClick={() => handleLayoutChange(opt.value)}
+                  >
+                    {locked && (
+                      <span className="absolute right-2 top-2 z-10 rounded-full bg-gradient-to-r from-[#550C18] to-[#78001A] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-white">
+                        Pro
+                      </span>
+                    )}
+                    <div
+                      className="aspect-video bg-gray-100 rounded mb-2 grid"
+                      style={{
+                        gridTemplateColumns: opt.cols,
+                        gridTemplateRows: "2fr 1fr",
+                        gap: "2px",
+                      }}
+                    >
+                      {opt.reverse ? (
+                        <>
+                          <div className="bg-gray-200 rounded" />
+                          <div className="row-span-2 bg-[#550C18]/20 rounded" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="row-span-2 bg-[#550C18]/20 rounded" />
+                          <div className="bg-gray-200 rounded" />
+                        </>
+                      )}
+                      <div className="bg-[#550C18]/20 rounded" />
+                    </div>
+                    <span className="text-sm font-medium">{opt.label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -1849,7 +1884,12 @@ export default function SignageDisplay({
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [showSplitModal, setShowSplitModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
-  const [masjid, setMasjid] = useState<Masjid | null>(null);
+  // Defaults to PRO so nothing is marked locked before the plan loads.
+  const [plan, setPlan] = useState<string>("PRO");
+  // getMasjidById returns a narrowed selection, not the full Masjid row.
+  const [masjid, setMasjid] = useState<
+    Awaited<ReturnType<typeof getMasjidById>>
+  >(null);
   const [displays, setDisplays] = useState<any[]>([]);
   const [currentTheme, setCurrentTheme] = useState<ThemeConfig>(
     defaultThemes[0]
@@ -1864,6 +1904,10 @@ export default function SignageDisplay({
   const fetchMasjid = async () => {
     const masjid = await getMasjidById(masjidId);
     setMasjid(masjid);
+    // Plan is read separately so getMasjidById stays off the plan columns.
+    getMasjidPlanForEditor(masjidId)
+      .then(setPlan)
+      .catch(() => setPlan("PRO"));
     fetch(`/api/masjids/${masjidId}/content`)
       .then(async (res) => {
         const data = await res.json();
@@ -1945,7 +1989,7 @@ export default function SignageDisplay({
           item.source === "announcement"
             ? ("announcements" as const)
             : ("content" as const),
-        template: slide.template || 'classic',
+        template: "classic" as const,
         contentId: item.id,
         theme: { ...defaultTheme },
         content: item,
@@ -1966,9 +2010,9 @@ export default function SignageDisplay({
         {
           id: crypto.randomUUID(),
           type: "prayerTimes" as const,
-          template: slide.template || 'classic',
+          template: "classic" as const,
           theme: { ...defaultTheme },
-          layout: "full",
+          layout: "full" as const,
         },
       ];
       setSelectedIndex(newSlides.length - 1);
@@ -1983,7 +2027,7 @@ export default function SignageDisplay({
         {
           id: crypto.randomUUID(),
           type: "custom" as const,
-          template: slide.template || 'classic',
+          template: "classic" as const,
           customComponentUrl: url,
           theme: { ...defaultTheme },
         },
@@ -2003,7 +2047,7 @@ export default function SignageDisplay({
         {
           id: crypto.randomUUID(),
           type: "split" as const,
-          template: slide.template || 'classic',
+          template: "classic" as const,
           splitConfig: split,
           theme: { ...defaultTheme },
         },
@@ -2256,6 +2300,36 @@ export default function SignageDisplay({
             </Popover>
           </div>
         </div>
+        {/* Slide allowance. Only shown when the plan actually caps slides, so
+            Pro masjids see no chrome for a limit they don't have. */}
+        {Number.isFinite(slideLimit(plan)) && (
+          <div
+            className={cn(
+              "mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border px-4 py-3 text-sm",
+              slides.length > slideLimit(plan)
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-[#550C18]/15 bg-[#550C18]/5 text-[#550C18]"
+            )}
+          >
+            <span className="font-medium">
+              {slides.length} of {slideLimit(plan)} slide
+              {slideLimit(plan) === 1 ? "" : "s"} used
+            </span>
+            {slides.length > slideLimit(plan) && (
+              <span>
+                — only the first {slideLimit(plan) === 1 ? "slide" : `${slideLimit(plan)} slides`} will
+                show on your display.
+              </span>
+            )}
+            <Link
+              href={`/dashboard/billing?masjidId=${masjidId ?? ""}`}
+              className="font-semibold underline"
+            >
+              Upgrade for unlimited
+            </Link>
+          </div>
+        )}
+
         <div className="flex flex-row gap-2 justify-between w-full h-full divide-x divide-[#550C18]/10">
             <DndContext
                 sensors={sensors}
@@ -2277,9 +2351,17 @@ export default function SignageDisplay({
                             <Card
                                 className={cn(
                                 "relative group border-[#550C18]/20 cursor-pointer transition-shadow shadow-md shadow-[#550C18]",
-                                selectedIndex === i && "ring-2 ring-[#550C18]"
+                                selectedIndex === i && "ring-2 ring-[#550C18]",
+                                // Past the plan's allowance: dimmed, since the
+                                // device won't render it.
+                                i >= slideLimit(plan) && "opacity-55"
                                 )}
                             >
+                                {i >= slideLimit(plan) && (
+                                  <span className="absolute right-2 top-2 z-10 rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-white">
+                                    Not shown
+                                  </span>
+                                )}
                                 <CardHeader className="flex flex-row items-center justify-between">
                                 <div className="flex items-center gap-2 w-full">
                                     <span className="inline-block align-middle">
@@ -2340,6 +2422,7 @@ export default function SignageDisplay({
                                         onUpdate={handleUpdateSlide}
                                         onDelete={() => handleDeleteSlide(slide.id!)}
                                         masjidId={masjidId}
+                                        plan={plan}
                                     />
                                 </div>
                                 </CardHeader>

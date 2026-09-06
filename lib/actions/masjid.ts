@@ -4,6 +4,8 @@ import { z } from "zod"
 import { v4 } from "uuid"
 import { getUser } from "./user"
 import { prisma } from "@/lib/db"
+import { seatLimit } from "@/lib/plan"
+import { ASSIGNABLE_ROLES, MASJID_ROLE, type MasjidRoleKey } from "@/lib/masjid-roles"
 import { sendMasjidInvite } from "./email";
 import { auth } from "../auth";
 
@@ -136,7 +138,16 @@ export async function getUserMasjid(masjidId?: string) {
   return masjid || null;
 }
 
-export async function inviteUserToMasjid(masjidId: string, userId: string, invitedById: string) {
+export async function inviteUserToMasjid(
+  masjidId: string,
+  userId: string,
+  invitedById: string,
+  role: MasjidRoleKey = MASJID_ROLE.VIEWER
+) {
+  if (!ASSIGNABLE_ROLES.includes(role)) {
+    return { error: true, message: "That role can't be assigned" };
+  }
+
   const masjid = await prisma.masjid.findFirst({
     where: {
       id: masjidId
@@ -165,11 +176,32 @@ export async function inviteUserToMasjid(masjidId: string, userId: string, invit
     message: "Invited by user not found!"
   };
 
+  // Seat limit: Free masjids get the owner only. Counts existing members plus
+  // outstanding invites, so pending invites can't be used to exceed the cap.
+  const seatCap = seatLimit(masjid.plan);
+  const [memberCount, legacyCount, pendingInvites] = await Promise.all([
+    prisma.masjidMember.count({ where: { masjidId } }),
+    prisma.user.count({ where: { masjids: { some: { id: masjidId } } } }),
+    prisma.masjidInvite.count({ where: { masjidId, status: "pending" } }),
+  ]);
+  // +1 for the owner, who has no membership row.
+  const used = Math.max(memberCount, legacyCount) + pendingInvites + 1;
+  if (used >= seatCap + 1) {
+    return {
+      error: true,
+      message:
+        masjid.plan === "PRO"
+          ? `Your plan includes ${seatCap} team members. Remove someone to invite another.`
+          : "Adding team members requires the Pro plan. Upgrade to invite up to 10 people.",
+    };
+  }
+
   const invite = await prisma.masjidInvite.create({
     data: {
       masjidId,
       userId,
       invitedById,
+      role,
       status: "pending",
       token: v4(),
       expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),

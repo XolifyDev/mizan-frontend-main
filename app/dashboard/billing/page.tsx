@@ -2,11 +2,28 @@ import { getUser } from "@/lib/actions/user";
 import { prisma } from "@/lib/db";
 import { stripeClient } from "@/lib/stripe";
 import { BillingClient } from "./BillingClient";
+import { PlanCard } from "@/components/PlanCard";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 export default async function BillingPage() {
   const user = await getUser();
   if (!user) redirect("/auth/signin");
+
+  // Set by middleware.ts from the ?masjidId= query param.
+  const masjidId = (await headers()).get("x-masjid-id");
+  const masjid = masjidId
+    ? await prisma.masjid.findUnique({
+        where: { id: masjidId },
+        select: {
+          id: true,
+          ownerId: true,
+          plan: true,
+          planStatus: true,
+          planCurrentPeriodEnd: true,
+        },
+      })
+    : null;
 
   // Orders from DB
   const orders = await prisma.orders.findMany({
@@ -36,7 +53,19 @@ export default async function BillingPage() {
   }
 
   return (
-    <BillingClient
+    <>
+      {masjid && (
+        <div className="px-6 pt-6">
+          <PlanCard
+            masjidId={masjid.id}
+            plan={masjid.plan}
+            planStatus={masjid.planStatus}
+            periodEnd={masjid.planCurrentPeriodEnd}
+            isOwner={masjid.ownerId === user.id}
+          />
+        </div>
+      )}
+      <BillingClient
       orders={orders.map((o) => ({
         id: o.id,
         status: o.status,
@@ -76,6 +105,7 @@ export default async function BillingPage() {
         expMonth: pm.card?.exp_month ?? 0,
         expYear: pm.card?.exp_year ?? 0,
       }))}
-    />
+      />
+    </>
   );
 }

@@ -49,6 +49,8 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import { MasjidSwitcher } from "./masjid-switcher";
 import { canAccessGroup, canAccessPath, getEffectiveRole } from "@/lib/permissions";
+import { isPathLocked } from "@/lib/plan";
+import { roleCanAccess } from "@/lib/masjid-roles";
 
 const mainNavItems = [
   {
@@ -99,6 +101,15 @@ const managementNavItems = [
   },
 ];
 
+/** Small "PRO" chip shown beside locked nav items. */
+function ProBadge() {
+  return (
+    <span className="ml-auto rounded-full bg-gradient-to-r from-[#550C18] to-[#78001A] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-white">
+      Pro
+    </span>
+  );
+}
+
 const philosopher = Philosopher({ weight: "700", subsets: ["latin"] });
 
 type SidebarSession = {
@@ -137,11 +148,76 @@ export default function DashboardSidebar({
       .then((d) => setHasPendingOrder(Boolean(d.pending)))
       .catch(() => {});
   }, []);
+
+  // Per-masjid role. Falls back to the legacy global role below until every
+  // membership has a MasjidMember row.
+  const [masjidRole, setMasjidRole] = useState<string | null>(null);
+  useEffect(() => {
+    if (!masjidId) return;
+    fetch(`/api/masjids/${masjidId}/role`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setMasjidRole(d?.role ?? null))
+      .catch(() => {});
+  }, [masjidId]);
   const effectiveRole = getEffectiveRole({
     role: user?.role,
     isOwner: masjid?.ownerId === user?.id,
     isAdmin: Boolean(user?.admin),
   });
+
+  const plan = (masjid as any)?.plan as string | undefined;
+
+  /**
+   * Renders one nav row. Pro routes on a Free masjid render as a non-link with
+   * a PRO chip; clicking is a no-op and the destination is blocked server-side
+   * regardless.
+   */
+  const renderNavItem = (item: {
+    title: string;
+    icon: React.ComponentType<{ className?: string }>;
+    path: string;
+  }) => {
+    // Role check first: a route the role can't reach is hidden entirely rather
+    // than shown as an upsell, since upgrading wouldn't grant access.
+    if (masjidRole && !roleCanAccess(item.path, masjidRole)) return null;
+
+    const locked = isPathLocked(item.path, plan);
+    const Icon = item.icon;
+
+    const button = (
+      <SidebarMenuButton
+        className={cn(
+          "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#7c3742]/10 data-[active=true]:text-[#7c3742]",
+          locked && "cursor-not-allowed opacity-55 hover:bg-transparent hover:text-[#3A3A3A]"
+        )}
+        isActive={!locked && item.path === pathname}
+        aria-disabled={locked || undefined}
+        title={locked ? `${item.title} is available on the Pro plan` : undefined}
+      >
+        <Icon className="h-5 w-5" />
+        <span>{item.title}</span>
+        {locked && <ProBadge />}
+        {!locked && item.path === "/dashboard/billing" && hasPendingOrder && (
+          <span className="ml-auto flex h-2 w-2 rounded-full bg-amber-500" />
+        )}
+      </SidebarMenuButton>
+    );
+
+    return (
+      <SidebarMenuItem key={item.path}>
+        {locked ? (
+          <Link
+            href={`/dashboard/billing${masjidQuery}`}
+            aria-label={`${item.title} — upgrade to Pro`}
+          >
+            {button}
+          </Link>
+        ) : (
+          <Link href={`${item.path}${masjidQuery}`}>{button}</Link>
+        )}
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -173,21 +249,7 @@ export default function DashboardSidebar({
                         isAdmin: Boolean(user?.admin),
                       })
                     )
-                    .map((item) => (
-                    <SidebarMenuItem key={item.path}>
-                      <Link href={`${item.path}${masjidQuery}`}>
-                        <SidebarMenuButton
-                          className={cn(
-                            "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#7c3742]/10 data-[active=true]:text-[#7c3742]"
-                          )}
-                          isActive={item.path === pathname}
-                        >
-                          <item.icon className="h-5 w-5" />
-                          <span>{item.title}</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                  ))}
+                    .map((item) => renderNavItem(item))}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -202,45 +264,11 @@ export default function DashboardSidebar({
                 <SidebarGroupLabel>Donations</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    <SidebarMenuItem key="/dashboard/donations/kiosk">
-                      <Link
-                        href={`/dashboard/donations/kiosk${masjidQuery}`}
-                      >
-                        <SidebarMenuButton
-                          isActive={pathname === "/dashboard/donations/kiosk"}
-                          className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                        >
-                          <CreditCard className="h-5 w-5" />
-                          <span>Kiosk</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem key="/dashboard/donations/categories">
-                      <Link
-                        href={`/dashboard/donations/categories${masjidQuery}`}
-                      >
-                        <SidebarMenuButton
-                          isActive={
-                            pathname === "/dashboard/donations/categories"
-                          }
-                          className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                        >
-                          <FileText className="h-5 w-5" />
-                          <span>Categories</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem key="/dashboard/donations">
-                      <Link href={`/dashboard/donations${masjidQuery}`}>
-                        <SidebarMenuButton
-                          isActive={pathname === "/dashboard/donations"}
-                          className="text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                        >
-                          <DollarSign className="h-5 w-5" />
-                          <span>Donations</span>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
+                    {[
+                      { title: "Kiosk", icon: CreditCard, path: "/dashboard/donations/kiosk" },
+                      { title: "Categories", icon: FileText, path: "/dashboard/donations/categories" },
+                      { title: "Donations", icon: DollarSign, path: "/dashboard/donations" },
+                    ].map((item) => renderNavItem(item))}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
@@ -255,21 +283,7 @@ export default function DashboardSidebar({
                 <SidebarGroupLabel>Content</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {contentNavItems.map((item) => (
-                      <SidebarMenuItem key={item.path}>
-                        <Link href={`${item.path}${masjidQuery}`}>
-                          <SidebarMenuButton
-                            className={cn(
-                              "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                            )}
-                            isActive={item.path === pathname}
-                          >
-                            <item.icon className="h-5 w-5" />
-                            <span>{item.title}</span>
-                          </SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    ))}
+                    {contentNavItems.map((item) => renderNavItem(item))}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
@@ -284,24 +298,7 @@ export default function DashboardSidebar({
                 <SidebarGroupLabel>Masjid Management</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {managementNavItems.map((item) => (
-                      <SidebarMenuItem key={item.path}>
-                        <Link href={`${item.path}${masjidQuery}`}>
-                          <SidebarMenuButton
-                            className={cn(
-                              "text-[#3A3A3A] hover:text-[#550C18] hover:bg-[#550C18]/5 data-[active=true]:bg-[#550C18]/10 data-[active=true]:text-[#550C18]"
-                            )}
-                            isActive={item.path === pathname}
-                          >
-                            <item.icon className="h-5 w-5" />
-                            <span>{item.title}</span>
-                            {item.path === "/dashboard/billing" && hasPendingOrder && (
-                              <span className="ml-auto flex h-2 w-2 rounded-full bg-amber-500" />
-                            )}
-                          </SidebarMenuButton>
-                        </Link>
-                      </SidebarMenuItem>
-                    ))}
+                    {managementNavItems.map((item) => renderNavItem(item))}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>

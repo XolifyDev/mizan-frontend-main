@@ -38,3 +38,13 @@ export const getMasjidById = async (id: string) => {
   });
   return masjid;
 };
+
+/**
+ * Plan for the signage editor's Pro badges. Separate from getMasjidById so that
+ * function never touches the plan columns — it runs on paths that must work
+ * whether or not the plan migration has been applied.
+ */
+export const getMasjidPlanForEditor = async (id: string) => {
+  const { getMasjidPlan } = await import("@/lib/plan-guard");
+  return getMasjidPlan(id);
+};

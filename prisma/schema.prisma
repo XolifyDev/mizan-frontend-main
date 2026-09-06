@@ -27,10 +27,20 @@ model Masjid {
   logo                      String              @default("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSIC25nqru3yN9lhtoTwdBWt_u0QlOcPzw3Bw&s")
   timezone                  String
   taxId                     String?
+  // Stripe Connect — money flowing TO the masjid (donations, kiosk).
   stripeFlatFee             Float               @default(0.30)
   stripePercentageFee       Float               @default(2.90)
   stripeAccountId           String?
   stripeAccountStatus       String?
+  // Mizan subscription — money flowing FROM the masjid to Mizan. Deliberately
+  // separate from the Connect fields above: different Stripe objects, different
+  // lifecycles. The plan is per-masjid, not per-user, because devices pair to a
+  // masjid and users can belong to several.
+  plan                      MasjidPlan          @default(FREE)
+  planStatus                String?
+  stripeSubscriptionId      String?
+  billingCustomerId         String?
+  planCurrentPeriodEnd      DateTime?
   createdAt                 DateTime            @default(now())
   updatedAt                 DateTime            @updatedAt
   ownerId                   String
@@ -45,6 +55,7 @@ model Masjid {
   kioskInstances            KioskInstance[]
   owner                     User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   masjidInvites             MasjidInvite[]      @relation("MasjidInviteToMasjid")
+  members                   MasjidMember[]      @relation("MasjidMembers")
   masjidProducts            MasjidProduct[]
   Orders                    Orders[]
   prayerCalculation         PrayerCalculation[]
@@ -221,6 +232,7 @@ model User {
   accounts         Account[]
   sessions         Session[]
   masjids          Masjid[]           @relation("MasjidUsers")
+  memberships      MasjidMember[]     @relation("UserMemberships")
 
   @@map("user")
 }
@@ -533,12 +545,32 @@ model Announcement {
   displays         TVDisplay[] @relation("AnnouncementToTVDisplay")
 }
 
+/// Explicit membership join, so each person can hold a different role at each
+/// masjid they belong to. Added alongside the implicit `MasjidUsers` relation
+/// rather than replacing it, so existing membership queries keep working while
+/// callers migrate over.
+model MasjidMember {
+  id        String     @id @default(cuid())
+  masjidId  String
+  userId    String
+  role      MasjidRole @default(VIEWER)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  masjid    Masjid     @relation("MasjidMembers", fields: [masjidId], references: [id], onDelete: Cascade)
+  user      User       @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([masjidId, userId])
+  @@index([masjidId])
+}
+
 model MasjidInvite {
-  id          String    @id @default(cuid())
+  id          String     @id @default(cuid())
   masjidId    String
   userId      String
   invitedById String
-  status      String    @default("pending")
+  /// Role the invitee receives on acceptance.
+  role        MasjidRole @default(VIEWER)
+  status      String     @default("pending")
   token       String
   expiresAt   DateTime
   joinDate    DateTime?
@@ -572,6 +604,22 @@ model SignageConfig {
   updatedAt DateTime @updatedAt
   masjid    Masjid   @relation(fields: [masjidId], references: [id], onDelete: Cascade)
   @@unique([masjidId, displayId])
+}
+
+enum MasjidPlan {
+  FREE
+  PRO
+}
+
+/// Per-masjid role. Scoped to the membership, not the user, because a person
+/// can belong to several masjids with different responsibilities in each.
+enum MasjidRole {
+  OWNER
+  ADMIN
+  CONTENT_EDITOR
+  PRAYER_TIMES
+  FINANCE
+  VIEWER
 }
 
 enum DiscountType {
