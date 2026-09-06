@@ -1,6 +1,7 @@
 import { Check, Sparkles } from "lucide-react";
 
 import { startProCheckout, openBillingPortal } from "@/lib/actions/subscription";
+import { PromoCodeField } from "@/components/PromoCodeField";
 
 const PRO_POINTS = [
   "Unlimited TV displays",
@@ -78,16 +79,23 @@ export function PlanCard({
 
       {isOwner ? (
         <form
-          action={
-            isPro
-              ? openBillingPortal.bind(null, masjidId)
-              : startProCheckout.bind(null, masjidId)
-          }
-          className="mt-6"
+          action={async (formData: FormData) => {
+            "use server";
+            if (isPro) {
+              await openBillingPortal(masjidId);
+              return;
+            }
+            const promo = formData.get("promoCode");
+            await startProCheckout(
+              masjidId,
+              typeof promo === "string" ? promo : undefined
+            );
+          }}
         >
+          {!isPro && <PromoCodeField />}
           <button
             type="submit"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#550C18] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#78001A]"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#550C18] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#78001A]"
           >
             {!isPro && <Sparkles className="h-4 w-4" />}
             {isPro ? "Manage subscription" : "Upgrade to Pro"}

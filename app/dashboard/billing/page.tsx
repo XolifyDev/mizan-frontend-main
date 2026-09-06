@@ -8,12 +8,26 @@ import { headers } from "next/headers";
 
 export default async function BillingPage() {
   const user = await getUser();
-  if (!user) redirect("/auth/signin");
+  // The signin route is /signin — /auth/signin does not exist and 404s.
+  if (!user) redirect("/signin?message=You need to login to access this page!");
 
   // Set by middleware.ts from the ?masjidId= query param.
   const masjidId = (await headers()).get("x-masjid-id");
-  const masjid = masjidId
-    ? await prisma.masjid.findUnique({
+
+  // Degrade rather than crash: if the plan columns are missing (migration not
+  // applied to this environment's database) the rest of billing — orders,
+  // invoices, payment methods — must still render.
+  let masjid: {
+    id: string;
+    ownerId: string;
+    plan: string;
+    planStatus: string | null;
+    planCurrentPeriodEnd: Date | null;
+  } | null = null;
+
+  if (masjidId) {
+    try {
+      masjid = await prisma.masjid.findUnique({
         where: { id: masjidId },
         select: {
           id: true,
@@ -22,8 +36,11 @@ export default async function BillingPage() {
           planStatus: true,
           planCurrentPeriodEnd: true,
         },
-      })
-    : null;
+      });
+    } catch (e) {
+      console.error("[billing] plan lookup failed; hiding plan card", e);
+    }
+  }
 
   // Orders from DB
   const orders = await prisma.orders.findMany({

@@ -63,8 +63,47 @@ async function ensureBillingCustomer(masjid: {
   return customer.id;
 }
 
+/**
+ * Validates a discount code without starting checkout, so the upgrade page can
+ * show what it's worth before the masjid commits.
+ */
+export async function validatePromoCode(code: string) {
+  const trimmed = code.trim();
+  if (!trimmed) return { valid: false as const, message: "Enter a code" };
+
+  try {
+    const found = await stripeClient.promotionCodes.list({
+      code: trimmed,
+      active: true,
+      limit: 1,
+    });
+    const promo = found.data[0];
+    if (!promo) {
+      return { valid: false as const, message: "That code isn't valid" };
+    }
+
+    const c = promo.coupon;
+    const off = c.percent_off
+      ? `${c.percent_off}% off`
+      : c.amount_off
+        ? `$${(c.amount_off / 100).toFixed(2)} off`
+        : "Discount applied";
+    const duration =
+      c.duration === "forever"
+        ? "for as long as you subscribe"
+        : c.duration === "repeating" && c.duration_in_months
+          ? `for ${c.duration_in_months} months`
+          : "on your first payment";
+
+    return { valid: true as const, message: `${off} ${duration}`, code: trimmed };
+  } catch (e: any) {
+    console.error("[promo] lookup failed", e);
+    return { valid: false as const, message: "Couldn't check that code" };
+  }
+}
+
 /** Starts Stripe Checkout for the Pro subscription. */
-export async function startProCheckout(masjidId: string) {
+export async function startProCheckout(masjidId: string, promoCode?: string) {
   if (!PRICE_ID) {
     throw new Error("STRIPE_PRO_PRICE_ID is not configured");
   }
@@ -77,6 +116,25 @@ export async function startProCheckout(masjidId: string) {
 
   const customerId = await ensureBillingCustomer(masjid);
 
+  // Resolve a typed-in code to a promotion code id. Stripe rejects
+  // `discounts` and `allow_promotion_codes` together, so only one is sent:
+  // a pre-applied discount when the masjid entered a valid code, otherwise
+  // Stripe's own promo field on the checkout page.
+  let discounts: { promotion_code: string }[] | undefined;
+  const typed = promoCode?.trim();
+  if (typed) {
+    const found = await stripeClient.promotionCodes.list({
+      code: typed,
+      active: true,
+      limit: 1,
+    });
+    if (found.data[0]) {
+      discounts = [{ promotion_code: found.data[0].id }];
+    }
+    // An invalid code falls through to Stripe's own field rather than
+    // blocking the upgrade.
+  }
+
   const session = await stripeClient.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
@@ -87,7 +145,7 @@ export async function startProCheckout(masjidId: string) {
     metadata: { masjidId },
     success_url: `${APP_URL}/dashboard/billing?masjidId=${masjidId}&status=upgraded`,
     cancel_url: `${APP_URL}/dashboard/billing?masjidId=${masjidId}&status=cancelled`,
-    allow_promotion_codes: true,
+    ...(discounts ? { discounts } : { allow_promotion_codes: true }),
   });
 
   if (!session.url) throw new Error("Stripe did not return a checkout URL");
