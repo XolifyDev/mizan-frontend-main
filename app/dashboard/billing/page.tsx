@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { stripeClient } from "@/lib/stripe";
 import { BillingClient } from "./BillingClient";
 import { PlanCard } from "@/components/PlanCard";
+import { SectionBoundary } from "@/components/SectionBoundary";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -73,13 +74,17 @@ export default async function BillingPage() {
     <>
       {masjid && (
         <div className="px-6 pt-6">
-          <PlanCard
-            masjidId={masjid.id}
-            plan={masjid.plan}
-            planStatus={masjid.planStatus}
-            periodEnd={masjid.planCurrentPeriodEnd}
-            isOwner={masjid.ownerId === user.id}
-          />
+          {/* Isolated so a failure here can't take down orders and invoices —
+              and so the failing section is identifiable without server logs. */}
+          <SectionBoundary name="Plan">
+            <PlanCard
+              masjidId={masjid.id}
+              plan={masjid.plan}
+              planStatus={masjid.planStatus}
+              periodEnd={masjid.planCurrentPeriodEnd}
+              isOwner={masjid.ownerId === user.id}
+            />
+          </SectionBoundary>
         </div>
       )}
       <BillingClient

@@ -1,7 +1,12 @@
 import { Check, Sparkles } from "lucide-react";
 
-import { startProCheckout, openBillingPortal } from "@/lib/actions/subscription";
+import {
+  startProCheckout,
+  openBillingPortal,
+  isBillingConfigured,
+} from "@/lib/actions/subscription";
 import { PromoCodeField } from "@/components/PromoCodeField";
+import { proPriceLabel } from "@/lib/plan";
 
 const PRO_POINTS = [
   "Unlimited TV displays",
@@ -12,7 +17,7 @@ const PRO_POINTS = [
   "Up to 10 team members with roles",
 ];
 
-export function PlanCard({
+export async function PlanCard({
   masjidId,
   plan,
   planStatus,
@@ -26,6 +31,9 @@ export function PlanCard({
   isOwner: boolean;
 }) {
   const isPro = plan === "PRO";
+  // Checkout needs STRIPE_PRO_PRICE_ID and a Stripe key. Without them the
+  // upgrade button can't work, so say so rather than offering a dead control.
+  const canCheckout = isPro || (await isBillingConfigured());
 
   return (
     <div className="mb-6 rounded-2xl border border-[#550C18]/12 bg-white p-6 shadow-sm">
@@ -57,7 +65,7 @@ export function PlanCard({
 
         {!isPro && (
           <div className="text-right">
-            <div className="text-2xl font-bold text-[#550C18]">$75</div>
+            <div className="text-2xl font-bold text-[#550C18]">{proPriceLabel()}</div>
             <div className="text-xs text-[#9ca3af]">per month</div>
           </div>
         )}
@@ -77,7 +85,12 @@ export function PlanCard({
         </ul>
       )}
 
-      {isOwner ? (
+      {isOwner && !canCheckout ? (
+        <p className="mt-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Upgrades aren&apos;t available right now. Please try again shortly or
+          contact support.
+        </p>
+      ) : isOwner ? (
         <form
           action={async (formData: FormData) => {
             "use server";
@@ -92,7 +105,6 @@ export function PlanCard({
             );
           }}
         >
-          {!isPro && <PromoCodeField />}
           <button
             type="submit"
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#550C18] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#78001A]"
@@ -100,6 +112,7 @@ export function PlanCard({
             {!isPro && <Sparkles className="h-4 w-4" />}
             {isPro ? "Manage subscription" : "Upgrade to Pro"}
           </button>
+          {!isPro && <PromoCodeField />}
         </form>
       ) : (
         <p className="mt-6 text-sm text-[#9ca3af]">

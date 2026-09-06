@@ -14,6 +14,19 @@
 export type Plan = "FREE" | "PRO";
 
 /**
+ * Pro subscription price, in cents. Single source of truth — the checkout
+ * session and every price shown in the UI read from here, so they can't drift.
+ * Override with STRIPE_PRO_PRICE_CENTS to change it without a code edit.
+ */
+export const PRO_PRICE_CENTS = Number(process.env.STRIPE_PRO_PRICE_CENTS) || 7500;
+
+/** Formatted for display, e.g. "$75" or "$74.50". */
+export const proPriceLabel = (): string => {
+  const dollars = PRO_PRICE_CENTS / 100;
+  return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)}`;
+};
+
+/**
  * Master switch for plan gating.
  *
  * OFF by default and until billing is actually live. With it off, every masjid

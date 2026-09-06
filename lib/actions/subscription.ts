@@ -5,9 +5,49 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { stripeClient } from "@/lib/stripe";
 import { getUser } from "@/lib/actions/user";
+import { PRO_PRICE_CENTS } from "@/lib/plan";
 
-const PRICE_ID = process.env.STRIPE_PRO_PRICE_ID;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// Read at call time, not module scope: a bundled module can be evaluated in a
+// context where the variable isn't present, and caching the miss would make a
+// later fix require a redeploy.
+const priceId = () => process.env.STRIPE_PRO_PRICE_ID;
+const appUrl = () =>
+  process.env.NEXT_PUBLIC_APP_URL ?? process.env.DOMAIN ?? "http://localhost:3000";
+
+/**
+ * The line item for Pro.
+ *
+ * Defines the price inline via `price_data`, so no Product or Price has to be
+ * created in the Stripe dashboard first — Stripe creates them from this. If
+ * STRIPE_PRO_PRICE_ID is ever set it wins, so you can move to a managed Price
+ * later without touching this code.
+ */
+const proLineItem = () => {
+  const existing = priceId();
+  if (existing) return { price: existing, quantity: 1 };
+
+  return {
+    quantity: 1,
+    price_data: {
+      currency: "usd",
+      unit_amount: PRO_PRICE_CENTS,
+      recurring: { interval: "month" as const },
+      product_data: {
+        name: "Mizan Pro",
+        description:
+          "Unlimited displays, all prayer templates, split-screen layouts, donations & kiosk, analytics, and up to 10 team members.",
+      },
+    },
+  };
+};
+
+/**
+ * Whether checkout can run. Only the secret key is required now that the price
+ * is defined inline.
+ */
+export async function isBillingConfigured(): Promise<boolean> {
+  return Boolean(process.env.STRIPE_SECRET_KEY);
+}
 
 /**
  * Only the masjid owner may change billing. Returns the masjid or throws.
@@ -104,8 +144,12 @@ export async function validatePromoCode(code: string) {
 
 /** Starts Stripe Checkout for the Pro subscription. */
 export async function startProCheckout(masjidId: string, promoCode?: string) {
-  if (!PRICE_ID) {
-    throw new Error("STRIPE_PRO_PRICE_ID is not configured");
+  if (!process.env.STRIPE_SECRET_KEY) {
+    // Misconfiguration is an operator problem, not the masjid's. Throwing here
+    // bubbles out of the server action and takes the whole billing page down,
+    // so send them back with something explainable instead.
+    console.error("[billing] STRIPE_SECRET_KEY is not set — upgrade cannot start");
+    redirect(`/dashboard/billing?masjidId=${masjidId}&status=billing-unavailable`);
   }
 
   const masjid = await assertOwner(masjidId);
@@ -138,13 +182,13 @@ export async function startProCheckout(masjidId: string, promoCode?: string) {
   const session = await stripeClient.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
-    line_items: [{ price: PRICE_ID, quantity: 1 }],
+    line_items: [proLineItem()],
     // Mirrored onto the subscription so the webhook can resolve the masjid even
     // if the customer record is ever reused or edited.
     subscription_data: { metadata: { masjidId } },
     metadata: { masjidId },
-    success_url: `${APP_URL}/dashboard/billing?masjidId=${masjidId}&status=upgraded`,
-    cancel_url: `${APP_URL}/dashboard/billing?masjidId=${masjidId}&status=cancelled`,
+    success_url: `${appUrl()}/dashboard/billing?masjidId=${masjidId}&status=upgraded`,
+    cancel_url: `${appUrl()}/dashboard/billing?masjidId=${masjidId}&status=cancelled`,
     ...(discounts ? { discounts } : { allow_promotion_codes: true }),
   });
 
@@ -161,7 +205,7 @@ export async function openBillingPortal(masjidId: string) {
 
   const session = await stripeClient.billingPortal.sessions.create({
     customer: masjid.billingCustomerId,
-    return_url: `${APP_URL}/dashboard/billing?masjidId=${masjidId}`,
+    return_url: `${appUrl()}/dashboard/billing?masjidId=${masjidId}`,
   });
 
   redirect(session.url);

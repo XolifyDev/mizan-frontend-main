@@ -30,7 +30,8 @@ export function PromoCodeField() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-[#550C18] underline-offset-2 hover:underline"
+        // block-level so it sits under the upgrade button, not beside it
+        className="mt-4 flex w-fit items-center gap-1.5 text-sm font-medium text-[#550C18] underline-offset-2 hover:underline"
       >
         <Tag className="h-3.5 w-3.5" />
         Have a discount code?

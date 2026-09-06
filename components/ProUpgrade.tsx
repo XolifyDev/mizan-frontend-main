@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Lock, Check } from "lucide-react";
 
+import { proPriceLabel } from "@/lib/plan";
+
 const PRO_POINTS = [
   "Unlimited TV displays",
   "Geometric & Mihrab prayer templates",
@@ -57,7 +59,7 @@ export function ProUpgrade({
         >
           View plans
         </Link>
-        <p className="mt-3 text-xs text-[#9ca3af]">$75/month · cancel anytime</p>
+        <p className="mt-3 text-xs text-[#9ca3af]">{proPriceLabel()}/month · cancel anytime</p>
       </div>
     </div>
   );
