@@ -4,6 +4,7 @@ import { stripeClient } from "@/lib/stripe";
 import { BillingClient } from "./BillingClient";
 import { PlanCard } from "@/components/PlanCard";
 import { SectionBoundary } from "@/components/SectionBoundary";
+import { reconcileSubscription } from "@/lib/actions/subscription";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 
@@ -27,6 +28,10 @@ export default async function BillingPage() {
   } | null = null;
 
   if (masjidId) {
+    // Stripe is the source of truth. Sync before reading, so a missed webhook
+    // can't leave a masjid that has paid sitting on the Free plan.
+    await reconcileSubscription(masjidId);
+
     try {
       masjid = await prisma.masjid.findUnique({
         where: { id: masjidId },

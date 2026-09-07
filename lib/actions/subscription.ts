@@ -196,6 +196,78 @@ export async function startProCheckout(masjidId: string, promoCode?: string) {
   redirect(session.url);
 }
 
+/** Subscription statuses that should keep Pro unlocked. */
+const ACTIVE_STATUSES = ["active", "trialing", "past_due"];
+
+/**
+ * Reconciles the masjid's plan against Stripe, which is the source of truth.
+ *
+ * Webhooks can be missed — misconfigured secret, a deploy mid-delivery, an
+ * outage — and a missed one means a masjid pays and never receives Pro. This
+ * closes that gap by checking Stripe directly when billing is viewed, so the
+ * webhook becomes an optimisation rather than the only path to entitlement.
+ *
+ * Safe to call on every render: it only writes when Stripe and the database
+ * actually disagree.
+ */
+export async function reconcileSubscription(masjidId: string): Promise<void> {
+  if (!process.env.STRIPE_SECRET_KEY) return;
+
+  try {
+    const masjid = await prisma.masjid.findUnique({
+      where: { id: masjidId },
+      select: {
+        id: true,
+        plan: true,
+        planStatus: true,
+        billingCustomerId: true,
+        stripeSubscriptionId: true,
+      },
+    });
+    if (!masjid?.billingCustomerId) return;
+
+    const subs = await stripeClient.subscriptions.list({
+      customer: masjid.billingCustomerId,
+      status: "all",
+      limit: 10,
+    });
+
+    const active = subs.data.find((s) => ACTIVE_STATUSES.includes(s.status));
+    const shouldBePro = Boolean(active);
+    const status = active?.status ?? subs.data[0]?.status ?? null;
+
+    // Period end lives on the subscription in older API versions and on its
+    // items in newer ones.
+    const periodEnd =
+      (active as any)?.current_period_end ??
+      (active?.items?.data ?? [])
+        .map((i: any) => i.current_period_end)
+        .find((v: any) => typeof v === "number");
+
+    const currentlyPro = masjid.plan === "PRO";
+    if (currentlyPro === shouldBePro && masjid.planStatus === status) return;
+
+    await prisma.masjid.update({
+      where: { id: masjidId },
+      data: {
+        plan: shouldBePro ? "PRO" : "FREE",
+        planStatus: status,
+        stripeSubscriptionId: active?.id ?? masjid.stripeSubscriptionId,
+        planCurrentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
+      },
+    });
+
+    console.log(
+      `[billing] reconciled ${masjidId}: ${masjid.plan} -> ${
+        shouldBePro ? "PRO" : "FREE"
+      } (${status})`
+    );
+  } catch (e) {
+    // Never let reconciliation break the billing page.
+    console.error("[billing] reconcile failed", e);
+  }
+}
+
 /** Opens the Stripe billing portal so the masjid can cancel or update payment. */
 export async function openBillingPortal(masjidId: string) {
   const masjid = await assertOwner(masjidId);
